@@ -6,7 +6,7 @@ Initialize the project orchestration, perform liveness/progress checks via cron,
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: E:\multi-sale-organizer\.agents\sentinel
-- Orchestrator: 6ac8dc44-42e6-425d-9c5b-ab987be1269a
+- Orchestrator: 63f718fc-8c2b-4074-b9c7-0fef94c83df3
 - Victory Auditor: to be spawned on victory claim
 
 ## 🔒 Key Constraints
