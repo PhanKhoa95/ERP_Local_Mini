@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:8080",
+    baseURL: "http://127.0.0.1:8017",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -20,7 +20,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run dev",
-    url: "http://127.0.0.1:8080",
+    url: "http://127.0.0.1:8017",
     reuseExistingServer: !process.env.CI,
     stdout: "ignore",
     stderr: "pipe",
