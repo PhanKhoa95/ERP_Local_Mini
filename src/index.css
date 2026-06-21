@@ -1,0 +1,355 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ERP Professional Theme - Light */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar - Dark theme */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Custom ERP Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Channel Colors */
+    --channel-shopee: 14 86% 55%;
+    --channel-tiktok: 0 0% 0%;
+    --channel-lazada: 240 73% 24%;
+    --channel-offline: 160 84% 39%;
+    --channel-website: 217 91% 60%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(199, 89%, 48%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(160, 84%, 39%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(38, 92%, 50%) 0%, hsl(25, 95%, 53%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.1), 0 2px 4px -2px hsl(222 47% 11% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.1), 0 4px 6px -4px hsl(222 47% 11% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.1), 0 8px 10px -6px hsl(222 47% 11% / 0.1);
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 12%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 217 33% 12%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Be Vietnam Pro', sans-serif;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply bg-card rounded-xl p-4 md:p-5 lg:p-6 shadow-md border border-border/50 transition-all duration-300 hover:shadow-lg;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 md:px-4 py-2.5 md:py-3 rounded-lg transition-all duration-200 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground;
+  }
+
+  .sidebar-item-active {
+    @apply bg-sidebar-accent text-sidebar-foreground font-medium;
+  }
+
+  .channel-badge {
+    @apply inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+
+  /* Tablet optimizations */
+  @screen md {
+    .tablet-grid-2 {
+      @apply grid-cols-2;
+    }
+    .tablet-grid-3 {
+      @apply grid-cols-3;
+    }
+    .tablet-hide {
+      @apply hidden;
+    }
+    .tablet-show {
+      @apply block;
+    }
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply backdrop-blur-xl bg-card/80;
+  }
+
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+
+  .animate-count-up {
+    animation: countUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Sync pulse ring – shows a pulsing ring around live connectors */
+  .sync-pulse {
+    position: relative;
+  }
+  .sync-pulse::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    border: 2px solid hsl(var(--primary) / 0.4);
+    animation: syncPulseRing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* Live dot – animated green dot for active connections */
+  .live-dot {
+    position: relative;
+  }
+  .live-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: inherit;
+    transform: translate(-50%, -50%);
+    animation: liveDotPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* Progress shimmer – horizontal shimmer overlay on progress bars */
+  .shimmer-progress {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-progress::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(0 0% 100% / 0.15) 50%,
+      transparent 100%
+    );
+    animation: shimmerSlide 2s ease-in-out infinite;
+  }
+
+  /* Stat card gradient backgrounds */
+  .stat-gradient-blue {
+    background: linear-gradient(135deg, hsl(217 91% 60% / 0.08) 0%, hsl(199 89% 48% / 0.04) 100%);
+  }
+  .stat-gradient-green {
+    background: linear-gradient(135deg, hsl(142 76% 36% / 0.08) 0%, hsl(160 84% 39% / 0.04) 100%);
+  }
+  .stat-gradient-amber {
+    background: linear-gradient(135deg, hsl(38 92% 50% / 0.08) 0%, hsl(25 95% 53% / 0.04) 100%);
+  }
+  .stat-gradient-purple {
+    background: linear-gradient(135deg, hsl(262 83% 58% / 0.08) 0%, hsl(280 68% 60% / 0.04) 100%);
+  }
+
+  /* Connector health card */
+  .connector-card {
+    @apply relative overflow-hidden rounded-xl border border-border/50 bg-card p-4 transition-all duration-300;
+  }
+  .connector-card:hover {
+    @apply shadow-lg border-primary/20;
+    transform: translateY(-1px);
+  }
+  .connector-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--connector-color, hsl(var(--primary)));
+    opacity: 0.8;
+    transition: opacity 0.3s;
+  }
+  .connector-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Sync timeline line */
+  .sync-timeline {
+    position: relative;
+    padding-left: 1.5rem;
+  }
+  .sync-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.4375rem;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 2px;
+    background: hsl(var(--border));
+    border-radius: 1px;
+  }
+  .sync-timeline-dot {
+    position: absolute;
+    left: 0;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 2px solid hsl(var(--border));
+    background: hsl(var(--card));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sync-timeline-dot.success {
+    border-color: hsl(var(--success));
+    background: hsl(var(--success) / 0.1);
+  }
+  .sync-timeline-dot.error {
+    border-color: hsl(var(--destructive));
+    background: hsl(var(--destructive) / 0.1);
+  }
+  .sync-timeline-dot.running {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    animation: syncPulseRing 2s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes syncPulseRing {
+  0% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 0; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+@keyframes liveDotPing {
+  0% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
+  75%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+}
+
+@keyframes shimmerSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
