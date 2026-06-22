@@ -59,10 +59,10 @@ export interface EmployeeProfileData {
   personal_email: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
-  bank_account: string | null;
-  bank_name: string | null;
-  tax_code: string | null;
-  social_insurance_number: string | null;
+  bank_account?: string | null;
+  bank_name?: string | null;
+  tax_code?: string | null;
+  social_insurance_number?: string | null;
 }
 
 const EMPLOYEES_KEY = "erp-mini-local-demo-perf-employees";

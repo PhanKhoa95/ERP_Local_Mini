@@ -1,10 +1,32 @@
 import type { Tables } from "@/integrations/supabase/types";
 
-export type OrderWithControl = Tables<"orders"> & {
-  sales_channels?: Tables<"sales_channels"> | null;
-  partners?: Tables<"partners"> | null;
-  warehouses?: { id: string; name: string } | null;
-  shipping_zones?: { id: string; name: string } | null;
+export type OrderWithControl = {
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  shipping_address?: string | null;
+  customer_address?: string | null;
+  source_type?: string | null;
+  payment_method?: string | null;
+  priority?: string | null;
+  partners?: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    address?: string | null;
+  } | null;
+  sales_channels?: {
+    id: string;
+    name: string;
+    color?: string | null;
+  } | null;
+  warehouses?: {
+    id: string;
+    name: string;
+  } | null;
+  shipping_zones?: {
+    id: string;
+    name: string;
+  } | null;
 };
 
 export const sourceLabels: Record<string, string> = {
