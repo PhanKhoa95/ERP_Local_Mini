@@ -7,14 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Wrench, Plus } from "lucide-react";
+import { Loader2, Wrench, Plus, Barcode } from "lucide-react";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
 import { ImageUpload } from "./ImageUpload";
 import { useProductCategories } from "@/hooks/useProductCategories";
 
 const productSchema = z.object({
-  sku: z.string().min(1, "SKU không được để trống").max(50),
+  sku: z.string().max(50).optional().default(""),
   name: z.string().min(1, "Tên sản phẩm không được để trống").max(200),
   category: z.string().max(100).optional(),
   unit: z.string().max(20).optional(),
@@ -43,6 +43,7 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
   const [newCategoryName, setNewCategoryName] = useState("");
   const [formData, setFormData] = useState({
     sku: "",
+    barcode: "",
     name: "",
     category: "",
     unit: "cái",
@@ -60,6 +61,7 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
     if (product) {
       setFormData({
         sku: product.sku,
+        barcode: (product as any).barcode || "",
         name: product.name,
         category: product.category || "",
         unit: product.unit || "cái",
@@ -74,6 +76,7 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
     } else {
       setFormData({
         sku: "",
+        barcode: "",
         name: "",
         category: "",
         unit: "cái",
@@ -89,11 +92,23 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
     setErrors({});
   }, [product, open]);
 
+  /** Generate SKU: SKU-{timestamp}-{random} */
+  const generateSku = () => {
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `SKU-${ts}-${rand}`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const validated = productSchema.parse(formData);
-      onSubmit(product ? { id: product.id, ...validated } : validated);
+      const dataToValidate = {
+        ...formData,
+        sku: formData.sku.trim() || generateSku(),
+      };
+      const validated = productSchema.parse(dataToValidate);
+      const payload = { ...validated, barcode: formData.barcode.trim() || undefined };
+      onSubmit(product ? { id: product.id, ...payload } : payload);
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -127,15 +142,34 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sku">SKU *</Label>
+              <Label htmlFor="sku">SKU</Label>
               <Input
                 id="sku"
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                 disabled={!!product}
+                placeholder={product ? "" : "Để trống để tự tạo"}
               />
+              {!product && !formData.sku && (
+                <p className="text-xs text-muted-foreground">Tự tạo mã nếu để trống</p>
+              )}
               {errors.sku && <p className="text-xs text-destructive">{errors.sku}</p>}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="barcode" className="flex items-center gap-1.5">
+                <Barcode className="h-3.5 w-3.5 text-muted-foreground" />
+                Mã vạch sản phẩm
+              </Label>
+              <Input
+                id="barcode"
+                value={formData.barcode}
+                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                placeholder="VD: 8934567890123"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">Danh mục</Label>
               {showNewCategory ? (

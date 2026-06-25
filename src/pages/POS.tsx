@@ -317,28 +317,8 @@ const POS = () => {
         })),
       });
 
-      if (!isLocalDemoAuthEnabled()) {
-        // Deduct inventory for non-service products
-        for (const item of cart) {
-          if (item.product.is_service) continue;
-          // Use RPC for atomic stock deduction
-          await supabase.rpc("increment_stock_quantity", {
-            p_product_id: item.product.id,
-            p_quantity: -item.quantity,
-          });
-          // Record inventory transaction
-          const { data: { user } } = await supabase.auth.getUser();
-          await supabase.from("inventory_transactions").insert({
-            product_id: item.product.id,
-            transaction_type: "out",
-            quantity: -item.quantity,
-            reference_type: "pos",
-            reference_id: orderNumber,
-            notes: `POS bán hàng - ${item.product.name}`,
-            created_by: user?.id,
-          });
-        }
-      }
+      // Stock deduction is now handled by createOrder in useOrders.ts
+
 
       toast({
         title: "Thanh toán thành công",

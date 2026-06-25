@@ -5,6 +5,10 @@ export function invalidateOrderRelated(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["orders"] });
   queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
   queryClient.invalidateQueries({ queryKey: ["finance-stats"] });
+  queryClient.invalidateQueries({ queryKey: ["products"] });
+  queryClient.invalidateQueries({ queryKey: ["warehouse-stock"] });
+  queryClient.invalidateQueries({ queryKey: ["warehouse-stock-full"] });
+  queryClient.invalidateQueries({ queryKey: ["inventory-transactions"] });
   queryClient.invalidateQueries({ queryKey: ["journal_entries"] });
   queryClient.invalidateQueries({ queryKey: ["journal_lines"] });
   queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });

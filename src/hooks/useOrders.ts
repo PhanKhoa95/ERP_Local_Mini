@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "./useCompanyContext";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { createLocalInventoryTransaction } from "@/lib/localInventoryStore";
+import { invalidateOrderRelated } from "@/lib/queryInvalidation";
 import { toast } from "sonner";
 
 export interface OrderItem {
@@ -17,6 +19,7 @@ export interface OrderItem {
     name: string;
     sku: string | null;
     price?: number;
+    is_service?: boolean;
   } | null;
 }
 
@@ -188,6 +191,93 @@ function saveLocalOrders(orders: Order[]) {
   localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(orders));
 }
 
+/** Deduct stock for order items (local demo mode) */
+function deductLocalStock(items: any[], orderNumber: string) {
+  for (const item of items) {
+    if (!item.product_id) continue;
+    try {
+      createLocalInventoryTransaction({
+        product_id: item.product_id,
+        transaction_type: "out",
+        quantity: item.quantity || 1,
+        notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
+      });
+    } catch (err) {
+      // Log but don't block order creation for stock errors
+      console.warn(`[Stock] Không thể trừ tồn kho cho ${item.product_id}:`, err);
+    }
+  }
+}
+
+/** Restore stock for order items (local demo mode) */
+function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: string) {
+  for (const item of items) {
+    if (!item.product_id) continue;
+    try {
+      createLocalInventoryTransaction({
+        product_id: item.product_id,
+        transaction_type: "in",
+        quantity: item.quantity || 1,
+        notes: `Hoàn tồn kho (${reason}) - Đơn hàng ${orderNumber}`,
+      });
+    } catch (err) {
+      console.warn(`[Stock] Không thể hoàn tồn kho cho ${item.product_id}:`, err);
+    }
+  }
+}
+
+/** Deduct stock for order items (Supabase mode) */
+async function deductSupabaseStock(items: any[], orderNumber: string) {
+  for (const item of items) {
+    if (!item.product_id) continue;
+    try {
+      // Atomic stock deduction via RPC
+      await supabase.rpc("increment_stock_quantity" as any, {
+        p_product_id: item.product_id,
+        p_quantity: -(item.quantity || 1),
+      });
+      // Record inventory transaction
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("inventory_transactions").insert({
+        product_id: item.product_id,
+        transaction_type: "out",
+        quantity: -(item.quantity || 1),
+        reference_type: "order",
+        reference_id: orderNumber,
+        notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
+        created_by: user?.id,
+      });
+    } catch (err) {
+      console.warn(`[Stock] Không thể trừ tồn kho cho ${item.product_id}:`, err);
+    }
+  }
+}
+
+/** Restore stock for order items (Supabase mode) */
+async function restoreSupabaseStock(items: OrderItem[], orderNumber: string, reason: string) {
+  for (const item of items) {
+    if (!item.product_id) continue;
+    try {
+      await supabase.rpc("increment_stock_quantity" as any, {
+        p_product_id: item.product_id,
+        p_quantity: item.quantity || 1,
+      });
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("inventory_transactions").insert({
+        product_id: item.product_id,
+        transaction_type: "in",
+        quantity: item.quantity || 1,
+        reference_type: `order-${reason}`,
+        reference_id: orderNumber,
+        notes: `Hoàn tồn kho (${reason}) - Đơn hàng ${orderNumber}`,
+        created_by: user?.id,
+      });
+    } catch (err) {
+      console.warn(`[Stock] Không thể hoàn tồn kho cho ${item.product_id}:`, err);
+    }
+  }
+}
+
 export function useOrders() {
   const { companyId } = useCompanyContext();
   const queryClient = useQueryClient();
@@ -226,6 +316,7 @@ export function useOrders() {
       if (isLocalDemoAuthEnabled()) {
         const all = getLocalOrders(companyId);
         const orderId = `ord-${Date.now()}`;
+        const orderNumber = orderData.order_number || orderId;
         const newOrder: Order = {
           ...orderData,
           id: orderId,
@@ -245,6 +336,12 @@ export function useOrders() {
         
         all.unshift(newOrder);
         saveLocalOrders(all);
+
+        // Deduct stock for local demo
+        if (items && items.length > 0) {
+          deductLocalStock(items, orderNumber);
+        }
+
         return newOrder;
       }
 
@@ -275,13 +372,15 @@ export function useOrders() {
           .insert(itemsPayload);
         
         if (itemsErr) throw itemsErr;
+
+        // Deduct stock for Supabase mode
+        await deductSupabaseStock(items, order.order_number || order.id);
       }
 
       return order;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["finance-stats", companyId] });
+      invalidateOrderRelated(queryClient);
       toast.success("Tạo đơn hàng thành công");
     },
     onError: (e: any) => {
@@ -295,11 +394,40 @@ export function useOrders() {
         const all = getLocalOrders(companyId || "");
         const idx = all.findIndex(o => o.id === id);
         if (idx !== -1) {
+          const order = all[idx];
+          const prevStatus = order.status;
+
+          // Restore stock when cancelling or returning (if previously deducted)
+          if ((status === "cancelled" || status === "returned") && prevStatus !== "cancelled" && prevStatus !== "returned") {
+            if (order.order_items && order.order_items.length > 0) {
+              restoreLocalStock(order.order_items, order.order_number, status === "cancelled" ? "hủy đơn" : "trả hàng");
+            }
+          }
+
           all[idx].status = status;
           all[idx].updated_at = new Date().toISOString();
           saveLocalOrders(all);
         }
         return;
+      }
+
+      // Fetch order with items to handle stock restoration
+      const { data: order, error: fetchErr } = await supabase
+        .from("orders")
+        .select("*, order_items(*, products(id, name, is_service))")
+        .eq("id", id)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      const prevStatus = order.status;
+
+      // Restore stock when cancelling or returning
+      if ((status === "cancelled" || status === "returned") && prevStatus !== "cancelled" && prevStatus !== "returned") {
+        const orderItems = (order.order_items || []) as OrderItem[];
+        if (orderItems.length > 0) {
+          await restoreSupabaseStock(orderItems, order.order_number, status === "cancelled" ? "cancel" : "return");
+        }
       }
 
       const { error } = await supabase
@@ -313,8 +441,7 @@ export function useOrders() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["finance-stats", companyId] });
+      invalidateOrderRelated(queryClient);
       toast.success("Cập nhật trạng thái đơn hàng thành công");
     },
     onError: (e: any) => {
@@ -329,3 +456,5 @@ export function useOrders() {
     updateOrderStatus
   };
 }
+
+
