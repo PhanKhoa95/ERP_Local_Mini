@@ -29,7 +29,7 @@ import { createLocalInventoryTransaction } from "@/lib/localInventoryStore";
 const transactionSchema = z.object({
   product_id: z.string().min(1, "Vui lòng chọn sản phẩm"),
   transaction_type: z.enum(["in", "out"]),
-  quantity: z.number().min(1, "Số lượng phải lớn hơn 0"),
+  quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
   notes: z.string().max(500).optional(),
 });
 
@@ -300,7 +300,8 @@ export function StockTransactionDialog({
             <Label>Số lượng *</Label>
             <Input
               type="number"
-              min={1}
+              min="0.0001"
+              step="0.0001"
               value={formData.quantity}
               onChange={(e) =>
                 setFormData({ ...formData, quantity: Number(e.target.value) })

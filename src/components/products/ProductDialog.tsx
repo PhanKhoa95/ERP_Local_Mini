@@ -20,8 +20,8 @@ const productSchema = z.object({
   unit: z.string().max(20).optional(),
   cost_price: z.number().min(0, "Giá nhập phải >= 0"),
   selling_price: z.number().min(0, "Giá bán phải >= 0"),
-  stock_quantity: z.number().int().min(0, "Tồn kho phải >= 0"),
-  min_stock: z.number().int().min(0, "Tồn kho tối thiểu phải >= 0"),
+  stock_quantity: z.number().min(0, "Tồn kho phải >= 0"),
+  min_stock: z.number().min(0, "Tồn kho tối thiểu phải >= 0"),
   description: z.string().max(1000).optional(),
   image_url: z.string().optional(),
   is_service: z.boolean().optional(),
@@ -294,6 +294,8 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
                 <Input
                   id="stock_quantity"
                   type="number"
+                  min="0"
+                  step="0.0001"
                   value={formData.stock_quantity}
                   onChange={(e) => setFormData({ ...formData, stock_quantity: Number(e.target.value) })}
                 />
@@ -304,6 +306,8 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
                 <Input
                   id="min_stock"
                   type="number"
+                  min="0"
+                  step="0.0001"
                   value={formData.min_stock}
                   onChange={(e) => setFormData({ ...formData, min_stock: Number(e.target.value) })}
                 />

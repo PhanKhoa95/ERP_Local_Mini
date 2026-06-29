@@ -30,10 +30,11 @@ export function ProductionPlanPanel() {
   const bomProducts = products.filter(p => productsWithBom.includes(p.id));
 
   const handleCreate = async () => {
-    if (!form.product_id || !form.quantity) return;
+    const quantity = Number(form.quantity);
+    if (!form.product_id || !Number.isFinite(quantity) || quantity <= 0) return;
     await createProductionOrder.mutateAsync({
       product_id: form.product_id,
-      quantity: parseInt(form.quantity),
+      quantity,
       notes: form.notes || undefined,
     });
     setDialogOpen(false);
@@ -168,7 +169,8 @@ export function ProductionPlanPanel() {
               <Label>Số lượng</Label>
               <Input
                 type="number"
-                min={1}
+                min="0.0001"
+                step="0.0001"
                 value={form.quantity}
                 onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
               />
