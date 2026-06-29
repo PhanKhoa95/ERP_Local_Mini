@@ -16,6 +16,49 @@ type Product = Tables<"products">;
 type ProductInsert = TablesInsert<"products">;
 type ProductUpdate = TablesUpdate<"products">;
 
+async function syncDefaultWarehouseStock(params: {
+  companyId: string;
+  productId: string;
+  stockQuantity: number | null | undefined;
+  minStock?: number | null | undefined;
+}) {
+  const { companyId, productId, stockQuantity, minStock } = params;
+  const { data: defaultWarehouse } = await supabase
+    .from("warehouses")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("is_default", true)
+    .maybeSingle();
+
+  if (!defaultWarehouse) return;
+
+  const quantity = Number(stockQuantity) || 0;
+  const min_stock = Number(minStock) || 0;
+  const { data: existingStock } = await supabase
+    .from("warehouse_stock")
+    .select("id")
+    .eq("warehouse_id", defaultWarehouse.id)
+    .eq("product_id", productId)
+    .maybeSingle();
+
+  if (existingStock) {
+    const { error } = await supabase
+      .from("warehouse_stock")
+      .update({ quantity, min_stock })
+      .eq("id", existingStock.id);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase.from("warehouse_stock").insert({
+    warehouse_id: defaultWarehouse.id,
+    product_id: productId,
+    quantity,
+    min_stock,
+  });
+  if (error) throw error;
+}
+
 export function useProducts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -62,23 +105,14 @@ export function useProducts() {
         return;
       }
 
-      // Auto-create warehouse_stock record for default warehouse
       if (companyId && data) {
         try {
-          const { data: defaultWarehouse } = await supabase
-            .from("warehouses")
-            .select("id")
-            .eq("company_id", companyId)
-            .eq("is_default", true)
-            .single();
-          if (defaultWarehouse) {
-            await supabase.from("warehouse_stock").insert({
-              warehouse_id: defaultWarehouse.id,
-              product_id: data.id,
-              quantity: data.stock_quantity || 0,
-              min_stock: 0,
-            });
-          }
+          await syncDefaultWarehouseStock({
+            companyId,
+            productId: data.id,
+            stockQuantity: data.stock_quantity,
+            minStock: data.min_stock,
+          });
         } catch {
           // Non-critical: warehouse_stock creation failure should not block product creation
         }
@@ -108,6 +142,17 @@ export function useProducts() {
         .select()
         .single();
       if (error) throw error;
+      if (
+        data?.company_id &&
+        (updates.stock_quantity !== undefined || updates.min_stock !== undefined || updates.is_service !== undefined)
+      ) {
+        await syncDefaultWarehouseStock({
+          companyId: data.company_id,
+          productId: id,
+          stockQuantity: data.stock_quantity,
+          minStock: data.min_stock,
+        });
+      }
       return data;
     },
     onSuccess: () => {
