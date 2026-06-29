@@ -4,6 +4,7 @@ import { useCompanyContext } from "./useCompanyContext";
 import { toast } from "sonner";
 import { invalidateProductionRelated } from "@/lib/queryInvalidation";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { applyLocalProductionCompletion } from "@/lib/localInventoryStore";
 
 const PRODUCTION_ORDERS_KEY = "erp-mini-local-demo-production-orders";
 
@@ -119,26 +120,13 @@ export function useProductionOrders() {
           if (status === "in_progress") updates.actual_start = new Date().toISOString();
           if (status === "completed") {
             updates.actual_end = new Date().toISOString();
-            // Khấu trừ nguyên vật liệu và cộng thành phẩm trong localStorage
-            const productsRaw = localStorage.getItem("erp-mini-local-demo-products") || "[]";
-            const products = JSON.parse(productsRaw);
             const po = local[idx];
-            const qty = po.quantity;
-            
-            const finishedProductIdx = products.findIndex((p: any) => p.id === po.product_id);
-            if (finishedProductIdx >= 0) {
-              products[finishedProductIdx].stock_quantity = (products[finishedProductIdx].stock_quantity || 0) + qty;
-            }
-            
-            const fabricIdx = products.findIndex((p: any) => p.sku === "NVL001");
-            const buttonIdx = products.findIndex((p: any) => p.sku === "NVL002");
-            if (fabricIdx >= 0) {
-              products[fabricIdx].stock_quantity = Math.max(0, (products[fabricIdx].stock_quantity || 0) - (qty * 1.2));
-            }
-            if (buttonIdx >= 0) {
-              products[buttonIdx].stock_quantity = Math.max(0, (products[buttonIdx].stock_quantity || 0) - (qty * 3));
-            }
-            localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(products));
+            applyLocalProductionCompletion({
+              productionOrderId: po.id,
+              productionNumber: po.production_number,
+              productId: po.product_id,
+              quantity: Number(po.quantity) || 0,
+            });
           }
           local[idx] = { ...local[idx], ...updates, updated_at: new Date().toISOString() };
           saveLocalProductionOrders(local);
@@ -149,7 +137,14 @@ export function useProductionOrders() {
 
       const updates: any = { status };
       if (status === "in_progress") updates.actual_start = new Date().toISOString();
-      if (status === "completed") updates.actual_end = new Date().toISOString();
+      if (status === "completed") {
+        const { error } = await supabase.rpc("complete_production_order" as any, {
+          p_production_order_id: id,
+        });
+        if (error) throw error;
+        return;
+      }
+
       const { error } = await supabase.from("production_orders").update(updates).eq("id", id);
       if (error) throw error;
     },
