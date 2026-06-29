@@ -414,7 +414,7 @@ export function useOrders() {
       // Fetch order with items to handle stock restoration
       const { data: order, error: fetchErr } = await supabase
         .from("orders")
-        .select("*, order_items(*, products(id, name, is_service))")
+        .select("*, order_items(*, products(id, name, sku, is_service))")
         .eq("id", id)
         .single();
 
@@ -456,5 +456,4 @@ export function useOrders() {
     updateOrderStatus
   };
 }
-
 
