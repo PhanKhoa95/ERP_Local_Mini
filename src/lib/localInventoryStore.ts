@@ -1,5 +1,11 @@
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { LOCAL_DEMO_COMPANY_ID, LOCAL_DEMO_USER_ID } from "@/lib/localDemoAuth";
+import {
+  buildProductionStockPlan,
+  formatMaterialAvailabilityIssues,
+  isPositiveQuantity,
+  roundStockQuantity,
+} from "@/lib/productionBom";
 
 type Product = Tables<"products">;
 type ProductInsert = TablesInsert<"products">;
@@ -285,6 +291,7 @@ export function createLocalInventoryTransaction(input: {
 
   const product = products[productIndex];
   if (product.is_service) throw new Error("San pham dich vu khong quan ly ton kho.");
+  if (!isPositiveQuantity(input.quantity)) throw new Error("So luong giao dich phai lon hon 0.");
 
   const delta = input.transaction_type === "in" ? input.quantity : -input.quantity;
   const currentStock = product.stock_quantity ?? 0;
@@ -294,7 +301,7 @@ export function createLocalInventoryTransaction(input: {
 
   products[productIndex] = {
     ...product,
-    stock_quantity: currentStock + delta,
+    stock_quantity: roundStockQuantity(currentStock + delta),
     updated_at: now(),
   };
   writeJson(PRODUCTS_KEY, products);
@@ -344,6 +351,10 @@ export function addLocalBomItem(input: {
   unit?: string;
   notes?: string;
 }) {
+  if (!isPositiveQuantity(input.quantity)) {
+    throw new Error("Dinh muc BOM phai lon hon 0.");
+  }
+
   if (input.product_id === input.material_id) {
     throw new Error("Khong the them san pham lam NVL cua chinh no.");
   }
@@ -375,6 +386,9 @@ export function updateLocalBomItem(id: string, updates: Partial<ProductBom>) {
   const items = readJson<ProductBom[]>(BOM_KEY, []);
   const index = items.findIndex((item) => item.id === id);
   if (index < 0) throw new Error("Khong tim thay BOM local.");
+  if (updates.quantity !== undefined && !isPositiveQuantity(Number(updates.quantity))) {
+    throw new Error("Dinh muc BOM phai lon hon 0.");
+  }
 
   const updated = { ...items[index], ...updates, updated_at: now() };
   items[index] = updated;
@@ -385,4 +399,84 @@ export function updateLocalBomItem(id: string, updates: Partial<ProductBom>) {
 export function deleteLocalBomItem(id: string) {
   const items = readJson<ProductBom[]>(BOM_KEY, []);
   writeJson(BOM_KEY, items.filter((item) => item.id !== id));
+}
+
+export function applyLocalProductionCompletion(input: {
+  productionOrderId: string;
+  productionNumber: string;
+  productId: string;
+  quantity: number;
+}) {
+  const products = readJson<Product[]>(PRODUCTS_KEY, []);
+  const productIndex = products.findIndex((product) => product.id === input.productId);
+  if (productIndex < 0) throw new Error("Khong tim thay thanh pham local.");
+
+  const finishedProduct = products[productIndex];
+  const productMap = new Map(products.map((product) => [product.id, product]));
+  const bomItems = readJson<ProductBom[]>(BOM_KEY, [])
+    .filter((item) => item.product_id === input.productId)
+    .map((item) => ({ ...item, material: productMap.get(item.material_id) }));
+
+  const plan = buildProductionStockPlan({
+    finishedProduct,
+    productionQuantity: input.quantity,
+    bomItems,
+    productionNumber: input.productionNumber,
+  });
+
+  if (!plan.canComplete) {
+    throw new Error(`Khong du nguyen vat lieu: ${formatMaterialAvailabilityIssues(plan.issues)}`);
+  }
+
+  const timestamp = now();
+  const updatedProducts = [...products];
+
+  for (const move of plan.materialMoves) {
+    const materialIndex = updatedProducts.findIndex((product) => product.id === move.product_id);
+    if (materialIndex < 0) throw new Error("Khong tim thay nguyen vat lieu local.");
+    const material = updatedProducts[materialIndex];
+    updatedProducts[materialIndex] = {
+      ...material,
+      stock_quantity: roundStockQuantity((material.stock_quantity ?? 0) + move.signedQuantity),
+      updated_at: timestamp,
+    };
+  }
+
+  updatedProducts[productIndex] = {
+    ...updatedProducts[productIndex],
+    stock_quantity: plan.finishedStockAfter,
+    cost_price: plan.finishedCostPriceAfter,
+    updated_at: timestamp,
+  };
+
+  writeJson(PRODUCTS_KEY, updatedProducts);
+
+  const transactions = readJson<InventoryTransaction[]>(TRANSACTIONS_KEY, []);
+  const productionTransactions: InventoryTransaction[] = [
+    ...plan.materialMoves.map((move) => ({
+      id: createId(),
+      product_id: move.product_id,
+      transaction_type: move.transaction_type,
+      quantity: move.signedQuantity,
+      reference_id: input.productionOrderId,
+      reference_type: "production_bom",
+      notes: move.notes,
+      created_by: LOCAL_DEMO_USER_ID,
+      created_at: timestamp,
+    })),
+    {
+      id: createId(),
+      product_id: plan.finishedGoodMove.product_id,
+      transaction_type: plan.finishedGoodMove.transaction_type,
+      quantity: plan.finishedGoodMove.signedQuantity,
+      reference_id: input.productionOrderId,
+      reference_type: "production_finished_good",
+      notes: plan.finishedGoodMove.notes,
+      created_by: LOCAL_DEMO_USER_ID,
+      created_at: timestamp,
+    },
+  ];
+
+  writeJson(TRANSACTIONS_KEY, [...productionTransactions, ...transactions]);
+  return plan;
 }
