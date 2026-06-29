@@ -111,7 +111,7 @@ export function useRunDataQualityChecks() {
       if (isLocalDemoAuthEnabled()) {
         const QUALITY_ISSUES_KEY = "erp-mini-local-demo-data-quality-issues";
         const raw = localStorage.getItem(QUALITY_ISSUES_KEY);
-        let currentIssues = raw ? JSON.parse(raw) : [];
+        const currentIssues = raw ? JSON.parse(raw) : [];
 
         const openIssues = currentIssues.filter((i: any) => i.status === "open");
         const resolvedIssues = currentIssues.filter((i: any) => i.status === "resolved");
@@ -267,4 +267,3 @@ export function pivotCohortData(cohorts: CohortRetention[]): CohortRow[] {
 
   return rows.sort((a, b) => a.signupMonth.localeCompare(b.signupMonth));
 }
-
