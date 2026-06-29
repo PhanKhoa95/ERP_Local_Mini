@@ -37,6 +37,18 @@ interface ImportRow {
   errors: string[];
 }
 
+function readImportValue(row: Record<string, unknown>, keys: string[], fallback: unknown = 0) {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return fallback;
+}
+
+function parseImportNumber(row: Record<string, unknown>, keys: string[]) {
+  return Number(readImportValue(row, keys, 0));
+}
+
 export function ProductImportDialog({ open, onOpenChange }: ProductImportDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -101,19 +113,32 @@ export function ProductImportDialog({ open, onOpenChange }: ProductImportDialogP
         const errors: string[] = [];
         const sku = String(row["SKU"] || row["sku"] || "").trim();
         const name = String(row["Tên sản phẩm"] || row["name"] || "").trim();
+        const cost_price = parseImportNumber(row, ["Giá nhập", "cost_price"]);
+        const selling_price = parseImportNumber(row, ["Giá bán", "selling_price"]);
+        const stock_quantity = parseImportNumber(row, ["Tồn kho", "stock_quantity"]);
+        const min_stock = parseImportNumber(row, ["Tồn tối thiểu", "min_stock"]);
 
         if (!sku) errors.push("Thiếu SKU");
         if (!name) errors.push("Thiếu tên sản phẩm");
+        [
+          ["Giá nhập", cost_price],
+          ["Giá bán", selling_price],
+          ["Tồn kho", stock_quantity],
+          ["Tồn tối thiểu", min_stock],
+        ].forEach(([label, value]) => {
+          if (!Number.isFinite(value as number)) errors.push(`${label} không hợp lệ`);
+          else if ((value as number) < 0) errors.push(`${label} phải >= 0`);
+        });
 
         return {
           sku,
           name,
           category: String(row["Danh mục"] || row["category"] || "").trim() || undefined,
           unit: String(row["Đơn vị"] || row["unit"] || "cái").trim(),
-          cost_price: Number(row["Giá nhập"] || row["cost_price"] || 0),
-          selling_price: Number(row["Giá bán"] || row["selling_price"] || 0),
-          stock_quantity: Number(row["Tồn kho"] || row["stock_quantity"] || 0),
-          min_stock: Number(row["Tồn tối thiểu"] || row["min_stock"] || 0),
+          cost_price,
+          selling_price,
+          stock_quantity,
+          min_stock,
           description: String(row["Mô tả"] || row["description"] || "").trim() || undefined,
           isValid: errors.length === 0,
           errors,
