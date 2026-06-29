@@ -157,6 +157,7 @@ export function useProducts() {
     },
     onSuccess: () => {
       invalidateProductRelated(queryClient);
+      invalidateWarehouseRelated(queryClient);
       toast({ title: "Cập nhật sản phẩm thành công" });
     },
     onError: (error: Error) => {
@@ -181,6 +182,7 @@ export function useProducts() {
     },
     onSuccess: () => {
       invalidateProductRelated(queryClient);
+      invalidateWarehouseRelated(queryClient);
       queryClient.invalidateQueries({ queryKey: ["inventory-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["product-bom"] });
       queryClient.invalidateQueries({ queryKey: ["products-with-bom"] });

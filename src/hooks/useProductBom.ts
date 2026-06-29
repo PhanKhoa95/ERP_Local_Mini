@@ -10,6 +10,7 @@ import {
   getLocalProductsWithBom,
   updateLocalBomItem,
 } from "@/lib/localInventoryStore";
+import { isPositiveQuantity } from "@/lib/productionBom";
 
 type Product = Tables<"products">;
 
@@ -88,6 +89,10 @@ export function useProductBom(productId?: string) {
   // Add BOM item
   const addBomItem = useMutation({
     mutationFn: async (item: BomInsert) => {
+      if (!isPositiveQuantity(Number(item.quantity))) {
+        throw new Error("Định mức BOM phải lớn hơn 0");
+      }
+
       if (isLocalDemoAuthEnabled()) {
         return addLocalBomItem(item);
       }
@@ -119,6 +124,10 @@ export function useProductBom(productId?: string) {
   // Update BOM item
   const updateBomItem = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: BomUpdate }) => {
+      if (updates.quantity !== undefined && !isPositiveQuantity(Number(updates.quantity))) {
+        throw new Error("Định mức BOM phải lớn hơn 0");
+      }
+
       if (isLocalDemoAuthEnabled()) {
         return updateLocalBomItem(id, updates);
       }
