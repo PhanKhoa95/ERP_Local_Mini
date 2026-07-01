@@ -1,0 +1,288 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { getLocalPartners } from "@/hooks/usePartners";
+
+export type MembershipTier = "bronze" | "silver" | "gold" | "diamond";
+export type MembershipStatus = "active" | "locked" | "expired";
+export type TransactionType = "deposit" | "payment" | "refund" | "adjust";
+
+export interface Membership {
+  id: string;
+  partner_id: string;
+  card_number: string;
+  tier: MembershipTier;
+  balance: number; // Tài khoản mua hàng
+  points: number; // Điểm tích luỹ
+  status: MembershipStatus;
+  issue_date: string;
+  expiry_date: string;
+  notes: string;
+}
+
+export interface MembershipTransaction {
+  id: string;
+  membership_id: string;
+  type: TransactionType;
+  amount: number;
+  description: string;
+  created_at: string;
+}
+
+const MEMBERSHIP_STORAGE_KEY = "erp-mini-local-demo-memberships";
+const TRANSACTION_STORAGE_KEY = "erp-mini-local-demo-membership-transactions";
+
+export const TIER_LABELS: Record<MembershipTier, string> = {
+  bronze: "Đồng (Bronze)",
+  silver: "Bạc (Silver)",
+  gold: "Vàng (Gold)",
+  diamond: "Kim Cương (Diamond)",
+};
+
+export const TIER_COLORS: Record<MembershipTier, string> = {
+  bronze: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900",
+  silver: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800",
+  gold: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-900",
+  diamond: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-900",
+};
+
+export const STATUS_LABELS: Record<MembershipStatus, string> = {
+  active: "Đang hoạt động",
+  locked: "Tạm khóa",
+  expired: "Hết hạn",
+};
+
+export const STATUS_COLORS: Record<MembershipStatus, string> = {
+  active: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-900",
+  locked: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-900",
+  expired: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-900",
+};
+
+export const TRANSACTION_LABELS: Record<TransactionType, string> = {
+  deposit: "Nạp tiền",
+  payment: "Thanh toán đơn hàng",
+  refund: "Hoàn tiền",
+  adjust: "Điều chỉnh số dư",
+};
+
+function seedDefaultMemberships(): { memberships: Membership[]; transactions: MembershipTransaction[] } {
+  // Try to load partners to link
+  const localPartners = getLocalPartners("default-company"); // Default company context in demo mode
+  const customers = localPartners.filter((p: any) => p.partner_type === "customer");
+  
+  const memberships: Membership[] = [];
+  const transactions: MembershipTransaction[] = [];
+
+  const tiers: MembershipTier[] = ["bronze", "silver", "gold", "diamond"];
+
+  customers.forEach((c: any, index: number) => {
+    // Determine tier based on customer promotion segment
+    let tier: MembershipTier = "bronze";
+    let balance = 0;
+    let points = 0;
+
+    if (c.promo_segment === "loyalty") {
+      tier = index % 2 === 0 ? "diamond" : "gold";
+      balance = index % 2 === 0 ? 5000000 : 1500000;
+      points = index % 2 === 0 ? 1200 : 450;
+    } else if (c.promo_segment === "wholesale") {
+      tier = "silver";
+      balance = 2000000;
+      points = 300;
+    } else {
+      tier = "bronze";
+      balance = index % 3 === 0 ? 200000 : 0;
+      points = index % 3 === 0 ? 50 : 10;
+    }
+
+    const cardNum = `MEM-${c.phone ? c.phone.slice(-6) : (100000 + index).toString()}`;
+    const mId = `mem-${c.id}`;
+
+    memberships.push({
+      id: mId,
+      partner_id: c.id,
+      card_number: cardNum,
+      tier,
+      balance,
+      points,
+      status: "active",
+      issue_date: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      expiry_date: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      notes: "Phát hành thẻ thành viên tự động",
+    });
+
+    if (balance > 0) {
+      transactions.push({
+        id: `tx-${mId}-init`,
+        membership_id: mId,
+        type: "deposit",
+        amount: balance,
+        description: "Nạp tiền kích hoạt tài khoản mua hàng",
+        created_at: new Date(Date.now() - 15 * 24 * 3600 * 1000).toISOString(),
+      });
+    }
+  });
+
+  localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(memberships));
+  localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(transactions));
+
+  return { memberships, transactions };
+}
+
+export function useMemberships() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: memberships = [], isLoading: membershipsLoading } = useQuery({
+    queryKey: ["memberships"],
+    queryFn: async () => {
+      const raw = localStorage.getItem(MEMBERSHIP_STORAGE_KEY);
+      if (!raw) {
+        return seedDefaultMemberships().memberships;
+      }
+      return JSON.parse(raw) as Membership[];
+    },
+  });
+
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+    queryKey: ["membership-transactions"],
+    queryFn: async () => {
+      const raw = localStorage.getItem(TRANSACTION_STORAGE_KEY);
+      if (!raw) {
+        return seedDefaultMemberships().transactions;
+      }
+      return JSON.parse(raw) as MembershipTransaction[];
+    },
+  });
+
+  const createMembership = useMutation({
+    mutationFn: async (membership: Omit<Membership, "id" | "issue_date" | "balance" | "points">) => {
+      const all = [...memberships];
+      const newM: Membership = {
+        ...membership,
+        id: `mem-${Date.now()}`,
+        balance: 0,
+        points: 0,
+        issue_date: new Date().toISOString().split("T")[0],
+      };
+
+      // Check duplicate card number or partner ID
+      if (all.some(m => m.card_number === newM.card_number)) {
+        throw new Error("Số thẻ thành viên này đã tồn tại");
+      }
+      if (all.some(m => m.partner_id === newM.partner_id)) {
+        throw new Error("Khách hàng này đã được liên kết với một thẻ thành viên khác");
+      }
+
+      all.unshift(newM);
+      localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(all));
+      return newM;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      toast({ title: "Phát hành thẻ thành viên thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
+  const updateMembershipStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: MembershipStatus }) => {
+      const all = [...memberships];
+      const idx = all.findIndex(m => m.id === id);
+      if (idx === -1) throw new Error("Không tìm thấy thẻ");
+      all[idx].status = status;
+      localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(all));
+      return all[idx];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      toast({ title: "Cập nhật trạng thái thẻ thành viên thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
+  const updateMembershipTier = useMutation({
+    mutationFn: async ({ id, tier }: { id: string; tier: MembershipTier }) => {
+      const all = [...memberships];
+      const idx = all.findIndex(m => m.id === id);
+      if (idx === -1) throw new Error("Không tìm thấy thẻ");
+      all[idx].tier = tier;
+      localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(all));
+      return all[idx];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      toast({ title: "Cập nhật hạng thẻ thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
+  const performTransaction = useMutation({
+    mutationFn: async ({
+      membershipId,
+      type,
+      amount,
+      description,
+    }: {
+      membershipId: string;
+      type: TransactionType;
+      amount: number;
+      description: string;
+    }) => {
+      const allM = [...memberships];
+      const allT = [...transactions];
+
+      const mIdx = allM.findIndex(m => m.id === membershipId);
+      if (mIdx === -1) throw new Error("Không tìm thấy thẻ");
+      const m = allM[mIdx];
+
+      if (type === "payment" && m.balance < amount) {
+        throw new Error("Số dư tài khoản mua hàng không đủ để thanh toán");
+      }
+
+      if (m.status !== "active") {
+        throw new Error("Thẻ thành viên hiện đang tạm khóa hoặc đã hết hạn");
+      }
+
+      // Update balance
+      if (type === "deposit" || type === "refund") {
+        m.balance += amount;
+      } else if (type === "payment") {
+        m.balance -= amount;
+        // Accumulate points: 1% of payment amount
+        m.points += Math.floor(amount / 10000);
+      } else if (type === "adjust") {
+        m.balance = amount; // absolute set for adjustment
+      }
+
+      const newTx: MembershipTransaction = {
+        id: `tx-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        membership_id: membershipId,
+        type,
+        amount,
+        description,
+        created_at: new Date().toISOString(),
+      };
+
+      allT.unshift(newTx);
+      localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(allM));
+      localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(allT));
+      return { membership: m, transaction: newTx };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      queryClient.invalidateQueries({ queryKey: ["membership-transactions"] });
+      toast({ title: "Thực hiện giao dịch thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
+  return {
+    memberships,
+    transactions,
+    isLoading: membershipsLoading || transactionsLoading,
+    createMembership,
+    updateMembershipStatus,
+    updateMembershipTier,
+    performTransaction,
+  };
+}
