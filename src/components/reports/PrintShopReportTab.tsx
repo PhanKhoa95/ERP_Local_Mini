@@ -77,7 +77,7 @@ export function PrintShopReportTab() {
   const { products } = useProducts();
   const { orders } = useOrders();
 
-  const [subTab, setSubTab] = useState<"overview" | "pricing" | "calculator" | "cashflow" | "simulator" | "capex" | "capacity">("overview");
+  const [subTab, setSubTab] = useState<"overview" | "pricing" | "calculator" | "cashflow" | "simulator" | "capex" | "capacity" | "settings">("overview");
 
   // Cash flow & Capacity assumptions
   const [assumedOrdersPerDay, setAssumedOrdersPerDay] = useState<number>(4);
