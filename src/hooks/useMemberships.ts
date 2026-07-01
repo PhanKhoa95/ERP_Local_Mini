@@ -491,6 +491,29 @@ export function useMemberships() {
     onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
   });
 
+  const updateMembershipDetails = useMutation({
+    mutationFn: async (updated: Partial<Membership> & { id: string }) => {
+      const all = [...memberships];
+      const idx = all.findIndex(m => m.id === updated.id);
+      if (idx === -1) throw new Error("Không tìm thấy thẻ");
+      
+      if (updated.card_number && updated.card_number !== all[idx].card_number) {
+        if (all.some(m => m.card_number === updated.card_number)) {
+          throw new Error("Số thẻ thành viên này đã tồn tại");
+        }
+      }
+      
+      all[idx] = { ...all[idx], ...updated };
+      localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(all));
+      return all[idx];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      toast({ title: "Cập nhật thông tin thẻ thành viên thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
   return {
     memberships,
     transactions,
@@ -503,5 +526,6 @@ export function useMemberships() {
     createMembershipTier,
     updateMembershipTierConfig,
     deleteMembershipTier,
+    updateMembershipDetails,
   };
 }

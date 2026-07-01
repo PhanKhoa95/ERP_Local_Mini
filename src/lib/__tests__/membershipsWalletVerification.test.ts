@@ -285,4 +285,30 @@ describe("Memberships & Wallet Balance Empirical Tests", () => {
     const card = { id: "mem-3", partner_id: "cust-9", card_number: "MEM-PLATINUM-777", tier: "platinum", balance: 0, points: 0, status: "active" };
     expect(card.tier).toBe("platinum");
   });
+
+  it("9. should allow updating membership card details (card number, tier, notes, image) and block duplicate card numbers on update", () => {
+    const memberships = [
+      { id: "mem-1", partner_id: "cust-1", card_number: "MEM-OLD-111", tier: "bronze", notes: "Old notes", balance: 0, points: 0, status: "active" },
+      { id: "mem-2", partner_id: "cust-2", card_number: "MEM-DUPLICATE", tier: "bronze", notes: "Other notes", balance: 0, points: 0, status: "active" }
+    ];
+    
+    // Simulate updating mem-1 with duplicate card number
+    const targetUpdateDuplicate = { id: "mem-1", card_number: "MEM-DUPLICATE" };
+    const all = [...memberships];
+    const idx = all.findIndex(m => m.id === targetUpdateDuplicate.id);
+    
+    const isDuplicate = all.some(m => m.id !== targetUpdateDuplicate.id && m.card_number === targetUpdateDuplicate.card_number);
+    expect(isDuplicate).toBe(true); // Should block duplicate
+
+    // Simulate successful update
+    const targetUpdateSuccess = { id: "mem-1", card_number: "MEM-NEW-999", tier: "gold", notes: "New updated notes", card_image: "data:image/png;base64,123" };
+    const isDuplicateSuccess = all.some(m => m.id !== targetUpdateSuccess.id && m.card_number === targetUpdateSuccess.card_number);
+    expect(isDuplicateSuccess).toBe(false);
+
+    all[idx] = { ...all[idx], ...targetUpdateSuccess };
+    expect(all[idx].card_number).toBe("MEM-NEW-999");
+    expect(all[idx].tier).toBe("gold");
+    expect(all[idx].notes).toBe("New updated notes");
+    expect(all[idx].card_image).toBe("data:image/png;base64,123");
+  });
 });

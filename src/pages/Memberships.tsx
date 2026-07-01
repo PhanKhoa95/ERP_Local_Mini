@@ -50,6 +50,7 @@ export default function Memberships() {
     createMembershipTier,
     updateMembershipTierConfig,
     deleteMembershipTier,
+    updateMembershipDetails,
   } = useMemberships();
 
   const { customers } = usePartners();
@@ -58,6 +59,127 @@ export default function Memberships() {
   const { logAction } = useAuditLogs();
   const { accounts: accountingAccounts = [] } = useAccounting();
   const isManagerOrAdmin = role === "admin" || role === "manager" || isLocalDemoAuthEnabled();
+
+  // Edit Card State
+  const [editCardDialogOpen, setEditCardDialogOpen] = useState(false);
+  const [editCardNumber, setEditCardNumber] = useState("");
+  const [editTier, setEditTier] = useState("");
+  const [editExpiryDate, setEditExpiryDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editCardImage, setEditCardImage] = useState<string | null>(null);
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+
+  const handleEditCardImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Lỗi file", description: "Vui lòng chọn file hình ảnh" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Lỗi file", description: "Kích thước file không được vượt quá 5MB" });
+      return;
+    }
+
+    setIsUploadingEditImage(true);
+
+    try {
+      if (isLocalDemoAuthEnabled()) {
+        const LOCAL_IMAGE_MAX_DIMENSION = 900;
+        const LOCAL_IMAGE_QUALITY = 0.72;
+
+        const readFileAsDataUrl = (f: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error ?? new Error("Không thể đọc file ảnh"));
+            reader.readAsDataURL(f);
+          });
+        };
+
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error("Không thể xử lý file ảnh"));
+            img.src = src;
+          });
+        };
+
+        const dataUrl = await readFileAsDataUrl(file);
+        if (file.type === "image/svg+xml") {
+          setEditCardImage(dataUrl);
+        } else {
+          const img = await loadImage(dataUrl);
+          const scale = Math.min(1, LOCAL_IMAGE_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+          const width = Math.max(1, Math.round(img.naturalWidth * scale));
+          const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext("2d");
+          if (context) {
+            context.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL("image/jpeg", LOCAL_IMAGE_QUALITY);
+            setEditCardImage(compressed);
+          } else {
+            setEditCardImage(dataUrl);
+          }
+        }
+        toast({ title: "Đã nạp hình ảnh local thành công" });
+      } else {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `cards/${fileName}`;
+
+        let uploadBucket = "membership-cards";
+        let uploadResult = await supabase.storage.from(uploadBucket).upload(filePath, file);
+
+        if (uploadResult.error) {
+          uploadBucket = "member-cards";
+          uploadResult = await supabase.storage.from(uploadBucket).upload(filePath, file);
+        }
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        const { data } = supabase.storage.from(uploadBucket).getPublicUrl(filePath);
+        setEditCardImage(data.publicUrl);
+        toast({ title: "Upload hình ảnh thẻ thành công" });
+      }
+    } catch (err: any) {
+      console.error("Card image upload failed:", err);
+      toast({ variant: "destructive", title: "Lỗi tải ảnh", description: err.message || "Không thể tải hình ảnh lên" });
+    } finally {
+      setIsUploadingEditImage(false);
+    }
+  };
+
+  const handleOpenEditCard = () => {
+    if (!currentMembership) return;
+    setEditCardNumber(currentMembership.card_number);
+    setEditTier(currentMembership.tier);
+    setEditExpiryDate(currentMembership.expiry_date);
+    setEditNotes(currentMembership.notes || "");
+    setEditCardImage(currentMembership.card_image || null);
+    setEditCardDialogOpen(true);
+  };
+
+  const handleSaveEditCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentMembership || !editCardNumber) return;
+    await updateMembershipDetails.mutateAsync({
+      id: currentMembership.id,
+      card_number: editCardNumber,
+      tier: editTier,
+      expiry_date: editExpiryDate,
+      notes: editNotes,
+      card_image: editCardImage || undefined,
+    });
+    setEditCardDialogOpen(false);
+  };
 
   const [newCardImage, setNewCardImage] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -553,17 +675,32 @@ export default function Memberships() {
                     </div>
                     <Select
                       value={selectedWithPartner.tier}
-                      onValueChange={(val: MembershipTier) => handleTierChange(selectedWithPartner.id, val)}
+                      onValueChange={(val: string) => handleTierChange(selectedWithPartner.id, val)}
                     >
                       <SelectTrigger className="w-[140px] h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(TIER_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                        {tierConfigs.map((tc) => (
+                          <SelectItem key={tc.id} value={tc.id} className="text-xs">{tc.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="flex justify-between items-center py-1 border-t pt-3">
+                    <div>
+                      <p className="text-xs font-semibold">Thông tin chi tiết</p>
+                      <p className="text-[10px] text-muted-foreground">Sửa mã thẻ, ngày hết hạn, hình ảnh</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleOpenEditCard}
+                    >
+                      Sửa thông tin
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -957,6 +1094,98 @@ export default function Memberships() {
               </Button>
               <Button type="submit" disabled={!newPartnerId || !newCardNumber || createMembership.isPending || isUploadingImage}>
                 {createMembership.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Xác nhận
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* EDIT CARD DIALOG */}
+      <Dialog open={editCardDialogOpen} onOpenChange={setEditCardDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa thẻ thành viên</DialogTitle>
+            <DialogDescription>
+              Cập nhật thông tin chi tiết cho thẻ {currentMembership?.card_number}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveEditCard} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_card_number">Mã số thẻ *</Label>
+              <Input
+                id="edit_card_number"
+                value={editCardNumber}
+                onChange={(e) => setEditCardNumber(e.target.value)}
+                placeholder="VD: MEM-123456"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Hạng thành viên</Label>
+              <Select value={editTier} onValueChange={(val: string) => setEditTier(val)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {tierConfigs.map((tc) => (
+                    <SelectItem key={tc.id} value={tc.id}>{tc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_expiry_date">Ngày hết hạn *</Label>
+              <Input
+                id="edit_expiry_date"
+                type="date"
+                value={editExpiryDate}
+                onChange={(e) => setEditExpiryDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_card_notes">Ghi chú thẻ</Label>
+              <Input
+                id="edit_card_notes"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Ghi chú thêm..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-card-image-upload">Hình ảnh thẻ thành viên</Label>
+              <Input
+                id="edit-card-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleEditCardImageChange}
+                disabled={isUploadingEditImage}
+              />
+              {editCardImage && (
+                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border">
+                  <img src={editCardImage} alt="Card preview" className="w-full h-full object-cover" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => setEditCardImage(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditCardDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={!editCardNumber || updateMembershipDetails.isPending || isUploadingEditImage}>
+                {updateMembershipDetails.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Xác nhận
               </Button>
             </DialogFooter>
