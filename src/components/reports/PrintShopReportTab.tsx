@@ -49,6 +49,7 @@ import {
   PercentIcon,
   Trash2,
   Plus,
+  FileText,
 } from "lucide-react";
 import {
   printShopKpis,
