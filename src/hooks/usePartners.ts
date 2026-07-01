@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
-import { logLocalAction } from "@/utils/offlineLogs";
+import { logLocalAction } from "@/lib/localInventoryStore";
 import type { Database } from "@/integrations/supabase/types";
 
 export interface Partner {
