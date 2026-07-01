@@ -38,14 +38,20 @@ Implement the Memberships & Wallet Balance features in ERP_Local_Mini based on t
 - y:\ERP_Local_Mini\.agents\worker_memberships_wallet_impl\ORIGINAL_REQUEST.md — Original request copy
 
 ## Change Tracker
-- **Files modified**: None
-- **Build status**: Unknown
+- **Files modified**:
+  - `src/hooks/useMemberships.ts` — Added `card_image` to `Membership` type, removed duplicate customer card limit constraint, logged transactions via audit log, and retrieved dynamic offset account for deposit/refund cashflow.
+  - `src/pages/Memberships.tsx` — Added "Cài đặt ví" configuration tab, added file selection input and preview/thumbnail of cards, retrieved and updated dynamic offset account configuration.
+  - `src/components/partners/PartnerDetailDialog.tsx` — Displayed all memberships of a customer in responsive Glassmorphism layout.
+  - `src/pages/POS.tsx` — Added payment card selector dropdown in checkout panel if selected customer has multiple cards.
+  - `src/lib/erpEventBus.ts` — Implemented dynamic offset account retrieval and asset vs liability balance updates.
+  - `src/lib/__tests__/erpEventBus.test.ts` — Added integration tests covering dynamic offset accounts and asset/liability balance updates.
+- **Build status**: Pass
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Unknown
-- **Lint status**: Unknown
-- **Tests added/modified**: None
+- **Build/test result**: Pass (Vite production build succeeded, and Vitest test suite with 8 tests passed successfully)
+- **Lint status**: Pass (npm run typecheck passed without errors)
+- **Tests added/modified**: Added 2 integration tests inside `src/lib/__tests__/erpEventBus.test.ts`
 
 ## Loaded Skills
 - None
