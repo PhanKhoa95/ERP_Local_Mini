@@ -267,3 +267,46 @@ Integrity mode: development
 - [ ] Hệ thống hoạt động mượt mà không lỗi cú pháp khi bật/tắt Local Demo.
 - [ ] Mọi thay đổi ma trận quyền được ghi vào lịch sử Audit log thành công.
 - [ ] Vượt qua kiểm tra kiểu tĩnh `npm run typecheck` và build production `npm run build` thành công.
+
+## Follow-up — 2026-07-01T16:21:28+07:00
+
+Nâng cấp và hoàn thiện tính năng Thẻ thành viên & Ví (Memberships & Wallet Balance) trong ERP_Local_Mini, hỗ trợ nhiều thẻ, tải lên hình ảnh thẻ, cấu hình động tài khoản kế toán đối ứng và tự động hạch toán dòng tiền ví.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Quản lý nhiều thẻ thành viên và Tải lên hình ảnh thẻ (Multiple Cards & Image Upload)
+- Cho phép tạo nhiều thẻ thành viên (Membership Cards) cho cùng một đối tác (Partner / Khách hàng) với mã thẻ và hạng thẻ khác nhau.
+- Tích hợp tính năng tải lên hình ảnh thẻ (lưu dưới dạng Base64 trong Local Demo hoặc upload lên Supabase Storage trong chế độ online) và lưu trữ trong trường `card_image` của bảng `memberships`.
+- Hiển thị trực quan hình ảnh thẻ đã tải lên hoặc mẫu thẻ Glassmorphism/3D đẹp mắt trên giao diện chi tiết thành viên.
+
+### R2. Cấu hình động tài khoản kế toán đối ứng cho Ví
+- Cung cấp giao diện trong tab Cài đặt thẻ thành viên để Admin/Kế toán chọn tài khoản kế toán đối ứng của ví (ví dụ: chọn tài khoản `3387` - Doanh thu chưa thực hiện, `131` - Phải thu khách hàng, hoặc `3388` - Phải trả khác) từ danh mục tài khoản (Chart of Accounts).
+
+### R3. Tự động hạch toán kế toán dòng tiền Ví (Cashflow & Accounting Integration)
+- **Khi nạp tiền vào ví (Deposit):** Hệ thống tự động ghi nhận bút toán kế toán: Ghi Nợ tài khoản tiền gửi/tiền mặt (`111`/`112`) và Ghi Có tài khoản đối ứng ví đã cấu hình (ví dụ: `3387` hoặc `131`).
+- **Khi thanh toán đơn hàng bằng ví (Payment):** Hệ thống tự động ghi nhận bút toán: Ghi Nợ tài khoản đối ứng ví đã cấu hình và Ghi Có tài khoản doanh thu (`511`).
+- Đảm bảo các giao dịch ví được ghi nhận rõ ràng vào lịch sử giao dịch thành viên (`membership_transactions`) và đồng bộ vào Sổ cái kế toán chung.
+
+### R4. Tính tương thích và Audit Logs
+- Hỗ trợ đầy đủ cả chế độ Local Demo (lưu `localStorage`) và Supabase DB thật.
+- Ghi nhận chi tiết lịch sử thay đổi cấu hình tài khoản đối ứng và lịch sử nạp/chi tiêu ví vào bảng `audit_logs`.
+
+## Acceptance Criteria
+
+### Giao diện quản lý thẻ & Upload hình ảnh
+- [ ] UI cho phép một đối tác có thể tạo/sở hữu nhiều thẻ thành viên với các mã số thẻ khác nhau.
+- [ ] Biểu mẫu thêm/sửa thẻ thành viên có nút chọn file tải lên hình ảnh thẻ, lưu trữ thành công và hiển thị thumbnail trực quan.
+- [ ] Giao diện chi tiết đối tác hiển thị danh sách toàn bộ các thẻ thành viên của họ dưới dạng thẻ Glassmorphism sống động.
+
+### Cấu hình kế toán & Hạch toán dòng tiền
+- [ ] Admin/Kế toán có thể thay đổi tài khoản đối ứng cho ví thành viên trong phần Cài đặt và tuỳ chọn này được lưu trữ đồng bộ.
+- [ ] Thao tác nạp tiền vào ví tạo ra bút toán kế toán cân Nợ/Có chính xác (ví dụ: Nợ 111 / Có 3387).
+- [ ] Thanh toán đơn hàng bằng ví tạo ra bút toán kế toán cân Nợ/Có chính xác (Nợ 3387 / Có 511) và cập nhật số dư ví thành viên tức thì.
+- [ ] Lịch sử giao dịch ví hiển thị đầy đủ thông tin dòng tiền và chứng từ kế toán liên kết.
+
+### Tương thích hệ thống
+- [ ] Mọi hành động nạp tiền, chi tiêu và đổi cấu hình được ghi nhận thành công vào `audit_logs`.
+- [ ] Ứng dụng vượt qua kiểm tra kiểu tĩnh `npm run typecheck` và build production `npm run build` thành công 100%.
