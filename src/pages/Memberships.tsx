@@ -29,6 +29,7 @@ import {
 } from "@/hooks/useMemberships";
 import { usePartners } from "@/hooks/usePartners";
 import { useAccounting } from "@/hooks/useAccounting";
+import { useToast } from "@/hooks/use-toast";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
@@ -48,6 +49,7 @@ export default function Memberships() {
   } = useMemberships();
 
   const { customers } = usePartners();
+  const { toast } = useToast();
   const { role } = useCompanyContext();
   const { logAction } = useAuditLogs();
   const { accounts: accountingAccounts = [] } = useAccounting();
