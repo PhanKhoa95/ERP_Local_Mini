@@ -6,7 +6,7 @@ Nâng cấp và hoàn thiện tính năng Thẻ thành viên & Ví (Memberships 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents\sentinel
-- Orchestrator: TBD
+- Orchestrator: 2bff7b72-6ffb-46c0-954c-29f349c5f6a9
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
@@ -21,7 +21,7 @@ Nâng cấp và hoàn thiện tính năng Thẻ thành viên & Ví (Memberships 
 - **Delivered results**: none
 
 ## Project Status
-- **Phase**: not started
+- **Phase**: in progress
 
 ## Victory Audit Status
 - **Triggered**: no

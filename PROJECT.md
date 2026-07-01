@@ -15,6 +15,10 @@
 | 5 | Configuration Clean-up | Form thêm/sửa danh mục tại `CategoriesTab` không còn trường nhập "Thời gian bảo hành". Tab `SalesPoliciesTab` hiển thị đầy đủ 2 phần: chính sách theo phân khúc và thời gian bảo hành theo danh mục. | None | DONE (42496679) |
 | 6 | Dynamic Partner Warranty Sync | Hồ sơ khách hàng (`PartnerDetailDialog`) hiển thị chính sách động và tính toán bảo hành động một cách chính xác. Optimize UI for Desktop and Mobile. | M5 | DONE (42496679) |
 | 7 | Full Verification | Playwright E2E tests pass 100%. `npm run typecheck` and `npm run test` pass. | M5, M6 | DONE (bcb56270, 25dad2fb, afae5a08, 92f45180, 52e72c99) |
+| 8 | Memberships & Wallet Balance | Implement multiple cards, image upload, dynamic account settings, automatic cashflow accounting, and audit logs. Verify E2E memberships test. | None | IN_PROGRESS (2bff7b72-6ffb-46c0-954c-29f349c5f6a9) |
 
 ## Interface Contracts
 - **E2E Screenshot Path**: E2E tests must read the screenshot path dynamically or from an environment variable, fallback to the current conversation brain directory `C:/Users/KHOA MEDIA/.gemini/antigravity/brain/0981d539-feb1-4def-9660-a5731a4a4b16`.
+- **Memberships Offset Account Selection**: Configuration stored in localStorage key `erp-mini-membership-offset-account` (default: `"3387"`).
+- **Membership Interface Extension**: Membership object contains optional `card_image` string field.
+
