@@ -59,22 +59,28 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await page.goto("/promotions");
     await page.click("text=Tạo chiến dịch");
 
-    // Fill form
-    await page.fill('input[placeholder="Ví dụ: Ưu đãi ngày hè, Giảm giá cuối tháng..."]', "Wholesale Mega Deal");
+    // Locate dialog container
+    const dialog = page.locator('div[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+
+    // Fill form inside dialog
+    await dialog.locator('input[placeholder="Ví dụ: Ưu đãi ngày hè, Giảm giá cuối tháng..."]').fill("Wholesale Mega Deal");
     
-    // Toggle auto-apply
-    const autoApplySwitch = page.locator('button[role="switch"]').first();
+    // Toggle auto-apply inside dialog
+    const autoApplySwitch = dialog.locator('button[role="switch"]').first();
     await autoApplySwitch.click();
 
-    // Select Customer Group target -> wholesale
-    await page.click('div:has-text("Đối tượng khách hàng") + div button');
+    // Select Customer Group target -> wholesale inside dialog
+    const targetGroupSelect = dialog.locator('div.space-y-2:has-text("Đối tượng khách hàng") button');
+    await expect(targetGroupSelect).toBeVisible({ timeout: 5000 });
+    await targetGroupSelect.click();
     await page.click('div[role="presentation"] >> text=Khách mua sỉ');
 
-    // Select discount type -> Percentage and enter 15%
-    await page.fill('input[placeholder="10"]', "15");
+    // Select discount type -> Percentage and enter 15% inside dialog
+    await dialog.locator('input[placeholder="10"]').fill("15");
 
-    // Click Submit
-    await page.click('button:has-text("Kích hoạt")');
+    // Click Submit inside dialog
+    await dialog.locator('button:has-text("Kích hoạt")').click();
 
     // Verify it is created in the table
     await expect(page.locator("body")).toContainText("Wholesale Mega Deal", { timeout: 10000 });
