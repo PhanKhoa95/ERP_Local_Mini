@@ -629,6 +629,7 @@ export function usePaymentTransactions(partnerId?: string) {
       let amount = 0;
       let content = "";
       let transactionId = "";
+      let transactionDate = "";
 
       if (isLocalDemoAuthEnabled()) {
         const rawOrders = localStorage.getItem(ORDERS_KEY);
@@ -645,6 +646,7 @@ export function usePaymentTransactions(partnerId?: string) {
         amount = bankTxs[txIdx].amount;
         content = bankTxs[txIdx].content || "";
         transactionId = bankTxs[txIdx].transaction_id;
+        transactionDate = bankTxs[txIdx].transaction_time;
 
         bankTxs[txIdx].reconciliation_status = "matched";
         bankTxs[txIdx].matched_entity_id = payload.orderId;
@@ -672,6 +674,7 @@ export function usePaymentTransactions(partnerId?: string) {
         amount = bankTx.amount;
         content = bankTx.content || "";
         transactionId = bankTx.transaction_id;
+        transactionDate = bankTx.transaction_time;
 
         const { error: updateErr } = await supabase
           .from("bank_transactions")
@@ -694,6 +697,7 @@ export function usePaymentTransactions(partnerId?: string) {
         amount: amount,
         payment_method: "bank_transfer",
         reference_number: transactionId,
+        transaction_date: transactionDate,
         notes: `Casso đối soát thủ công: ${content}`
       });
 
