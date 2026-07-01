@@ -187,3 +187,41 @@ Kích hoạt môi trường thử nghiệm cục bộ và chạy toàn bộ các
 
 ### Build & Package
 - [ ] Lệnh `npm run build` hoàn thành thành công và tạo ra thư mục `dist` chứa đầy đủ tài nguyên tĩnh (exit code = 0).
+
+## Follow-up — 2026-07-01T07:45:47Z
+
+Nghiên cứu và khắc phục các điểm hạn chế về logic nghiệp vụ (10 lỗi logic) và sự không đồng nhất dữ liệu (10 lỗi mất đồng bộ) trên hệ thống ERP_Local_Mini nhằm đảm bảo an toàn tài chính và tính chính xác của số liệu báo cáo.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Khắc phục các lỗi logic nghiệp vụ (Logic Resolution)
+Sửa đổi các lỗi logic trong các module Tài chính, Kho hàng (BOM), Cài đặt và Báo cáo để ngăn chặn rủi ro thất thoát dòng tiền, bao gồm:
+- Ràng buộc trạng thái `paid` dựa trên số tiền thực thu `paid_amount` so với tổng tiền đơn hàng.
+- Bổ dung giao diện khớp thủ công (Manual Match) cho các giao dịch Casso `unmatched`.
+- Ngăn chặn/cảnh báo bán hàng thấp hơn giá vốn.
+- Chặn việc xoá sản phẩm đang tồn tại trong định mức BOM của thành phẩm khác.
+- Cho phép quản lý số lượng đối với các gói dịch vụ có giới hạn.
+- Tự động bỏ qua các kênh bán hàng ngưng hoạt động khi tính toán hạn ngạch gói cước.
+- Kiểm tra hạn mức ngân sách dự án khi tạo phiếu chi tiêu liên quan.
+- Chặn đệ quy vòng lặp nguyên vật liệu trong định mức BOM.
+
+### R2. Khắc phục các lỗi mất đồng bộ dữ liệu (Data Synchronization)
+Bảo đảm tính toàn vẹn dữ liệu thời gian thực giữa các phân hệ:
+- Tự động đồng bộ giá vốn thành phẩm khi thay đổi giá nguyên vật liệu BOM.
+- Đồng bộ số lượng tồn kho tổng sản phẩm (`products.stock_quantity`) khớp với tổng tồn vị trí (`warehouse_stock.quantity`).
+- Đồng bộ tự động bút toán Nợ/Có đối ứng khi có giao dịch xuất/nhập kho vật tư.
+- Đồng bộ múi giờ GMT+7 của giao dịch ngân hàng Casso khớp với giờ lưu trữ UTC của hệ thống.
+- Ghi nhận lịch sử thay đổi cấu hình dự án (Project Health) vào nhật ký hệ thống `audit_logs`.
+
+### R3. Xác minh chất lượng (Verification)
+Đảm bảo tất cả các thay đổi không phá vỡ các chức năng hiện có của dự án và vượt qua các bộ kiểm thử tĩnh và động.
+
+## Acceptance Criteria
+
+### Quality Assurance
+- [ ] Lệnh `npm run typecheck` hoàn thành thành công không lỗi (exit code = 0).
+- [ ] Lệnh `npm run build` hoàn thành thành công không lỗi (exit code = 0).
+- [ ] 100% các ca kiểm thử Vitest và Playwright E2E vượt qua thành công.
