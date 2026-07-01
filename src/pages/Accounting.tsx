@@ -49,6 +49,8 @@ export default function Accounting() {
     initAccounts,
     createManualEntry,
     createAccount,
+    updateAccount,
+    deleteAccount,
     voidJournalEntry,
   } = useAccounting();
 
