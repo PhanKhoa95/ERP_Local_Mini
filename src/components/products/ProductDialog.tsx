@@ -283,6 +283,9 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
                 onChange={(e) => setFormData({ ...formData, selling_price: Number(e.target.value) })}
               />
               {errors.selling_price && <p className="text-xs text-destructive">{errors.selling_price}</p>}
+              {formData.selling_price > 0 && formData.cost_price > 0 && formData.selling_price < formData.cost_price && (
+                <p className="text-xs text-amber-500 font-medium">Cảnh báo: Giá bán thấp hơn giá vốn (giá nhập)</p>
+              )}
             </div>
           </div>
 

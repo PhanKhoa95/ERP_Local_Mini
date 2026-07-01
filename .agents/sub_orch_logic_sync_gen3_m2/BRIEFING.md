@@ -1,4 +1,4 @@
-# BRIEFING — 2026-07-01T08:04:20Z
+# BRIEFING — 2026-07-01T08:04:30Z
 
 ## Mission
 Coordinate implementation and verification of Milestone 2 (Finance and Casso Reconciliation: R1.1, R1.2, R1.7, R2.4).
@@ -46,6 +46,7 @@ Coordinate implementation and verification of Milestone 2 (Finance and Casso Rec
 ## Key Decisions Made
 - Milestone decomposed, SCOPE.md created, progress.md initialized, heartbeat cron task-37 running.
 - Dispatched worker subagent fe8e2bd5-5262-42c8-b9b1-351a0b790af4.
+- Scheduled safety timer task-123.
 
 ## Team Roster
 | Agent ID | Archetype | Task | Status | Conv ID |
@@ -61,7 +62,7 @@ Coordinate implementation and verification of Milestone 2 (Finance and Casso Rec
 
 ## Active Timers
 - Heartbeat cron: task-37
-- Safety timer: none
+- Safety timer: task-123
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing
 
