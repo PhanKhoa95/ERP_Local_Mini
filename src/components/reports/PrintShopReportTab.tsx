@@ -68,6 +68,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { startOfMonth } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useAccounting } from "@/hooks/useAccounting";
 
 const COLORS = ["hsl(var(--primary))", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
 
@@ -76,6 +78,51 @@ export function PrintShopReportTab() {
   const navigate = useNavigate();
   const { products } = useProducts();
   const { orders } = useOrders();
+  const { accounts, createManualEntry } = useAccounting();
+
+  const handleSyncToAccounting = async (type: "capex" | "fixed", item: any) => {
+    try {
+      const cashAccount = accounts.find(a => a.code.startsWith("111") || a.code.startsWith("112")) || accounts[0];
+      let targetAccount;
+      if (type === "capex") {
+        targetAccount = accounts.find(a => a.code.startsWith("211") || a.code.startsWith("153")) || accounts.find(a => a.code.startsWith("2")) || accounts[0];
+      } else {
+        targetAccount = accounts.find(a => a.code.startsWith("642") || a.code.startsWith("627") || a.code.startsWith("6")) || accounts[0];
+      }
+
+      if (!cashAccount || !targetAccount) {
+        toast.error("Không tìm thấy tài khoản kế toán tương ứng. Hãy thiết lập danh mục tài khoản trước.");
+        return;
+      }
+
+      const amount = type === "capex" ? item.baseCost : item.monthlyCost;
+      const description = type === "capex" 
+        ? `[CAPEX] Mua sắm đầu tư ban đầu: ${item.item}`
+        : `[Định phí] Ghi nhận chi phí cố định: ${item.item}`;
+
+      await createManualEntry.mutateAsync({
+        description,
+        lines: [
+          {
+            account_id: targetAccount.id,
+            debit: amount,
+            credit: 0,
+            memo: description
+          },
+          {
+            account_id: cashAccount.id,
+            debit: 0,
+            credit: amount,
+            memo: description
+          }
+        ]
+      });
+
+      toast.success(`Đã ghi nhận thành công chi phí "${item.item}" vào Sổ nhật ký kế toán!`);
+    } catch (err: any) {
+      toast.error("Lỗi đồng bộ kế toán: " + err.message);
+    }
+  };
 
   const [subTab, setSubTab] = useState<"overview" | "pricing" | "calculator" | "cashflow" | "simulator" | "capex" | "capacity" | "settings">("overview");
 
@@ -2217,6 +2264,15 @@ export function PrintShopReportTab() {
                         />
                       </div>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 text-primary hover:bg-primary/10 h-8 gap-1"
+                        onClick={() => handleSyncToAccounting("capex", item)}
+                      >
+                        <FileText className="h-4 w-4" />
+                        Ghi sổ
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="sm"
                         className="mt-4 text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
@@ -2300,6 +2356,15 @@ export function PrintShopReportTab() {
                           className="h-8 text-xs text-right"
                         />
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 text-primary hover:bg-primary/10 h-8 gap-1"
+                        onClick={() => handleSyncToAccounting("fixed", item)}
+                      >
+                        <FileText className="h-4 w-4" />
+                        Ghi sổ
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
