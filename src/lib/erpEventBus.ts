@@ -282,8 +282,11 @@ if (typeof window !== "undefined") {
 
     // Determine debit account based on payment method
     const isMembershipWallet = order.payment_method === "membership_wallet";
-    const salesDrAccId = isMembershipWallet ? "acc-3387" : "acc-131";
-    const salesDrAccCode = isMembershipWallet ? "3387" : "131";
+    const configuredOffsetCode = localStorage.getItem("erp-mini-membership-offset-account") || "3387";
+    const offsetAccount = accounts.find((a: any) => a.code === configuredOffsetCode || a.id === configuredOffsetCode) || { id: "acc-3387", code: "3387", account_type: "liability" };
+
+    const salesDrAccId = isMembershipWallet ? offsetAccount.id : "acc-131";
+    const salesDrAccCode = isMembershipWallet ? offsetAccount.code : "131";
     const salesDrMemo = isMembershipWallet
       ? `Trừ ví thành viên đơn ${orderNum}`
       : `Ghi nhận phải thu đơn ${orderNum}`;
@@ -376,10 +379,16 @@ if (typeof window !== "undefined") {
     // Update balances
     accounts.forEach((acc: any) => {
       if (acc.code === salesDrAccCode) {
-        // For membership wallet (3387 liability): debit decreases balance
-        // For receivable (131 asset): debit increases balance
         if (isMembershipWallet) {
-          acc.balance = (acc.balance || 0) - orderTotal;
+          // Dynamic check if configured account is asset or liability
+          const isAsset = acc.account_type === "asset";
+          if (isAsset) {
+            // asset: debit increases balance
+            acc.balance = (acc.balance || 0) + orderTotal;
+          } else {
+            // liability: debit decreases balance
+            acc.balance = (acc.balance || 0) - orderTotal;
+          }
         } else {
           acc.balance = (acc.balance || 0) + orderTotal;
         }

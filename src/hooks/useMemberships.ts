@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getLocalPartners } from "@/hooks/usePartners";
+import { useAuditLogs } from "@/hooks/useAuditLogs";
 
 export type MembershipTier = "bronze" | "silver" | "gold" | "diamond";
 export type MembershipStatus = "active" | "locked" | "expired";
@@ -17,6 +18,7 @@ export interface Membership {
   issue_date: string;
   expiry_date: string;
   notes: string;
+  card_image?: string;
 }
 
 export interface MembershipTransaction {
@@ -134,6 +136,7 @@ function seedDefaultMemberships(): { memberships: Membership[]; transactions: Me
 export function useMemberships() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logAction } = useAuditLogs();
 
   const { data: memberships = [], isLoading: membershipsLoading } = useQuery({
     queryKey: ["memberships"],
@@ -168,12 +171,9 @@ export function useMemberships() {
         issue_date: new Date().toISOString().split("T")[0],
       };
 
-      // Check duplicate card number or partner ID
+      // Check duplicate card number
       if (all.some(m => m.card_number === newM.card_number)) {
         throw new Error("Số thẻ thành viên này đã tồn tại");
-      }
-      if (all.some(m => m.partner_id === newM.partner_id)) {
-        throw new Error("Khách hàng này đã được liên kết với một thẻ thành viên khác");
       }
 
       all.unshift(newM);
@@ -270,6 +270,25 @@ export function useMemberships() {
       localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(allM));
       localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(allT));
 
+      // Log wallet transaction to audit logs
+      try {
+        await logAction(
+          `${TRANSACTION_LABELS[type]} ví thành viên: ${description}`,
+          "membership_transactions",
+          newTx.id,
+          null,
+          {
+            membership_id: membershipId,
+            card_number: m.card_number,
+            amount,
+            type,
+            description,
+          }
+        );
+      } catch (err) {
+        console.warn("Failed to log audit action:", err);
+      }
+
       // === Auto-post accounting journal entry for deposit / refund ===
       if (type === "deposit" || type === "refund") {
         try {
@@ -281,6 +300,10 @@ export function useMemberships() {
             const accounts = JSON.parse(rawAccounts);
             const entries = JSON.parse(localStorage.getItem(LOCAL_ENTRIES_KEY) || "[]");
             const jLines = JSON.parse(localStorage.getItem(LOCAL_LINES_KEY) || "[]");
+
+            // Resolve configured offset account from localStorage
+            const configuredOffsetCode = localStorage.getItem("erp-mini-membership-offset-account") || "3387";
+            const offsetAccount = accounts.find((a: any) => a.code === configuredOffsetCode || a.id === configuredOffsetCode) || { id: "acc-3387", code: "3387", account_type: "liability" };
 
             const entryId = `ent-wallet-${newTx.id}`;
             const now = new Date().toISOString();
@@ -305,23 +328,41 @@ export function useMemberships() {
             });
 
             if (isDeposit) {
-              // Deposit: Dr 1111 Cash / Cr 3387 Prepaid Wallet
+              // Deposit: Dr 1111 Cash / Cr configured offset account
               jLines.push(
                 { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: "acc-1111", debit: amount, credit: 0, memo: `Thu tiền mặt nạp ví (${m.card_number})`, created_at: now },
-                { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: "acc-3387", debit: 0, credit: amount, memo: `Ghi nhận nhận trước KH - ví thành viên (${m.card_number})`, created_at: now }
+                { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: offsetAccount.id, debit: 0, credit: amount, memo: `Ghi nhận nhận trước KH - ví thành viên (${m.card_number})`, created_at: now }
               );
               accounts.forEach((a: any) => {
                 if (a.code === "1111") a.balance = (a.balance || 0) + amount;
-                if (a.code === "3387") a.balance = (a.balance || 0) + amount;
+                if (a.code === offsetAccount.code) {
+                  // Crediting the offset account:
+                  // If it's an asset, a credit decreases the balance. If liability, it increases the balance.
+                  const isAsset = a.account_type === "asset";
+                  if (isAsset) {
+                    a.balance = (a.balance || 0) - amount;
+                  } else {
+                    a.balance = (a.balance || 0) + amount;
+                  }
+                }
               });
             } else {
-              // Refund: Dr 3387 Prepaid Wallet / Cr 1111 Cash
+              // Refund: Dr configured offset account / Cr 1111 Cash
               jLines.push(
-                { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: "acc-3387", debit: amount, credit: 0, memo: `Hoàn tiền ví thành viên (${m.card_number})`, created_at: now },
+                { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: offsetAccount.id, debit: amount, credit: 0, memo: `Hoàn tiền ví thành viên (${m.card_number})`, created_at: now },
                 { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: "acc-1111", debit: 0, credit: amount, memo: `Chi tiền mặt hoàn ví (${m.card_number})`, created_at: now }
               );
               accounts.forEach((a: any) => {
-                if (a.code === "3387") a.balance = (a.balance || 0) - amount;
+                if (a.code === offsetAccount.code) {
+                  // Debiting the offset account:
+                  // If it's an asset, a debit increases the balance. If liability, it decreases the balance.
+                  const isAsset = a.account_type === "asset";
+                  if (isAsset) {
+                    a.balance = (a.balance || 0) + amount;
+                  } else {
+                    a.balance = (a.balance || 0) - amount;
+                  }
+                }
                 if (a.code === "1111") a.balance = (a.balance || 0) - amount;
               });
             }
@@ -330,7 +371,8 @@ export function useMemberships() {
             localStorage.setItem(LOCAL_ENTRIES_KEY, JSON.stringify(entries));
             localStorage.setItem(LOCAL_LINES_KEY, JSON.stringify(jLines));
           }
-        } catch {
+        } catch (err) {
+          console.warn("Accounting auto-posting error:", err);
           // Accounting integration is best-effort; don't block membership transaction
         }
       }
