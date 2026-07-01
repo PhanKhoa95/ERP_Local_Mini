@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { GlobalDateFilterProvider } from "@/contexts/GlobalDateFilterContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -44,24 +45,26 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/health" element={<HealthCheck />} />
-              <Route path="/order" element={<PublicOrder />} />
-              <Route path="/public-order" element={<PublicOrder />} />
-              <Route path="/tracking" element={<OrderTracking />} />
-              <Route path="/order-tracking" element={<OrderTracking />} />
-              <Route path="/help" element={<HelpCenter />} />
-              <Route path="/*" element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <AppRoutes />
-                  </AppShell>
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </AuthProvider>
+          <GlobalDateFilterProvider>
+            <AuthProvider>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/health" element={<HealthCheck />} />
+                <Route path="/order" element={<PublicOrder />} />
+                <Route path="/public-order" element={<PublicOrder />} />
+                <Route path="/tracking" element={<OrderTracking />} />
+                <Route path="/order-tracking" element={<OrderTracking />} />
+                <Route path="/help" element={<HelpCenter />} />
+                <Route path="/*" element={
+                  <ProtectedRoute>
+                    <AppShell>
+                      <AppRoutes />
+                    </AppShell>
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </AuthProvider>
+          </GlobalDateFilterProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
