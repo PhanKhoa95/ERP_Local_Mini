@@ -693,6 +693,7 @@ export default function Accounting() {
                   </span>
                 </div>
               </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="cash_vouchers">
             <CashVoucherTab />
