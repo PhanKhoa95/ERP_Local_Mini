@@ -25,7 +25,7 @@ Decompose and orchestrate the resolution of the Logic Resolution & Data Sync iss
    - Escalate: report to parent (sub-orchestrators only, last resort)
 4. **Succession**: Self-succeed at spawn_count = 16. Write handoff.md, spawn successor, exit.
 - **Work items**:
-  1. Milestone 1: Validation & Safety [pending]
+  1. Milestone 1: Validation & Safety [in-progress]
   2. Milestone 2: Service Quantity & Stock Sync [pending]
   3. Milestone 3: Cost Propagation & Accounting [pending]
 - **Current phase**: 1
@@ -45,16 +45,17 @@ Decompose and orchestrate the resolution of the Logic Resolution & Data Sync iss
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
+| sub_orch_m1 | self | Milestone 1: Validation & Safety | in-progress | ce305e67-e60e-40b5-a061-72abaf17edc3 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
-- Pending subagents: none
+- Spawn count: 1 / 16
+- Pending subagents: [ce305e67-e60e-40b5-a061-72abaf17edc3]
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: not started
+- Heartbeat cron: task-23
 - Safety timer: none
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing
