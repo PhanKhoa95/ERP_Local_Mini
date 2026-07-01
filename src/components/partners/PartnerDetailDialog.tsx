@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePartnerDetail } from "@/hooks/usePartnerDetail";
 import { useWarehouses } from "@/hooks/useWarehouses";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
@@ -57,20 +58,37 @@ const renderSimulatedQRCode = (code: string) => {
 
 export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { warehouses } = useWarehouses();
+  const { categories } = useProductCategories();
   const { orders, transactions, topProducts, purchasedItems = [], notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("general");
   const [followUpDate, setFollowUpDate] = useState("");
 
   const warranties = useMemo(() => {
+    // Build a map: category name (lowercase) -> warranty_months
+    const catWarrantyMap = new Map<string, number>();
+    for (const cat of categories) {
+      catWarrantyMap.set((cat.name || "").toLowerCase(), cat.warranty_months ?? 3);
+      catWarrantyMap.set(cat.id, cat.warranty_months ?? 3);
+    }
+
     return purchasedItems.map((item: any) => {
+      // Try to resolve warranty from the product's category
       let months = 3;
-      const sku = (item.sku || "").toUpperCase();
-      const name = (item.name || "").toUpperCase();
-      if (sku.includes("QR-CARD") || name.includes("THẺ QR")) {
-        months = 12;
-      } else if (sku.includes("BOARD") || name.includes("BẢNG QR")) {
-        months = 6;
+      const productCategory = (item.category || "").toLowerCase();
+      if (productCategory && catWarrantyMap.has(productCategory)) {
+        months = catWarrantyMap.get(productCategory)!;
+      } else if (item.category && catWarrantyMap.has(item.category)) {
+        months = catWarrantyMap.get(item.category)!;
+      } else {
+        // Fallback: infer from SKU/name keywords
+        const sku = (item.sku || "").toUpperCase();
+        const name = (item.name || "").toUpperCase();
+        if (sku.includes("QR-CARD") || name.includes("THẺ QR")) {
+          months = 12;
+        } else if (sku.includes("BOARD") || name.includes("BẢNG QR")) {
+          months = 6;
+        }
       }
 
       const pDate = new Date(item.order_date);
@@ -89,7 +107,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
         isActive,
       };
     });
-  }, [purchasedItems]);
+  }, [purchasedItems, categories]);
 
   const frequencyText = useMemo(() => {
     if (orders.length <= 1) return "Chưa đủ dữ liệu tần suất (cần tối thiểu 2 đơn)";
