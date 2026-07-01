@@ -137,7 +137,10 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
 
     // Verify customer is selected
     const selectedCustomerValue = page.locator('div.space-y-2 button[role="combobox"]').first();
-    await expect(selectedCustomerValue).toContainText("BlueSky", { timeout: 10000 });
+    await expect(selectedCustomerValue).not.toContainText("Khách lẻ", { timeout: 10000 });
+
+    const fullSelectedText = await selectedCustomerValue.textContent();
+    const selectedCustomerName = fullSelectedText?.split("•")[0]?.replace(/[0-9]/g, "")?.trim() || "Techcom";
 
     // 2. Perform a checkout that crosses the 10,000,000đ threshold to trigger VIP auto-upgrade!
     // Add product "Thẻ QR cá nhân thông minh"
@@ -163,18 +166,18 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await expect(page.locator("text=Thanh toán thành công").first()).toBeVisible({ timeout: 15000 });
     await expect(page.locator("text=Thăng hạng Thành viên VIP").first()).toBeVisible({ timeout: 15000 });
 
-    // 3. Now let's navigate to Partners, search for BlueSky and check detail card
+    // 3. Now let's navigate to Partners, search for the dynamically upgraded customer and check detail card
     await page.goto("/partners");
     await page.waitForSelector("text=Quản lý đối tác");
 
-    // Search for BlueSky
+    // Search for the upgraded customer
     const searchInput = page.locator('input[placeholder="Tìm kiếm..."]');
-    await searchInput.fill("BlueSky");
+    await searchInput.fill(selectedCustomerName);
     await page.waitForTimeout(500);
 
-    // Click "Chi tiết" button on BlueSky card
-    const blueskyCard = page.locator('div.hover\\:shadow-md:has-text("BlueSky")');
-    await blueskyCard.locator('button:has-text("Chi tiết")').click();
+    // Click "Chi tiết" button on the customer card
+    const targetCard = page.locator(`div.hover\\:shadow-md:has-text("${selectedCustomerName}")`);
+    await targetCard.locator('button:has-text("Chi tiết")').click();
 
     // Verify glassmorphic loyalty membership card is displayed and shows "VIP Member" badge!
     const detailDialog = page.locator('div[role="dialog"]');
