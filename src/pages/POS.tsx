@@ -296,9 +296,10 @@ const POS = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
-  const { vouchers } = useVouchers();
+  const { vouchers, applyVoucher } = useVouchers();
   const [isManualDiscount, setIsManualDiscount] = useState(false);
   const [appliedPromoName, setAppliedPromoName] = useState<string | null>(null);
+  const [appliedVoucherId, setAppliedVoucherId] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
   const [shippingFee, setShippingFee] = useState(0);
   const [notes, setNotes] = useState("");
@@ -480,6 +481,7 @@ const POS = () => {
     if (cart.length === 0) {
       setIsManualDiscount(false);
       setAppliedPromoName(null);
+      setAppliedVoucherId(null);
     }
   }, [cart]);
 
@@ -499,11 +501,13 @@ const POS = () => {
     if (eligiblePromos.length === 0) {
       setDiscount(0);
       setAppliedPromoName(null);
+      setAppliedVoucherId(null);
       return;
     }
 
     let bestDiscount = 0;
     let bestPromoName: string | null = null;
+    let bestPromoId: string | null = null;
 
     eligiblePromos.forEach(v => {
       let currentDiscount = v.discount_type === "percentage"
@@ -517,11 +521,13 @@ const POS = () => {
       if (currentDiscount > bestDiscount) {
         bestDiscount = Math.round(currentDiscount);
         bestPromoName = v.name;
+        bestPromoId = v.id;
       }
     });
 
     setDiscount(bestDiscount);
     setAppliedPromoName(bestPromoName);
+    setAppliedVoucherId(bestPromoId);
   }, [subtotal, vouchers, isManualDiscount]);
 
   // Submit order
@@ -583,6 +589,7 @@ const POS = () => {
           status: "delivered", // POS orders are delivered immediately
           payment_status: "paid", // POS orders are paid immediately
           paid_amount: total,
+          voucher_id: appliedVoucherId,
         },
         items: cart.map((item) => ({
           product_id: item.product.id,
@@ -592,6 +599,11 @@ const POS = () => {
           total: item.quantity * item.unit_price - item.discount,
         })),
       });
+
+      // Increment voucher usage count if applied
+      if (appliedVoucherId) {
+        await applyVoucher(appliedVoucherId);
+      }
 
       // Stock deduction is now handled by createOrder in useOrders.ts
 

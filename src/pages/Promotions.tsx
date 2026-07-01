@@ -10,20 +10,28 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVouchers, type Voucher } from "@/hooks/useVouchers";
+import { useOrders } from "@/hooks/useOrders";
 import { format } from "date-fns";
 import {
   Ticket, Plus, Search, Trash2, Calendar, Sparkles, Percent, DollarSign,
-  TrendingUp, Users, CheckCircle, Clock, AlertCircle, ShoppingCart
+  TrendingUp, Users, CheckCircle, Clock, AlertCircle, ShoppingCart, Eye, Edit2
 } from "lucide-react";
 
 export default function Promotions() {
   const { vouchers, isLoading, createVoucher, updateVoucher, deleteVoucher } = useVouchers();
+  const { orders } = useOrders();
+  
   const [createOpen, setCreateOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "active" | "scheduled" | "expired">("all");
 
-  // Form State
+  // Form State for Create/Edit
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState("");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [isAutoApply, setIsAutoApply] = useState(false);
@@ -39,6 +47,7 @@ export default function Promotions() {
   const [description, setDescription] = useState("");
 
   const handleOpenCreate = () => {
+    setIsEditing(false);
     setName("");
     setCode("");
     setIsAutoApply(false);
@@ -55,12 +64,36 @@ export default function Promotions() {
     setCreateOpen(true);
   };
 
+  const handleOpenEdit = (v: Voucher) => {
+    setIsEditing(true);
+    setEditId(v.id);
+    setName(v.name);
+    setCode(v.code);
+    setIsAutoApply(v.is_auto_apply ?? false);
+    setDiscountType(v.discount_type);
+    setDiscountValue(v.discount_value.toString());
+    setMinOrderValue(v.min_order_value?.toString() || "");
+    setMaxDiscount(v.max_discount?.toString() || "");
+    setUsageLimit(v.usage_limit?.toString() || "");
+    setTargetGroup(v.target_customer_group ?? "all");
+    setPromoType(v.promo_type ?? "order_discount");
+    setStartDate(v.start_date ? format(new Date(v.start_date), "yyyy-MM-dd'T'HH:mm") : "");
+    setEndDate(v.end_date ? format(new Date(v.end_date), "yyyy-MM-dd'T'HH:mm") : "");
+    setDescription(v.description || "");
+    setCreateOpen(true);
+  };
+
+  const handleOpenDetail = (v: Voucher) => {
+    setSelectedVoucher(v);
+    setDetailOpen(true);
+  };
+
   const handleSave = () => {
     if (!name.trim()) return;
     const resolvedCode = isAutoApply ? `AUTO-${Math.random().toString(36).substr(2, 6).toUpperCase()}` : code.trim().toUpperCase();
     if (!isAutoApply && !resolvedCode) return;
 
-    createVoucher.mutate({
+    const payload = {
       name: name.trim(),
       code: resolvedCode,
       discount_type: discountType,
@@ -75,7 +108,13 @@ export default function Promotions() {
       is_auto_apply: isAutoApply,
       target_customer_group: targetGroup,
       promo_type: promoType,
-    });
+    };
+
+    if (isEditing) {
+      updateVoucher.mutate({ id: editId, ...payload });
+    } else {
+      createVoucher.mutate(payload);
+    }
     setCreateOpen(false);
   };
 
@@ -105,19 +144,30 @@ export default function Promotions() {
     });
   }, [vouchers, search, activeTab]);
 
+  // Usage history of selected voucher
+  const voucherUsageHistory = useMemo(() => {
+    if (!selectedVoucher) return [];
+    return orders.filter(o => o.voucher_id === selectedVoucher.id);
+  }, [orders, selectedVoucher]);
+
   // Statistics
   const stats = useMemo(() => {
     const activeCount = vouchers.filter(v => getPromoStatus(v) === "active").length;
     const scheduledCount = vouchers.filter(v => getPromoStatus(v) === "scheduled").length;
-    const totalUsage = vouchers.reduce((sum, v) => sum + (v.used_count || 0), 0);
-    const totalDiscounts = vouchers.reduce((sum, v) => {
-      // rough estimation
-      const discountVal = v.discount_type === "percentage" ? 25000 : v.discount_value; // default average for percentage discount
-      return sum + (v.used_count || 0) * discountVal;
-    }, 0);
+    
+    // Calculate total discounts and aggregate usage
+    let totalUsage = 0;
+    let totalDiscounts = 0;
+    
+    orders.forEach(o => {
+      if (o.voucher_id) {
+        totalUsage += 1;
+        totalDiscounts += Number(o.discount || 0);
+      }
+    });
 
     return { activeCount, scheduledCount, totalUsage, totalDiscounts };
-  }, [vouchers]);
+  }, [vouchers, orders]);
 
   return (
     <MainLayout>
@@ -147,7 +197,7 @@ export default function Promotions() {
           <Card className="bg-card/50 backdrop-blur-xs border-border">
             <CardContent className="p-5 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Tổng số lượt áp dụng</p>
+                <p className="text-sm font-medium text-muted-foreground">Tổng số lượt áp dụng thực tế</p>
                 <h3 className="text-2xl font-bold mt-1 text-primary">{stats.totalUsage}</h3>
               </div>
               <div className="p-3 rounded-lg bg-primary/10"><TrendingUp className="h-5 w-5 text-primary" /></div>
@@ -156,7 +206,7 @@ export default function Promotions() {
           <Card className="bg-card/50 backdrop-blur-xs border-border">
             <CardContent className="p-5 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Tổng chi phí giảm giá</p>
+                <p className="text-sm font-medium text-muted-foreground">Tổng chi phí giảm thực tế</p>
                 <h3 className="text-2xl font-bold mt-1 text-amber-500">{stats.totalDiscounts.toLocaleString()}đ</h3>
               </div>
               <div className="p-3 rounded-lg bg-amber-500/10"><DollarSign className="h-5 w-5 text-amber-500" /></div>
@@ -274,12 +324,18 @@ export default function Promotions() {
                           {v.min_order_value ? `Đơn từ ${v.min_order_value.toLocaleString()}đ` : "Mọi đơn hàng"}
                         </TableCell>
                         <TableCell className="text-sm">
-                          {v.used_count || 0} / {v.usage_limit || "∞"}
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-medium hover:underline text-primary"
+                            onClick={() => handleOpenDetail(v)}
+                          >
+                            {v.used_count || 0} / {v.usage_limit || "∞"}
+                          </Button>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground space-y-1">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {v.start_date ? format(new Date(v.start_date), "dd/MM/yyyy HH:mm") : "Bất đầu ngay"}
+                            {v.start_date ? format(new Date(v.start_date), "dd/MM/yyyy HH:mm") : "Bắt đầu ngay"}
                           </div>
                           <div>
                             Đến: {v.end_date ? format(new Date(v.end_date), "dd/MM/yyyy HH:mm") : "Không giới hạn"}
@@ -304,6 +360,22 @@ export default function Promotions() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDetail(v)}
+                              title="Xem chi tiết & Lịch sử sử dụng"
+                            >
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEdit(v)}
+                              title="Chỉnh sửa thiết lập"
+                            >
+                              <Edit2 className="h-4 w-4 text-primary" />
+                            </Button>
                             <Switch
                               checked={v.is_active}
                               onCheckedChange={(checked) => updateVoucher.mutate({ id: v.id, is_active: checked })}
@@ -312,6 +384,7 @@ export default function Promotions() {
                               variant="ghost"
                               size="icon"
                               onClick={() => deleteVoucher.mutate(v.id)}
+                              title="Xóa khuyến mãi"
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -327,12 +400,13 @@ export default function Promotions() {
         </div>
       </div>
 
-      {/* Creation Dialog */}
+      {/* Creation & Edit Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg bg-popover text-popover-foreground z-50">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" /> Thiết lập Chiến dịch Khuyến mãi
+              <Sparkles className="h-5 w-5 text-primary" />
+              {isEditing ? "Cập nhật Thiết lập Khuyến mãi" : "Thiết lập Chiến dịch Khuyến mãi"}
             </DialogTitle>
             <DialogDescription>Cấu hình các điều kiện áp dụng, chiết khấu và tự động kích hoạt chiến dịch.</DialogDescription>
           </DialogHeader>
@@ -363,6 +437,7 @@ export default function Promotions() {
                   placeholder="Ví dụ: NHAPHA2026, VIP10..."
                   value={code}
                   onChange={e => setCode(e.target.value)}
+                  disabled={isEditing} // Code should be immutable once created
                 />
               </div>
             )}
@@ -476,9 +551,141 @@ export default function Promotions() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Hủy</Button>
-            <Button onClick={handleSave} disabled={createVoucher.isPending}>
-              Kích hoạt
+            <Button onClick={handleSave} disabled={createVoucher.isPending || updateVoucher.isPending}>
+              {isEditing ? "Cập nhật" : "Kích hoạt"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details & History Dialog */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-2xl bg-popover text-popover-foreground z-50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Ticket className="h-5.5 w-5.5 text-primary" /> Chi tiết & Lịch sử sử dụng
+            </DialogTitle>
+            <DialogDescription>
+              Xem chi tiết thiết lập và thống kê khách hàng đã áp dụng mã khuyến mãi này.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedVoucher && (
+            <Tabs defaultValue="history" className="w-full mt-2">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="settings">Thiết lập chi tiết</TabsTrigger>
+                <TabsTrigger value="history">Lịch sử khách mua ({voucherUsageHistory.length})</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="settings" className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm bg-muted/20 p-4 rounded-lg border">
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Tên chiến dịch</span>
+                    <span className="font-semibold text-foreground text-base">{selectedVoucher.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Mã ưu đãi / Voucher Code</span>
+                    <span className="font-mono font-bold text-sm bg-secondary px-2 py-0.5 rounded text-secondary-foreground inline-block mt-0.5">
+                      {selectedVoucher.code}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Phương thức áp dụng</span>
+                    <span className="font-medium">
+                      {selectedVoucher.is_auto_apply ? "Tự động áp dụng khi đủ điều kiện" : "Khách nhập mã thủ công"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Hình thức chiết khấu</span>
+                    <span className="font-medium">
+                      {selectedVoucher.promo_type === "free_shipping" ? "Miễn phí vận chuyển" : "Giảm giá trị đơn hàng"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Giá trị ưu đãi</span>
+                    <span className="font-semibold text-primary text-base">
+                      {selectedVoucher.discount_value.toLocaleString()}
+                      {selectedVoucher.discount_type === "percentage" ? "%" : "đ"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Điều kiện đơn tối thiểu</span>
+                    <span className="font-medium text-foreground">
+                      {selectedVoucher.min_order_value ? `${selectedVoucher.min_order_value.toLocaleString()}đ` : "Không giới hạn"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Giới hạn số lần dùng</span>
+                    <span className="font-medium text-foreground">
+                      {selectedVoucher.used_count} đã dùng / {selectedVoucher.usage_limit || "Không giới hạn"} lượt
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Trạng thái thời gian</span>
+                    <span className="font-medium text-foreground">
+                      {selectedVoucher.start_date ? format(new Date(selectedVoucher.start_date), "dd/MM/yyyy HH:mm") : "Bắt đầu ngay"}{" - "}
+                      {selectedVoucher.end_date ? format(new Date(selectedVoucher.end_date), "dd/MM/yyyy HH:mm") : "Không giới hạn"}
+                    </span>
+                  </div>
+                  {selectedVoucher.description && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground block text-xs">Mô tả</span>
+                      <span className="text-muted-foreground">{selectedVoucher.description}</span>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="history" className="py-4">
+                <div className="border rounded-lg max-h-[40vh] overflow-y-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead>Mã đơn</TableHead>
+                        <TableHead>Khách hàng</TableHead>
+                        <TableHead className="text-right">Mức giảm</TableHead>
+                        <TableHead className="text-right">Giá trị đơn</TableHead>
+                        <TableHead>Ngày sử dụng</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {voucherUsageHistory.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-sm">
+                            Chưa có đơn hàng nào áp dụng khuyến mãi này.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        voucherUsageHistory.map(order => (
+                          <TableRow key={order.id}>
+                            <TableCell className="font-mono text-xs font-semibold">{order.order_number}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium text-sm">{order.customer_name || "Khách lẻ"}</div>
+                                {order.customer_phone && <div className="text-[10px] text-muted-foreground">{order.customer_phone}</div>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-destructive text-sm">
+                              -{order.discount?.toLocaleString() || 0}đ
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-sm">
+                              {order.total?.toLocaleString() || 0}đ
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {format(new Date(order.created_at), "dd/MM/yyyy HH:mm")}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setDetailOpen(false)}>Đóng</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

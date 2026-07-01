@@ -51,6 +51,7 @@ export interface Order {
   paid_amount?: number | null;
   warehouse_id?: string | null;
   shipping_zone_id?: string | null;
+  voucher_id?: string | null;
   created_at: string;
   updated_at: string;
   sales_channels?: {
