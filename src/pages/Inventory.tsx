@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useProducts } from "@/hooks/useProducts";
 import { useProductCategories } from "@/hooks/useProductCategories";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ProductDialog } from "@/components/products/ProductDialog";
 import { StockTransactionDialog } from "@/components/inventory/StockTransactionDialog";
 import { ProductImportDialog } from "@/components/inventory/ProductImportDialog";
@@ -57,6 +58,7 @@ import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { getLocalInventoryTransactions } from "@/lib/localInventoryStore";
 
 const Inventory = () => {
+  const { hasPermission, hasFieldPermission, canCreate, canEdit, canDelete } = usePermissions();
   const { products, isLoading, createProduct, updateProduct, deleteProduct } = useProducts();
   const { activeCategories } = useProductCategories();
   const { productsWithBom } = useProductBom();
@@ -262,19 +264,21 @@ const Inventory = () => {
               </div>
             </div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-info/10">
-                <Package className="h-5 w-5 text-info" />
+          {hasFieldPermission("inventory", "cost_price") && (
+            <Card className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-info/10">
+                  <Package className="h-5 w-5 text-info" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Giá trị tồn kho</p>
+                  <p className="text-xl font-bold text-info">
+                    {(totalStockValue / 1000000).toFixed(1)}M
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Giá trị tồn kho</p>
-                <p className="text-xl font-bold text-info">
-                  {(totalStockValue / 1000000).toFixed(1)}M
-                </p>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -362,14 +366,18 @@ const Inventory = () => {
                   <Download className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">Xuất Excel</span>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-                  <Upload className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Import</span>
-                </Button>
-                <Button size="sm" onClick={() => handleOpenDialog()}>
-                  <Plus className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Thêm sản phẩm</span>
-                </Button>
+                {canCreate("inventory") && (
+                  <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Import</span>
+                  </Button>
+                )}
+                {canCreate("inventory") && (
+                  <Button size="sm" onClick={() => handleOpenDialog()}>
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Thêm sản phẩm</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -477,12 +485,16 @@ const Inventory = () => {
                                   )} />
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(product)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(product)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                              {canEdit("inventory") && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(product)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canDelete("inventory") && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteClick(product)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
                             </div>
                           </td>
                         </tr>
