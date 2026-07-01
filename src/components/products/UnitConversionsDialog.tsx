@@ -375,7 +375,8 @@ export function UnitConversionsDialog({
                     <th className="p-3 font-semibold text-muted-foreground">Công thức hiển thị</th>
                     <th className="p-3 font-semibold text-muted-foreground text-center">Thao tác</th>
                   </tr>
-                </table>
+                </thead>
+              </table>
                 <div className="max-h-48 overflow-y-auto">
                   <table className="w-full text-xs text-left border-collapse">
                     <tbody>
