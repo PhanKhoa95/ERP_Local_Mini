@@ -3,9 +3,19 @@ import { useToast } from "@/hooks/use-toast";
 import { getLocalPartners } from "@/hooks/usePartners";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
 
-export type MembershipTier = "bronze" | "silver" | "gold" | "diamond";
+export type MembershipTier = string;
 export type MembershipStatus = "active" | "locked" | "expired";
 export type TransactionType = "deposit" | "payment" | "refund" | "adjust";
+
+export interface MembershipTierConfig {
+  id: string;
+  name: string;
+  color: string;
+  bg_gradient: string;
+  discount_rate: number;
+  min_spent: number;
+  description?: string;
+}
 
 export interface Membership {
   id: string;
@@ -32,15 +42,55 @@ export interface MembershipTransaction {
 
 const MEMBERSHIP_STORAGE_KEY = "erp-mini-local-demo-memberships";
 const TRANSACTION_STORAGE_KEY = "erp-mini-local-demo-membership-transactions";
+export const TIER_CONFIGS_STORAGE_KEY = "erp-mini-local-demo-membership-tiers-config";
 
-export const TIER_LABELS: Record<MembershipTier, string> = {
+export const DEFAULT_TIER_CONFIGS: MembershipTierConfig[] = [
+  {
+    id: "bronze",
+    name: "Đồng (Bronze)",
+    color: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900",
+    bg_gradient: "from-amber-700 via-amber-800 to-amber-950 text-amber-50 shadow-amber-950/20",
+    discount_rate: 0,
+    min_spent: 0,
+    description: "Thành viên mới phát hành thẻ"
+  },
+  {
+    id: "silver",
+    name: "Bạc (Silver)",
+    color: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800",
+    bg_gradient: "from-slate-500 via-slate-600 to-slate-800 text-slate-50 shadow-slate-900/20",
+    discount_rate: 2,
+    min_spent: 5000000,
+    description: "Tích lũy chi tiêu từ 5 triệu đồng"
+  },
+  {
+    id: "gold",
+    name: "Vàng (Gold)",
+    color: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-900",
+    bg_gradient: "from-amber-400 via-yellow-500 to-amber-600 text-yellow-950 shadow-yellow-500/10",
+    discount_rate: 5,
+    min_spent: 15000000,
+    description: "Tích lũy chi tiêu từ 15 triệu đồng"
+  },
+  {
+    id: "diamond",
+    name: "Kim Cương (Diamond)",
+    color: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-900",
+    bg_gradient: "from-cyan-500 via-blue-600 to-indigo-800 text-cyan-50 shadow-blue-800/20",
+    discount_rate: 10,
+    min_spent: 50000000,
+    description: "Tích lũy chi tiêu từ 50 triệu đồng"
+  }
+];
+
+export const TIER_LABELS: Record<string, string> = {
   bronze: "Đồng (Bronze)",
   silver: "Bạc (Silver)",
   gold: "Vàng (Gold)",
   diamond: "Kim Cương (Diamond)",
 };
 
-export const TIER_COLORS: Record<MembershipTier, string> = {
+export const TIER_COLORS: Record<string, string> = {
   bronze: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900",
   silver: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800",
   gold: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-900",
@@ -160,6 +210,73 @@ export function useMemberships() {
     },
   });
 
+  const { data: tierConfigs = [], isLoading: tierConfigsLoading } = useQuery({
+    queryKey: ["membership-tiers-config"],
+    queryFn: async () => {
+      const raw = localStorage.getItem(TIER_CONFIGS_STORAGE_KEY);
+      if (!raw) {
+        localStorage.setItem(TIER_CONFIGS_STORAGE_KEY, JSON.stringify(DEFAULT_TIER_CONFIGS));
+        return DEFAULT_TIER_CONFIGS;
+      }
+      return JSON.parse(raw) as MembershipTierConfig[];
+    },
+  });
+
+  const createMembershipTier = useMutation({
+    mutationFn: async (newConfig: Omit<MembershipTierConfig, "id"> & { id?: string }) => {
+      const all = [...tierConfigs];
+      const id = newConfig.id || `tier-${Date.now()}`;
+      if (all.some(t => t.id === id)) {
+        throw new Error("Mã hạng thẻ này đã tồn tại");
+      }
+      const configWithId: MembershipTierConfig = {
+        ...newConfig,
+        id
+      };
+      all.push(configWithId);
+      localStorage.setItem(TIER_CONFIGS_STORAGE_KEY, JSON.stringify(all));
+      return configWithId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-tiers-config"] });
+      toast({ title: "Thêm hạng thẻ mới thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
+  const updateMembershipTierConfig = useMutation({
+    mutationFn: async (updatedConfig: MembershipTierConfig) => {
+      const all = [...tierConfigs];
+      const idx = all.findIndex(t => t.id === updatedConfig.id);
+      if (idx === -1) throw new Error("Không tìm thấy cấu hình hạng thẻ");
+      all[idx] = updatedConfig;
+      localStorage.setItem(TIER_CONFIGS_STORAGE_KEY, JSON.stringify(all));
+      return updatedConfig;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-tiers-config"] });
+      toast({ title: "Cập nhật cấu hình hạng thẻ thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
+  const deleteMembershipTier = useMutation({
+    mutationFn: async (id: string) => {
+      const isUsed = memberships.some(m => m.tier === id);
+      if (isUsed) {
+        throw new Error("Không thể xóa hạng thẻ này vì hiện đang có thành viên sở hữu hạng thẻ này");
+      }
+      const all = tierConfigs.filter(t => t.id !== id);
+      localStorage.setItem(TIER_CONFIGS_STORAGE_KEY, JSON.stringify(all));
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["membership-tiers-config"] });
+      toast({ title: "Xóa cấu hình hạng thẻ thành công" });
+    },
+    onError: (e: Error) => toast({ variant: "destructive", title: "Lỗi", description: e.message }),
+  });
+
   const createMembership = useMutation({
     mutationFn: async (membership: Omit<Membership, "id" | "issue_date" | "balance" | "points">) => {
       const all = [...memberships];
@@ -171,7 +288,6 @@ export function useMemberships() {
         issue_date: new Date().toISOString().split("T")[0],
       };
 
-      // Check duplicate card number
       if (all.some(m => m.card_number === newM.card_number)) {
         throw new Error("Số thẻ thành viên này đã tồn tại");
       }
@@ -246,15 +362,13 @@ export function useMemberships() {
         throw new Error("Thẻ thành viên hiện đang tạm khóa hoặc đã hết hạn");
       }
 
-      // Update balance
       if (type === "deposit" || type === "refund") {
         m.balance += amount;
       } else if (type === "payment") {
         m.balance -= amount;
-        // Accumulate points: 1% of payment amount
         m.points += Math.floor(amount / 10000);
       } else if (type === "adjust") {
-        m.balance = amount; // absolute set for adjustment
+        m.balance = amount;
       }
 
       const newTx: MembershipTransaction = {
@@ -270,7 +384,6 @@ export function useMemberships() {
       localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(allM));
       localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(allT));
 
-      // Log wallet transaction to audit logs
       try {
         await logAction(
           `${TRANSACTION_LABELS[type]} ví thành viên: ${description}`,
@@ -289,7 +402,6 @@ export function useMemberships() {
         console.warn("Failed to log audit action:", err);
       }
 
-      // === Auto-post accounting journal entry for deposit / refund ===
       if (type === "deposit" || type === "refund") {
         try {
           const LOCAL_ACCOUNTS_KEY = "erp-mini-local-demo-accounts";
@@ -301,7 +413,6 @@ export function useMemberships() {
             const entries = JSON.parse(localStorage.getItem(LOCAL_ENTRIES_KEY) || "[]");
             const jLines = JSON.parse(localStorage.getItem(LOCAL_LINES_KEY) || "[]");
 
-            // Resolve configured offset account from localStorage
             const configuredOffsetCode = localStorage.getItem("erp-mini-membership-offset-account") || "3387";
             const offsetAccount = accounts.find((a: any) => a.code === configuredOffsetCode || a.id === configuredOffsetCode) || { id: "acc-3387", code: "3387", account_type: "liability" };
 
@@ -328,7 +439,6 @@ export function useMemberships() {
             });
 
             if (isDeposit) {
-              // Deposit: Dr 1111 Cash / Cr configured offset account
               jLines.push(
                 { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: "acc-1111", debit: amount, credit: 0, memo: `Thu tiền mặt nạp ví (${m.card_number})`, created_at: now },
                 { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: offsetAccount.id, debit: 0, credit: amount, memo: `Ghi nhận nhận trước KH - ví thành viên (${m.card_number})`, created_at: now }
@@ -336,8 +446,6 @@ export function useMemberships() {
               accounts.forEach((a: any) => {
                 if (a.code === "1111") a.balance = (a.balance || 0) + amount;
                 if (a.code === offsetAccount.code) {
-                  // Crediting the offset account:
-                  // If it's an asset, a credit decreases the balance. If liability, it increases the balance.
                   const isAsset = a.account_type === "asset";
                   if (isAsset) {
                     a.balance = (a.balance || 0) - amount;
@@ -347,15 +455,12 @@ export function useMemberships() {
                 }
               });
             } else {
-              // Refund: Dr configured offset account / Cr 1111 Cash
               jLines.push(
                 { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: offsetAccount.id, debit: amount, credit: 0, memo: `Hoàn tiền ví thành viên (${m.card_number})`, created_at: now },
                 { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: "acc-1111", debit: 0, credit: amount, memo: `Chi tiền mặt hoàn ví (${m.card_number})`, created_at: now }
               );
               accounts.forEach((a: any) => {
                 if (a.code === offsetAccount.code) {
-                  // Debiting the offset account:
-                  // If it's an asset, a debit increases the balance. If liability, it decreases the balance.
                   const isAsset = a.account_type === "asset";
                   if (isAsset) {
                     a.balance = (a.balance || 0) + amount;
@@ -373,7 +478,6 @@ export function useMemberships() {
           }
         } catch (err) {
           console.warn("Accounting auto-posting error:", err);
-          // Accounting integration is best-effort; don't block membership transaction
         }
       }
 
@@ -390,10 +494,14 @@ export function useMemberships() {
   return {
     memberships,
     transactions,
-    isLoading: membershipsLoading || transactionsLoading,
+    tierConfigs,
+    isLoading: membershipsLoading || transactionsLoading || tierConfigsLoading,
     createMembership,
     updateMembershipStatus,
     updateMembershipTier,
     performTransaction,
+    createMembershipTier,
+    updateMembershipTierConfig,
+    deleteMembershipTier,
   };
 }
