@@ -150,6 +150,7 @@ export function usePartnerDetail(partnerId: string | null) {
               product_id: item.product_id,
               name: item.products?.name || item.product_name || "Sản phẩm không tên",
               sku: item.products?.sku || item.sku || "N/A",
+              category: item.category || null,
               quantity: item.quantity || 0,
               unit_price: item.unit_price || 0,
               total: (item.quantity || 0) * (item.unit_price || 0),
