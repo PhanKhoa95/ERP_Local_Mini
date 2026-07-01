@@ -147,6 +147,134 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
   );
 };
 
+interface POSNumberInputProps {
+  value: number;
+  onChange: (val: number) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+const POSNumberInput: React.FC<POSNumberInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+}) => {
+  const [localVal, setLocalVal] = useState<string>(value === 0 ? "" : value.toString());
+  const lastValue = useRef<number>(value);
+
+  useEffect(() => {
+    if (value !== lastValue.current) {
+      setLocalVal(value === 0 ? "" : value.toString());
+      lastValue.current = value;
+    }
+  }, [value]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const num = localVal === "" ? 0 : parseInt(localVal, 10);
+      if (num !== lastValue.current) {
+        lastValue.current = num;
+        onChange(num);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [localVal, onChange]);
+
+  const handleChange = (inputStr: string) => {
+    const cleanStr = inputStr.replace(/[^0-9]/g, "");
+    setLocalVal(cleanStr);
+  };
+
+  const handleBlur = () => {
+    const num = localVal === "" ? 0 : parseInt(localVal, 10);
+    setLocalVal(num === 0 ? "" : num.toString());
+    if (num !== lastValue.current) {
+      lastValue.current = num;
+      onChange(num);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={localVal}
+      onChange={(e) => handleChange(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
+interface POSTextInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+const POSTextInput: React.FC<POSTextInputProps> = ({
+  value,
+  onChange,
+  placeholder,
+  className,
+}) => {
+  const [localVal, setLocalVal] = useState<string>(value);
+  const lastValue = useRef<string>(value);
+
+  useEffect(() => {
+    if (value !== lastValue.current) {
+      setLocalVal(value);
+      lastValue.current = value;
+    }
+  }, [value]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localVal !== lastValue.current) {
+        lastValue.current = localVal;
+        onChange(localVal);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [localVal, onChange]);
+
+  const handleBlur = () => {
+    if (localVal !== lastValue.current) {
+      lastValue.current = localVal;
+      onChange(localVal);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <Input
+      type="text"
+      value={localVal}
+      onChange={(e) => setLocalVal(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
 const POS = () => {
   const { products, isLoading: productsLoading } = useProducts();
   const { customers } = usePartners();
@@ -511,10 +639,10 @@ const POS = () => {
           <span className="text-sm text-muted-foreground">Khách hàng</span>
         </div>
         <div className="space-y-2">
-          <Input
+          <POSTextInput
             placeholder="Tìm khách hàng (tên, SĐT, mã)..."
             value={customerSearch}
-            onChange={(e) => setCustomerSearch(e.target.value)}
+            onChange={setCustomerSearch}
             className="h-8 text-sm"
           />
           <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
@@ -631,20 +759,18 @@ const POS = () => {
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs text-muted-foreground">Giảm giá</label>
-            <Input
-              type="number"
+            <POSNumberInput
               value={discount}
-              onChange={(e) => setDiscount(Number(e.target.value))}
+              onChange={setDiscount}
               className="h-9"
               placeholder="0"
             />
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Phí ship</label>
-            <Input
-              type="number"
+            <POSNumberInput
               value={shippingFee}
-              onChange={(e) => setShippingFee(Number(e.target.value))}
+              onChange={setShippingFee}
               className="h-9"
               placeholder="0"
             />
@@ -654,9 +780,9 @@ const POS = () => {
         {/* Notes */}
         <div>
           <label className="text-xs text-muted-foreground">Ghi chú</label>
-          <Input
+          <POSTextInput
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={setNotes}
             className="h-9"
             placeholder="Ghi chú đơn hàng..."
           />
