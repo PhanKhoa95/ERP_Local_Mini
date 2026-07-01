@@ -468,21 +468,43 @@ export default function Accounting() {
           <TabsContent value="ledger">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div>
+                <div className="flex items-center gap-3">
                   <CardTitle className="text-lg">Hệ thống tài khoản</CardTitle>
+                  <Badge variant="secondary" className="text-xs">{accounts.length} tài khoản</Badge>
                 </div>
-                <Button
-                  onClick={() => setCreateAccountOpen(true)} 
-                  size="sm" 
-                  className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Thêm tài khoản mới
-                </Button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    <select
+                      value={accountTypeFilter}
+                      onChange={(e) => setAccountTypeFilter(e.target.value)}
+                      className="bg-background border rounded px-2 py-1 text-xs h-8 outline-none"
+                    >
+                      <option value="all">Tất cả loại</option>
+                      <option value="asset">Tài sản</option>
+                      <option value="liability">Nợ phải trả</option>
+                      <option value="equity">Vốn CSH</option>
+                      <option value="revenue">Doanh thu</option>
+                      <option value="expense">Chi phí</option>
+                    </select>
+                  </div>
+                  <Button
+                    onClick={() => setCreateAccountOpen(true)} 
+                    size="sm" 
+                    className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Thêm tài khoản mới
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {accounts.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Chưa có tài khoản. Nhấn "Khởi tạo" để bắt đầu.</p>
-                ) : (
+                ) : (() => {
+                  const filtered = accountTypeFilter === "all" ? accounts : accounts.filter(a => a.account_type === accountTypeFilter);
+                  return filtered.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-6 text-sm">Không có tài khoản nào thuộc loại này.</p>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -490,24 +512,59 @@ export default function Accounting() {
                         <TableHead>Tên tài khoản</TableHead>
                         <TableHead>Loại</TableHead>
                         <TableHead className="text-right">Số dư</TableHead>
+                        <TableHead className="text-right w-[100px]">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {accounts.map(a => (
-                        <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedAccount(a)}>
-                          <TableCell className="font-mono font-semibold">{a.code}</TableCell>
-                          <TableCell>{a.name}</TableCell>
-                          <TableCell>
+                      {filtered.map(a => (
+                        <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50 group">
+                          <TableCell className="font-mono font-semibold" onClick={() => setSelectedAccount(a)}>{a.code}</TableCell>
+                          <TableCell onClick={() => setSelectedAccount(a)}>{a.name}</TableCell>
+                          <TableCell onClick={() => setSelectedAccount(a)}>
                             <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[a.account_type] || ""}`}>
                               {TYPE_LABELS[a.account_type] || a.account_type}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right font-mono">{fmt(Number(a.balance || 0))}</TableCell>
+                          <TableCell className="text-right font-mono" onClick={() => setSelectedAccount(a)}>{fmt(Number(a.balance || 0))}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                title="Sửa tài khoản"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditAccount(a);
+                                  setEditAccountName(a.name);
+                                  setEditAccountType(a.account_type);
+                                  setEditAccountOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5 text-blue-500" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                title="Xóa tài khoản"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${a.code} - ${a.name}"? Chỉ có thể xóa tài khoản chưa có phát sinh và số dư = 0.`)) {
+                                    deleteAccount.mutate(a.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
