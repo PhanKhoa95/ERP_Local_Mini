@@ -66,8 +66,8 @@ export function PolicyRecommendationsTab() {
     queryKey: ["shop_settings", "hr_policies", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shop_settings" as any)
+      const { data, error } = await (supabase
+        .from("shop_settings" as any) as any)
         .select("value")
         .eq("company_id", companyId!)
         .eq("key", "hr_policies")

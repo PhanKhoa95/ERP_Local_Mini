@@ -202,8 +202,8 @@ const Reports = () => {
     queryKey: ["shop_settings", "project_health_details", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shop_settings" as any)
+      const { data, error } = await (supabase
+        .from("shop_settings" as any) as any)
         .select("value")
         .eq("company_id", companyId!)
         .eq("key", "project_health_details")

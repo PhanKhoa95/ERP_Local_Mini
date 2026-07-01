@@ -25,7 +25,7 @@ export function SubscriptionsTab() {
   const { subscription, isLoading, upgradePlan } = useSubscriptions();
   const { orders = [] } = useOrders();
   const { warehouses = [] } = useWarehouses();
-  const { salesChannels = [] } = useSalesChannels();
+  const { channels = [] } = useSalesChannels();
 
   const currentMonthOrders = orders.filter(o => {
     const d = o.created_at ? new Date(o.created_at) : new Date();
@@ -153,7 +153,7 @@ export function SubscriptionsTab() {
     },
     {
       name: "Kênh bán hàng kết nối",
-      current: salesChannels.length,
+      current: channels.length,
       limit: activePlan.limits.channels,
       unit: "kênh",
       isUnlimited: activePlan.id === "enterprise" || activePlan.id === "growth",
