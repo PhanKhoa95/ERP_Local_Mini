@@ -46,7 +46,7 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await page.waitForSelector("text=Thêm mới");
 
     // Search for the newly auto-profiled customer
-    const searchInput = page.locator('input[placeholder="Tìm theo tên, mã, SĐT, email..."]');
+    const searchInput = page.locator('input[placeholder="Tìm kiếm..."]').first();
     await searchInput.fill("0988777666");
     await page.waitForTimeout(500);
 
