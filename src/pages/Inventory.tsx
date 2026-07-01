@@ -28,6 +28,7 @@ import {
   Wrench,
   Filter,
   Factory,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProducts } from "@/hooks/useProducts";
@@ -37,6 +38,7 @@ import { ProductDialog } from "@/components/products/ProductDialog";
 import { StockTransactionDialog } from "@/components/inventory/StockTransactionDialog";
 import { ProductImportDialog } from "@/components/inventory/ProductImportDialog";
 import { BomDialog } from "@/components/products/BomDialog";
+import { ProductVariantsDialog } from "@/components/products/ProductVariantsDialog";
 import { exportProductsToExcel, exportInventoryToExcel } from "@/lib/exportExcel";
 import {
   AlertDialog,
@@ -72,6 +74,8 @@ const Inventory = () => {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
+  const [variantsDialogOpen, setVariantsDialogOpen] = useState(false);
+  const [variantsProduct, setVariantsProduct] = useState<any>(null);
 
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -489,6 +493,23 @@ const Inventory = () => {
                                   )} />
                                 </Button>
                               )}
+                              {!isService && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                  title="Quản lý biến thể"
+                                  onClick={() => {
+                                    setVariantsProduct(product);
+                                    setVariantsDialogOpen(true);
+                                  }}
+                                >
+                                  <Boxes className={cn(
+                                    "h-4 w-4",
+                                    product.has_variants && "text-purple-600 fill-purple-600/10"
+                                  )} />
+                                </Button>
+                              )}
                               {canEdit("inventory") && (
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(product)}>
                                   <Pencil className="h-4 w-4" />
@@ -647,6 +668,12 @@ const Inventory = () => {
         open={bomDialogOpen}
         onOpenChange={setBomDialogOpen}
         product={bomProduct}
+      />
+
+      <ProductVariantsDialog
+        open={variantsDialogOpen}
+        onOpenChange={setVariantsDialogOpen}
+        product={variantsProduct}
       />
     </MainLayout>
   );
