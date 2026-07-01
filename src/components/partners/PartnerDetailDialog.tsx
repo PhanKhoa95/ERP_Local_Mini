@@ -13,7 +13,7 @@ import { useWarehouses } from "@/hooks/useWarehouses";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
-  Trash2, Calendar, FileText
+  Trash2, Calendar, FileText, Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -74,7 +74,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
     if (orders.length === 0) return "Chưa xác định";
     const channelsCount: Record<string, number> = {};
     orders.forEach(o => {
-      const channel = o.sales_channel_id || "Cửa hàng bán lẻ";
+      const channel = o.channel_id || "Cửa hàng bán lẻ";
       channelsCount[channel] = (channelsCount[channel] || 0) + 1;
     });
     const sorted = Object.entries(channelsCount).sort((a, b) => b[1] - a[1]);
