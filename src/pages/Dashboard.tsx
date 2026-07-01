@@ -18,8 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useGlobalDateFilter, DatePreset } from "@/contexts/GlobalDateFilterContext";
+import { useMemo } from "react";
 
 const RevenueChart = lazy(() => import("@/components/dashboard/RevenueChart").then(m => ({ default: m.RevenueChart })));
 const ChannelPieChart = lazy(() => import("@/components/dashboard/ChannelPieChart").then(m => ({ default: m.ChannelPieChart })));
@@ -29,49 +31,23 @@ const SalesChatWidget = lazy(() => import("@/components/sales/SalesChatWidget").
 const ChartFallback = () => <Skeleton className="h-72 rounded-xl" />;
 
 const Dashboard = () => {
-  const [dateFilter, setDateFilter] = useState<string>("all");
-  const [customRange, setCustomRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const { startDate, endDate, activePreset, selectPreset, setCustomRange } = useGlobalDateFilter();
 
-  const getActiveRange = () => {
-    if (dateFilter === "all") return null;
-    const now = new Date();
-    if (dateFilter === "today") {
-      return {
-        from: startOfDay(now),
-        to: endOfDay(now),
-      };
-    }
-    if (dateFilter === "last7days") {
-      return {
-        from: startOfDay(subDays(now, 7)),
-        to: endOfDay(now),
-      };
-    }
-    if (dateFilter === "last30days") {
-      return {
-        from: startOfDay(subDays(now, 30)),
-        to: endOfDay(now),
-      };
-    }
-    if (dateFilter === "month") {
-      return {
-        from: startOfMonth(now),
-        to: endOfMonth(now),
-      };
-    }
-    if (dateFilter === "custom" && customRange.from && customRange.to) {
-      return {
-        from: startOfDay(customRange.from),
-        to: endOfDay(customRange.to),
-      };
-    }
-    return null;
-  };
+  const activeRange = useMemo(() => {
+    if (!startDate && !endDate) return null;
+    return {
+      from: startDate ? startOfDay(parseISO(startDate)) : startOfMonth(new Date()),
+      to: endDate ? endOfDay(parseISO(endDate)) : endOfMonth(new Date()),
+    };
+  }, [startDate, endDate]);
 
-  const activeRange = getActiveRange();
+  const calendarRange = useMemo(() => {
+    return {
+      from: startDate ? parseISO(startDate) : undefined,
+      to: endDate ? parseISO(endDate) : undefined,
+    };
+  }, [startDate, endDate]);
+
   const { stats, isLoading } = useDashboardStats(activeRange);
 
   if (isLoading) {
@@ -102,27 +78,28 @@ const Dashboard = () => {
             <span className="text-xs text-muted-foreground hidden md:inline">(Áp dụng cho số liệu tổng quan & phân tích kênh)</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={dateFilter} onValueChange={setDateFilter}>
+            <Select value={activePreset} onValueChange={(val) => selectPreset(val as DatePreset)}>
               <SelectTrigger className="w-[180px] h-9 bg-background border-border shadow-sm">
                 <SelectValue placeholder="Chọn thời gian" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả thời gian</SelectItem>
                 <SelectItem value="today">Hôm nay</SelectItem>
-                <SelectItem value="last7days">7 ngày qua</SelectItem>
-                <SelectItem value="last30days">30 ngày qua</SelectItem>
-                <SelectItem value="month">Tháng này</SelectItem>
+                <SelectItem value="this-month">Tháng này</SelectItem>
+                <SelectItem value="last-30-days">30 ngày qua</SelectItem>
+                <SelectItem value="last-90-days">90 ngày qua</SelectItem>
+                <SelectItem value="this-year">Năm nay</SelectItem>
                 <SelectItem value="custom">Tùy chọn khoảng...</SelectItem>
               </SelectContent>
             </Select>
 
-            {dateFilter === "custom" && (
+            {activePreset === "custom" && (
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9 border-border bg-background shadow-sm">
                     <CalendarIcon className="w-4 h-4 mr-2" />
-                    {customRange.from && customRange.to ? (
-                      `${format(customRange.from, "dd/MM/yyyy")} - ${format(customRange.to, "dd/MM/yyyy")}`
+                    {startDate && endDate ? (
+                      `${format(parseISO(startDate), "dd/MM/yyyy")} - ${format(parseISO(endDate), "dd/MM/yyyy")}`
                     ) : (
                       "Chọn khoảng ngày"
                     )}
@@ -131,9 +108,14 @@ const Dashboard = () => {
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="range"
-                    selected={customRange}
+                    selected={calendarRange}
                     onSelect={(range) => {
-                      setCustomRange(range ? { from: range.from, to: range.to } : { from: undefined, to: undefined });
+                      if (range?.from && range?.to) {
+                        setCustomRange(
+                          format(range.from, "yyyy-MM-dd"),
+                          format(range.to, "yyyy-MM-dd")
+                        );
+                      }
                     }}
                     locale={vi}
                   />

@@ -13,6 +13,7 @@ import { useOrders, type Order as HookOrder } from "@/hooks/useOrders";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useShippingZones } from "@/hooks/useShippingZones";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import { CreateOrderDialog } from "@/components/orders/CreateOrderDialog";
 import { OrderDetailDialog } from "@/components/orders/OrderDetailDialog";
 import { QuickStatusButtons } from "@/components/orders/QuickStatusButtons";
