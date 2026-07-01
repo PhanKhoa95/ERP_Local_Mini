@@ -37,6 +37,7 @@ import {
   Warehouse,
   AlertTriangle,
   CheckCircle2,
+  QrCode
 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { usePartners } from "@/hooks/usePartners";
@@ -282,7 +283,7 @@ const POSTextInput: React.FC<POSTextInputProps> = ({
 
 const POS = () => {
   const { products, isLoading: productsLoading } = useProducts();
-  const { customers } = usePartners();
+  const { customers, updatePartner } = usePartners();
   const { channels } = useSalesChannels();
   const { orders, createOrder } = useOrders();
   const { warehouses } = useWarehouses();
@@ -327,6 +328,36 @@ const POS = () => {
       setSelectedWarehouse(defaultWarehouse.id);
     }
   }, [defaultWarehouse, selectedWarehouse]);
+
+  // Automatically switch POS warehouse to customer's default warehouse if configured
+  useEffect(() => {
+    if (selectedCustomer && selectedCustomer !== "walk-in") {
+      const cust = customers.find(c => c.id === selectedCustomer);
+      if (cust?.warehouse_id) {
+        setSelectedWarehouse(cust.warehouse_id);
+      }
+    }
+  }, [selectedCustomer, customers]);
+
+  const handleSimulateQRScan = () => {
+    const vipCustomer = customers.find(c => c.promo_segment === "loyalty") || customers.find(c => c.promo_segment === "wholesale") || customers[0];
+    if (vipCustomer) {
+      setSelectedCustomer(vipCustomer.id);
+      if (vipCustomer.warehouse_id) {
+        setSelectedWarehouse(vipCustomer.warehouse_id);
+      }
+      toast({
+        title: "📡 Quét thẻ thành viên thành công",
+        description: `Đã nhận diện thẻ VIP của "${vipCustomer.name}". Tự động áp dụng Kho mặc định và chính sách chiết khấu.`,
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Không tìm thấy thẻ",
+        description: "Vui lòng thêm khách hàng vào hệ thống trước.",
+      });
+    }
+  };
 
   useEffect(() => {
     if (defaultChannel && !selectedChannel) {
@@ -631,6 +662,33 @@ const POS = () => {
       // Stock deduction is now handled by createOrder in useOrders.ts
 
 
+      // Rule-based Auto-Segmentation & thăng hạng VIP
+      if (customer) {
+        const newTotalSpent = (customer.total_spent || 0) + total;
+        const currentSegment = customer.promo_segment || "all";
+        let newSegment = currentSegment;
+        let didAutoUpgrade = false;
+        
+        if (newTotalSpent >= 10000000 && currentSegment === "all") {
+          newSegment = "loyalty";
+          didAutoUpgrade = true;
+        }
+
+        await updatePartner.mutateAsync({
+          id: customer.id,
+          total_spent: newTotalSpent,
+          loyalty_points: (customer.loyalty_points || 0) + Math.floor(total / 10000),
+          promo_segment: newSegment,
+        });
+
+        if (didAutoUpgrade) {
+          toast({
+            title: "🎉 Thăng hạng Thành viên VIP",
+            description: `Khách hàng "${customer.name}" đã tích lũy ${newTotalSpent.toLocaleString("vi-VN")}đ và tự động thăng hạng lên tệp VIP/Loyalty!`,
+          });
+        }
+      }
+
       toast({
         title: "Thanh toán thành công",
         description: `Đơn hàng ${orderNumber} đã được tạo`,
@@ -730,9 +788,20 @@ const POS = () => {
 
       {/* Customer Selection with Search */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Khách hàng</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Khách hàng</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={handleSimulateQRScan}
+            className="h-7 text-xs text-primary gap-1 px-1.5 hover:bg-primary/10"
+          >
+            <QrCode className="h-3.5 w-3.5" /> Giả lập Quét VIP
+          </Button>
         </div>
         <div className="space-y-2">
           <POSTextInput
