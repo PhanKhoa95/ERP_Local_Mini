@@ -24,6 +24,7 @@ export interface Voucher {
   target_customer_group?: "all" | "loyalty" | "wholesale";
   promo_type?: "order_discount" | "free_shipping" | "buy_x_get_y";
   target_product_id?: string;
+  target_category?: string;
 }
 
 const LOCAL_KEY = "erp-mini-local-vouchers";
@@ -34,6 +35,7 @@ export function parseVoucherMetadata(voucher: any): Voucher {
   let target_customer_group: "all" | "loyalty" | "wholesale" = "all";
   let promo_type: "order_discount" | "free_shipping" | "buy_x_get_y" = "order_discount";
   let target_product_id = "";
+  let target_category = "all";
   let cleanDescription = voucher.description || "";
 
   if (voucher.description && voucher.description.trim().startsWith("{")) {
@@ -43,6 +45,7 @@ export function parseVoucherMetadata(voucher: any): Voucher {
       target_customer_group = meta.target_customer_group ?? "all";
       promo_type = meta.promo_type ?? "order_discount";
       target_product_id = meta.target_product_id ?? "";
+      target_category = meta.target_category ?? "all";
       cleanDescription = meta.description ?? "";
     } catch (e) {
       // Ignored
@@ -55,6 +58,7 @@ export function parseVoucherMetadata(voucher: any): Voucher {
     target_customer_group,
     promo_type,
     target_product_id,
+    target_category,
     description: cleanDescription,
   };
 }
@@ -66,6 +70,7 @@ export function serializeVoucherMetadata(voucher: Omit<Voucher, "id" | "used_cou
     target_customer_group: voucher.target_customer_group ?? "all",
     promo_type: voucher.promo_type ?? "order_discount",
     target_product_id: voucher.target_product_id ?? "",
+    target_category: voucher.target_category ?? "all",
     description: voucher.description ?? "",
   };
   return {
