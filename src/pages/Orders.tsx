@@ -85,6 +85,7 @@ const Orders = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const { startDate, endDate } = useGlobalDateFilter();
 
   const paramSearch = searchParams.get("search") || stateSearchTerm;
   const paramStatus = searchParams.get("status") || "all";
@@ -138,9 +139,17 @@ const Orders = () => {
         !!order.platform_order_id?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || order.status === statusFilter;
       const matchesChannel = channelFilter === "all" || order.channel_id === channelFilter;
-      return matchesSearch && matchesStatus && matchesChannel;
+      
+      let matchesDate = true;
+      if (order.created_at) {
+        const orderDateStr = order.created_at.split("T")[0];
+        if (startDate && orderDateStr < startDate) matchesDate = false;
+        if (endDate && orderDateStr > endDate) matchesDate = false;
+      }
+      
+      return matchesSearch && matchesStatus && matchesChannel && matchesDate;
     });
-  }, [enrichedOrders, searchTerm, statusFilter, channelFilter]);
+  }, [enrichedOrders, searchTerm, statusFilter, channelFilter, startDate, endDate]);
 
   const getChannelInfo = (channelId: string | null) => {
     if (!channelId) return { name: "N/A", color: "#888" };
