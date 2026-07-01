@@ -41,6 +41,20 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
   cancelled: { label: "Đã hủy", variant: "destructive" },
 };
 
+const renderSimulatedQRCode = (code: string) => {
+  return (
+    <svg width="75" height="75" viewBox="0 0 29 29" className="bg-white p-1.5 rounded-md shrink-0 shadow-sm">
+      <path d="M0 0h7v2H2v5H0V0zm22 0h7v7h-2V2h-5V0zM0 22h2v5h5v2H0v-7zm27 0h2v7h-7v-2h5v-5z" fill="#000" />
+      <path d="M3 3h7v7H3V3zm1 1v5h5V4H4zm1 1h3v3H5V5z" fill="#000" />
+      <path d="M19 3h7v7h-7V3zm1 1v5h5V4H20zm1 1h3v3H21V5z" fill="#000" />
+      <path d="M3 19h7v7H3v-7zm1 1v5h5v-5H4zm1 1h3v3H5v-3z" fill="#000" />
+      <path d="M12 4h1v1h-1zm2 0h1v1h-1zm1 2h1v1h-1zm-2 2h1v1h-1zm4 4h1v1h-1zm1 1h1v1h-1zm-3 2h1v1h-1zm2 2h1v1h-1zm-6 2h1v1h-1z" fill="#000" />
+      <path d="M4 12h1v1H4zm2 0h1v1H6zm6 2h1v1h-1zm4 0h1v1h-1zm-2 2h1v1h-1zm4 2h1v1h-1zm1 1h1v1h-1zm-3 2h1v1h-1z" fill="#000" />
+      <rect x="12" y="12" width="5" height="5" fill="#4f46e5" />
+    </svg>
+  );
+};
+
 export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { warehouses } = useWarehouses();
   const { orders, transactions, topProducts, notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
@@ -117,30 +131,88 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                 </CardContent></Card>
               </div>
 
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Thông tin liên hệ</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {partner.phone && <div className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-muted-foreground" />{partner.phone}</div>}
-                  {partner.email && <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-muted-foreground" />{partner.email}</div>}
-                  {partner.address && <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" />{partner.address}</div>}
-                  {partner.tax_id && <div className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-muted-foreground" />MST: {partner.tax_id}</div>}
-                  {partner.branch_id && <div className="flex items-center gap-2 text-sm"><strong>Chi nhánh:</strong> {partner.branch_id}</div>}
-                  {partner.warehouse_id && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <strong>Kho mặc định:</strong> {warehouses.find(w => w.id === partner.warehouse_id)?.name || partner.warehouse_id}
-                    </div>
-                  )}
-                  {partner.promo_segment && (
-                    <div className="flex items-center gap-2 text-sm flex-wrap items-center gap-1">
-                      <strong>Tệp ưu đãi:</strong>
-                      <Badge variant="secondary" className="ml-1 text-xs">
-                        {partner.promo_segment === "all" ? "Khách lẻ / Tất cả (retail)" : partner.promo_segment === "loyalty" ? "Thành viên VIP (loyalty)" : "Khách mua sỉ (wholesale)"}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Contact Info (2 cols) */}
+                <div className="md:col-span-2">
+                  <Card>
+                    <CardHeader><CardTitle className="text-sm font-semibold">Thông tin liên hệ</CardTitle></CardHeader>
+                    <CardContent className="space-y-2.5">
+                      {partner.phone && <div className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-muted-foreground" />{partner.phone}</div>}
+                      {partner.email && <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-muted-foreground" />{partner.email}</div>}
+                      {partner.address && <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" />{partner.address}</div>}
+                      {partner.tax_id && <div className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-muted-foreground" />MST: {partner.tax_id}</div>}
+                      {partner.branch_id && <div className="flex items-center gap-2 text-sm"><strong>Chi nhánh:</strong> {partner.branch_id}</div>}
+                      {partner.warehouse_id && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <strong>Kho mặc định:</strong> {warehouses.find(w => w.id === partner.warehouse_id)?.name || partner.warehouse_id}
+                        </div>
+                      )}
+                      {partner.promo_segment && (
+                        <div className="flex items-center gap-2 text-sm flex-wrap items-center gap-1">
+                          <strong>Tệp ưu đãi:</strong>
+                          <Badge variant="secondary" className="ml-1 text-xs">
+                            {partner.promo_segment === "all" ? "Khách lẻ / Tất cả (retail)" : partner.promo_segment === "loyalty" ? "Thành viên VIP (loyalty)" : "Khách mua sỉ (wholesale)"}
+                          </Badge>
+                        </div>
+                      )}
+                      {partner.notes && <div className="text-sm text-muted-foreground mt-2 p-3 bg-muted rounded-md">{partner.notes}</div>}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Glassmorphic VIP Membership Card (1 col) */}
+                <div className="md:col-span-1">
+                  <div className={cn(
+                    "relative overflow-hidden rounded-xl p-5 text-white shadow-xl border flex flex-col justify-between transition-all hover:scale-[1.02] h-full min-h-[220px]",
+                    partner.promo_segment === "loyalty" 
+                      ? "bg-gradient-to-br from-slate-900 via-amber-955/70 to-slate-900 border-amber-500/30" 
+                      : partner.promo_segment === "wholesale"
+                      ? "bg-gradient-to-br from-slate-900 via-indigo-955/70 to-slate-900 border-indigo-500/30"
+                      : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 border-white/10"
+                  )}>
+                    {/* Metallic glow accents */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+                    
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="text-xs font-semibold tracking-widest text-white/70">LOCAL MINI ERP</div>
+                        <div className="text-[10px] text-white/50">MEMBER CARD</div>
+                      </div>
+                      <Badge className={cn(
+                        "text-[9px] px-1.5 py-0 leading-none uppercase font-mono border-none",
+                        partner.promo_segment === "loyalty" 
+                          ? "bg-amber-500 text-amber-950 hover:bg-amber-400" 
+                          : partner.promo_segment === "wholesale"
+                          ? "bg-indigo-500 text-indigo-950 hover:bg-indigo-400"
+                          : "bg-slate-700 text-slate-100 hover:bg-slate-600"
+                      )}>
+                        {partner.promo_segment === "loyalty" ? "VIP Member" : partner.promo_segment === "wholesale" ? "Khách Sỉ" : "Khách Lẻ"}
                       </Badge>
                     </div>
-                  )}
-                  {partner.notes && <div className="text-sm text-muted-foreground mt-2 p-3 bg-muted rounded-md">{partner.notes}</div>}
-                </CardContent>
-              </Card>
+
+                    {/* Middle: QR & Code */}
+                    <div className="flex items-center justify-between gap-4 mt-2">
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold truncate max-w-[130px]">{partner.name}</div>
+                        <div className="text-[10px] text-white/60 font-mono tracking-wider">{partner.code}</div>
+                      </div>
+                      {renderSimulatedQRCode(partner.code)}
+                    </div>
+
+                    {/* Footer: points accumulation */}
+                    <div className="flex items-end justify-between border-t border-white/10 pt-2 mt-2">
+                      <div className="text-[9px] text-white/50">
+                        Chi tiêu: <span className="font-semibold text-white">{fmtMoney(partner.total_spent || 0)}</span>
+                      </div>
+                      <div className="text-[9px] text-white/50 flex items-center gap-0.5">
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                        <span className="font-semibold text-white">{partner.loyalty_points || 0} điểm</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </TabsContent>
 
             {/* Orders Tab */}
