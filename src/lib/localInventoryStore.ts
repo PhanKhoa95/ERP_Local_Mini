@@ -890,6 +890,27 @@ export function addLocalBomItem(input: {
   }
 
   const items = readJson<ProductBom[]>(BOM_KEY, []);
+  
+  // DFS Circular dependency check
+  const hasCycle = (prodId: string, matId: string, list: ProductBom[]): boolean => {
+    const visited = new Set<string>();
+    const queue = [matId];
+    while (queue.length > 0) {
+      const curr = queue.shift()!;
+      if (curr === prodId) return true;
+      visited.add(curr);
+      const children = list.filter(b => b.product_id === curr && b.is_active !== false).map(b => b.material_id);
+      for (const child of children) {
+        if (!visited.has(child)) queue.push(child);
+      }
+    }
+    return false;
+  };
+
+  if (hasCycle(input.product_id, input.material_id, items)) {
+    throw new Error("Không thể thêm: Gây ra vòng lặp định mức (Circular Dependency).");
+  }
+
   const duplicate = items.find(
     (item) => item.product_id === input.product_id && item.material_id === input.material_id
   );

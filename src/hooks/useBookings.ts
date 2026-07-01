@@ -4,6 +4,7 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { invalidateBookingRelated } from "@/lib/queryInvalidation";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
 export interface Booking {
   id: string;
@@ -40,8 +41,23 @@ const INDUSTRY_RESOURCES: Record<string, { types: string[]; labels: Record<strin
   construction: { types: ["machine", "vehicle", "worker"], labels: { machine: "Máy công trình", vehicle: "Xe vận chuyển", worker: "Nhân công" } },
 };
 
+const LOCAL_BOOKINGS_KEY = "erp-mini-local-demo-bookings";
+
 export function getIndustryResources(industry: string) {
   return INDUSTRY_RESOURCES[industry] || INDUSTRY_RESOURCES.services;
+}
+
+function getLocalBookings(): Booking[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_BOOKINGS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalBookings(bookings: Booking[]) {
+  localStorage.setItem(LOCAL_BOOKINGS_KEY, JSON.stringify(bookings));
 }
 
 export function useBookings() {
@@ -53,6 +69,9 @@ export function useBookings() {
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["bookings", companyId],
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        return getLocalBookings().filter(b => b.company_id === companyId);
+      }
       const { data, error } = await supabase
         .from("bookings")
         .select("*")
@@ -66,7 +85,53 @@ export function useBookings() {
 
   const createBooking = useMutation({
     mutationFn: async (booking: Partial<Booking>) => {
-      // Check conflict first
+      if (isLocalDemoAuthEnabled()) {
+        const list = getLocalBookings();
+        // Conflict check
+        const conflicts = list.filter(b => 
+          b.company_id === companyId &&
+          b.resource_name === booking.resource_name &&
+          b.status !== "cancelled" &&
+          (
+            (booking.start_time! >= b.start_time && booking.start_time! < b.end_time) ||
+            (booking.end_time! > b.start_time && booking.end_time! <= b.end_time) ||
+            (booking.start_time! <= b.start_time && booking.end_time! >= b.end_time)
+          )
+        );
+        if (conflicts.length > 0) {
+          throw new Error(`Trùng lịch với: ${conflicts.map((c: any) => c.customer_name).join(", ")}`);
+        }
+
+        const newBooking: Booking = {
+          id: `bk-${Date.now()}`,
+          company_id: companyId!,
+          booking_type: booking.booking_type || "consultation",
+          resource_type: booking.resource_type || "consultant",
+          resource_name: booking.resource_name || "",
+          resource_id: booking.resource_id,
+          customer_name: booking.customer_name || "",
+          customer_phone: booking.customer_phone,
+          customer_email: booking.customer_email,
+          start_time: booking.start_time!,
+          end_time: booking.end_time!,
+          status: booking.status || "confirmed",
+          notes: booking.notes,
+          industry: booking.industry || "services",
+          vneid_hash: booking.vneid_hash,
+          voucher_on_complete: booking.voucher_on_complete ?? false,
+          voucher_discount: booking.voucher_discount ?? 0,
+          token_reward_on_complete: booking.token_reward_on_complete ?? 0,
+          offline_queued: booking.offline_queued ?? false,
+          created_by: user?.id || "current-user",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        list.unshift(newBooking);
+        saveLocalBookings(list);
+        return newBooking;
+      }
+
+      // Check conflict first via edge function
       const { data: conflictData } = await supabase.functions.invoke("manage-bookings", {
         body: {
           action: "check_conflict",
@@ -98,6 +163,26 @@ export function useBookings() {
 
   const updateBookingStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      if (isLocalDemoAuthEnabled()) {
+        const list = getLocalBookings();
+        const idx = list.findIndex(b => b.id === id);
+        if (idx === -1) throw new Error("Không tìm thấy lịch đặt");
+        
+        list[idx].status = status;
+        list[idx].updated_at = new Date().toISOString();
+        saveLocalBookings(list);
+        
+        let voucher = null;
+        let token_issued = 0;
+        
+        if (status === "completed" && list[idx].voucher_on_complete) {
+          voucher = { code: `VC-${Math.floor(1000 + Math.random() * 9000)}` };
+          token_issued = list[idx].token_reward_on_complete || 10;
+        }
+        
+        return { ...list[idx], voucher, token_issued };
+      }
+
       if (status === "completed") {
         const { data, error } = await supabase.functions.invoke("manage-bookings", {
           body: { action: "complete_booking", booking_id: id },

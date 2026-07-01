@@ -167,6 +167,20 @@ export function useCashVouchers() {
       const v = all[idx];
       if (v.status !== "draft") throw new Error("Chỉ xác nhận được phiếu ở trạng thái Nháp");
 
+      if (v.voucher_type === "payment" && v.project_id) {
+        const localProjects = JSON.parse(localStorage.getItem("erp-mini-local-demo-projects") || "[]");
+        const project = localProjects.find((p: any) => p.id === v.project_id);
+        if (project && project.budget !== null && project.budget !== undefined) {
+          const confirmedExpenses = all
+            .filter((x: any) => x.project_id === v.project_id && x.voucher_type === "payment" && x.status === "confirmed")
+            .reduce((sum: number, x: any) => sum + (x.amount || 0), 0);
+          
+          if (confirmedExpenses + v.amount > project.budget) {
+            throw new Error("Không thể xác nhận: Chi phí vượt quá ngân sách được cấp cho dự án.");
+          }
+        }
+      }
+
       const now = new Date().toISOString();
       v.status = "confirmed";
       v.confirmed_by = "current-user";

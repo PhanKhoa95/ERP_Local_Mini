@@ -14,117 +14,57 @@ import { supabase } from "@/integrations/supabase/client";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
 export function CassoReconciliation() {
-  const [syncing, setSyncing] = useState(false);
   const [apiKey, setApiKey] = useState("casso_api_live_***89f2");
-  const { orders } = useOrders();
-  const { createTransaction } = usePaymentTransactions();
+  const { orders = [] } = useOrders();
+  const {
+    bankTransactions = [],
+    syncBankTransactions,
+    matchBankTransaction
+  } = usePaymentTransactions();
   const [openMatchDialog, setOpenMatchDialog] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string>("");
-  
-  const [transactions, setTransactions] = useState([
-    {
-      id: "FT26128038102",
-      description: "CHUYEN TIEN DH9812",
-      amount: 450000,
-      bank: "Vietcombank",
-      account: "1028374827",
-      status: "matched",
-      orderCode: "DH9812",
-      time: "2026-06-22 14:10:02"
-    },
-    {
-      id: "FT26128038105",
-      description: "KHOA MEDIA CK DH8821",
-      amount: 1250000,
-      bank: "Techcombank",
-      account: "190384729180",
-      status: "matched",
-      orderCode: "DH8821",
-      time: "2026-06-22 13:45:10"
-    },
-    {
-      id: "FT26128038109",
-      description: "NGUYEN VAN A THANH TOAN",
-      amount: 320000,
-      bank: "MB Bank",
-      account: "09823847291",
-      status: "unmatched",
-      orderCode: null,
-      time: "2026-06-22 12:20:15"
-    }
-  ]);
 
-  const handleSync = () => {
-    setSyncing(true);
-    setTimeout(() => {
-      // Simulate discovering a new transaction and matching it
-      const newTx = {
-        id: `FT2612803${Math.floor(Math.random() * 90000) + 10000}`,
-        description: "THANH TOAN DON HANG DH7731",
-        amount: 890000,
-        bank: "VietinBank",
-        account: "1038471928",
-        status: "matched",
-        orderCode: "DH7731",
-        time: new Date().toLocaleString("vi-VN")
-      };
-      
-      setTransactions(prev => [newTx, ...prev]);
-      toast.success("Đã đồng bộ thành công với cổng Casso! Phát hiện 1 giao dịch mới đã được đối soát tự động.");
-      setSyncing(false);
-    }, 1500);
+  const transactions = bankTransactions.map((tx: any) => {
+    const matchedOrder = orders.find((o: any) => o.id === tx.matched_entity_id);
+    return {
+      id: tx.id,
+      transaction_id: tx.transaction_id,
+      description: tx.content || "Chuyển khoản",
+      bank: tx.gateway,
+      account: tx.account_number || "",
+      amount: tx.amount,
+      time: tx.transaction_time ? new Date(tx.transaction_time).toLocaleString("vi-VN") : "",
+      status: tx.reconciliation_status,
+      orderCode: matchedOrder ? matchedOrder.order_number : (tx.matched_entity_id || "")
+    };
+  });
+
+  const handleSync = async () => {
+    try {
+      await syncBankTransactions.mutateAsync();
+      toast.success("Đã đồng bộ thành công với cổng Casso! Phát hiện 1 giao dịch mới.");
+    } catch (err: any) {
+      toast.error("Đồng bộ thất bại: " + err.message);
+    }
   };
 
   const handleManualMatch = async () => {
     if (!selectedTx || !selectedOrderId) return;
-    
-    const matchedOrder = orders.find(o => o.id === selectedOrderId);
-    if (!matchedOrder) {
-      toast.error("Không tìm thấy đơn hàng");
-      return;
-    }
-
     try {
-      await createTransaction.mutateAsync({
-        partner_id: matchedOrder.partner_id || "partner-retail",
-        order_id: matchedOrder.id,
-        transaction_type: "payment_in",
-        amount: selectedTx.amount,
-        payment_method: "bank_transfer",
-        reference_number: selectedTx.id,
-        notes: `Casso đối soát thủ công: ${selectedTx.description}`
+      await matchBankTransaction.mutateAsync({
+        bankTxId: selectedTx.id,
+        orderId: selectedOrderId
       });
-
-      if (!isLocalDemoAuthEnabled()) {
-        await supabase
-          .from("bank_transactions")
-          .update({
-            reconciliation_status: "matched",
-            matched_order_id: matchedOrder.id
-          })
-          .eq("id", selectedTx.id);
-      }
-
-      setTransactions(prev => prev.map(t => {
-        if (t.id === selectedTx.id) {
-          return {
-            ...t,
-            status: "matched",
-            orderCode: matchedOrder.order_number
-          };
-        }
-        return t;
-      }));
-
-      toast.success("Đối soát thủ công thành công!");
       setOpenMatchDialog(false);
       setSelectedTx(null);
       setSelectedOrderId("");
     } catch (err: any) {
-      toast.error("Có lỗi xảy ra: " + err.message);
+      // Errors handled by mutation's onError
     }
   };
+
+  const syncing = syncBankTransactions.isPending;
 
   return (
     <>

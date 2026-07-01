@@ -97,6 +97,32 @@ export function useProductBom(productId?: string) {
         return addLocalBomItem(item);
       }
 
+      const { data: existingBom, error: fetchError } = await supabase
+        .from("product_bom")
+        .select("product_id, material_id, is_active")
+        .eq("is_active", true);
+
+      if (fetchError) throw fetchError;
+
+      const hasCycle = (prodId: string, matId: string, list: any[]): boolean => {
+        const visited = new Set<string>();
+        const queue = [matId];
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          if (curr === prodId) return true;
+          visited.add(curr);
+          const children = list.filter(b => b.product_id === curr && b.is_active !== false).map(b => b.material_id);
+          for (const child of children) {
+            if (!visited.has(child)) queue.push(child);
+          }
+        }
+        return false;
+      };
+
+      if (hasCycle(item.product_id, item.material_id, existingBom || [])) {
+        throw new Error("Không thể thêm: Gây ra vòng lặp định mức (Circular Dependency).");
+      }
+
       const { data, error } = await supabase
         .from("product_bom")
         .insert(item)

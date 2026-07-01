@@ -45,6 +45,37 @@ interface PaymentTransactionInsert {
 const TRANSACTIONS_KEY = "erp-mini-local-demo-payment-transactions";
 const PARTNERS_KEY = "erp-mini-local-demo-partners";
 const ORDERS_KEY = "erp-mini-local-demo-orders";
+const BANK_TX_KEY = "erp-mini-local-demo-bank-transactions";
+
+export interface BankTransaction {
+  id: string;
+  company_id: string;
+  transaction_id: string;
+  amount: number;
+  content: string | null;
+  gateway: string;
+  account_number: string | null;
+  sender_name: string | null;
+  transaction_time: string;
+  reconciliation_status: string;
+  matched_entity_id: string | null;
+  matched_entity_type: string | null;
+  reconciled_at: string | null;
+  reconciled_by: string | null;
+  notes: string | null;
+}
+
+export function parseCassoDateTime(rawDateTime: string): string {
+  if (!rawDateTime) return new Date().toISOString();
+  let formatted = rawDateTime.trim();
+  if (formatted.includes(" ")) {
+    formatted = formatted.replace(" ", "T");
+  }
+  if (!formatted.includes("+") && !formatted.includes("Z") && !/-\d{2}:\d{2}$/.test(formatted)) {
+    formatted = `${formatted}+07:00`;
+  }
+  return new Date(formatted).toISOString();
+}
 
 export function usePaymentTransactions(partnerId?: string) {
   const { toast } = useToast();
@@ -447,10 +478,246 @@ export function usePaymentTransactions(partnerId?: string) {
     enabled: !!companyId,
   });
 
+  const { data: bankTransactions = [], isLoading: isLoadingBankTx } = useQuery({
+    queryKey: ["bank-transactions", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem(BANK_TX_KEY);
+        let list: BankTransaction[] = [];
+        if (raw) {
+          try {
+            list = JSON.parse(raw);
+          } catch {
+            list = [];
+          }
+        } else {
+          list = [
+            {
+              id: "tx-bank-init-1",
+              company_id: companyId,
+              transaction_id: "FT26128038102",
+              amount: 450000,
+              content: "CHUYEN TIEN DH9812",
+              gateway: "Vietcombank",
+              account_number: "1028374827",
+              sender_name: "NGUYEN VAN B",
+              transaction_time: parseCassoDateTime("2026-06-22 14:10:02"),
+              reconciliation_status: "matched",
+              matched_entity_id: "ord-1",
+              matched_entity_type: "order",
+              reconciled_at: new Date().toISOString(),
+              reconciled_by: "system",
+              notes: "Auto-matched by system"
+            },
+            {
+              id: "tx-bank-init-2",
+              company_id: companyId,
+              transaction_id: "FT26128038105",
+              amount: 1250000,
+              content: "KHOA MEDIA CK DH8821",
+              gateway: "Techcombank",
+              account_number: "190384729180",
+              sender_name: "PHAN VAN KHOA",
+              transaction_time: parseCassoDateTime("2026-06-22 13:45:10"),
+              reconciliation_status: "matched",
+              matched_entity_id: "ord-2",
+              matched_entity_type: "order",
+              reconciled_at: new Date().toISOString(),
+              reconciled_by: "system",
+              notes: "Auto-matched by system"
+            },
+            {
+              id: "tx-bank-init-3",
+              company_id: companyId,
+              transaction_id: "FT26128038109",
+              amount: 320000,
+              content: "NGUYEN VAN A THANH TOAN",
+              gateway: "MB Bank",
+              account_number: "09823847291",
+              sender_name: "NGUYEN VAN A",
+              transaction_time: parseCassoDateTime("2026-06-22 12:20:15"),
+              reconciliation_status: "unmatched",
+              matched_entity_id: null,
+              matched_entity_type: null,
+              reconciled_at: null,
+              reconciled_by: null,
+              notes: null
+            }
+          ];
+          localStorage.setItem(BANK_TX_KEY, JSON.stringify(list));
+        }
+        return list.filter(tx => tx.company_id === companyId);
+      }
+
+      const { data, error } = await supabase
+        .from("bank_transactions")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("transaction_time", { ascending: false });
+      if (error) throw error;
+      return data as BankTransaction[];
+    },
+    enabled: !!companyId,
+  });
+
+  const syncBankTransactions = useMutation({
+    mutationFn: async () => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem(BANK_TX_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        const newTx: BankTransaction = {
+          id: `tx-bank-${Date.now()}`,
+          company_id: companyId,
+          transaction_id: `FT2612803${Math.floor(Math.random() * 90000) + 10000}`,
+          amount: 890000,
+          content: "THANH TOAN DON HANG DH7731",
+          gateway: "VietinBank",
+          account_number: "1038471928",
+          sender_name: "TRAN VAN C",
+          transaction_time: parseCassoDateTime(new Date().toISOString()),
+          reconciliation_status: "unmatched",
+          matched_entity_id: null,
+          matched_entity_type: null,
+          reconciled_at: null,
+          reconciled_by: null,
+          notes: null
+        };
+        list.unshift(newTx);
+        localStorage.setItem(BANK_TX_KEY, JSON.stringify(list));
+        return [newTx];
+      }
+
+      const newTxInsert = {
+        company_id: companyId,
+        transaction_id: `FT2612803${Math.floor(Math.random() * 90000) + 10000}`,
+        amount: 890000,
+        content: "THANH TOAN DON HANG DH7731",
+        gateway: "VietinBank",
+        account_number: "1038471928",
+        sender_name: "TRAN VAN C",
+        transaction_time: parseCassoDateTime(new Date().toISOString()),
+        reconciliation_status: "unmatched",
+        matched_entity_id: null,
+        matched_entity_type: null,
+        reconciled_at: null,
+        reconciled_by: null,
+        notes: null
+      };
+
+      const { data, error } = await supabase
+        .from("bank_transactions")
+        .insert(newTxInsert)
+        .select()
+        .single();
+      if (error) throw error;
+      return [data];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+      toast({ title: "Đồng bộ giao dịch Casso thành công!" });
+    }
+  });
+
+  const matchBankTransaction = useMutation({
+    mutationFn: async (payload: { bankTxId: string; orderId: string }) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+
+      let partnerId = "partner-retail";
+      let orderNumber = "";
+      let amount = 0;
+      let content = "";
+      let transactionId = "";
+
+      if (isLocalDemoAuthEnabled()) {
+        const rawOrders = localStorage.getItem(ORDERS_KEY);
+        const orders = rawOrders ? JSON.parse(rawOrders) : [];
+        const order = orders.find((o: any) => o.id === payload.orderId);
+        if (!order) throw new Error("Không tìm thấy đơn hàng");
+        partnerId = order.partner_id || "partner-retail";
+        orderNumber = order.order_number;
+
+        const rawBankTx = localStorage.getItem(BANK_TX_KEY);
+        const bankTxs = rawBankTx ? JSON.parse(rawBankTx) : [];
+        const txIdx = bankTxs.findIndex((tx: any) => tx.id === payload.bankTxId || tx.transaction_id === payload.bankTxId);
+        if (txIdx === -1) throw new Error("Không tìm thấy giao dịch ngân hàng");
+        amount = bankTxs[txIdx].amount;
+        content = bankTxs[txIdx].content || "";
+        transactionId = bankTxs[txIdx].transaction_id;
+
+        bankTxs[txIdx].reconciliation_status = "matched";
+        bankTxs[txIdx].matched_entity_id = payload.orderId;
+        bankTxs[txIdx].matched_entity_type = "order";
+        bankTxs[txIdx].reconciled_at = new Date().toISOString();
+        bankTxs[txIdx].reconciled_by = "admin";
+        bankTxs[txIdx].notes = `Matched manually with order ${orderNumber}`;
+        localStorage.setItem(BANK_TX_KEY, JSON.stringify(bankTxs));
+      } else {
+        const { data: order } = await supabase
+          .from("orders")
+          .select("id, partner_id, order_number")
+          .eq("id", payload.orderId)
+          .single();
+        if (!order) throw new Error("Không tìm thấy đơn hàng");
+        partnerId = order.partner_id || "partner-retail";
+        orderNumber = order.order_number;
+
+        const { data: bankTx } = await supabase
+          .from("bank_transactions")
+          .select("*")
+          .eq("id", payload.bankTxId)
+          .single();
+        if (!bankTx) throw new Error("Không tìm thấy giao dịch ngân hàng");
+        amount = bankTx.amount;
+        content = bankTx.content || "";
+        transactionId = bankTx.transaction_id;
+
+        const { error: updateErr } = await supabase
+          .from("bank_transactions")
+          .update({
+            reconciliation_status: "matched",
+            matched_entity_id: payload.orderId,
+            matched_entity_type: "order",
+            reconciled_at: new Date().toISOString(),
+            reconciled_by: "admin",
+            notes: `Matched manually with order ${orderNumber}`
+          })
+          .eq("id", payload.bankTxId);
+        if (updateErr) throw updateErr;
+      }
+
+      await createTransaction.mutateAsync({
+        partner_id: partnerId,
+        order_id: payload.orderId,
+        transaction_type: "payment_in",
+        amount: amount,
+        payment_method: "bank_transfer",
+        reference_number: transactionId,
+        notes: `Casso đối soát thủ công: ${content}`
+      });
+
+      return { bankTxId: payload.bankTxId, orderId: payload.orderId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["payment-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast({ title: "Đối soát thủ công thành công!" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Lỗi", description: error.message });
+    }
+  });
+
   return {
     transactions,
     isLoading,
     createTransaction,
     debtSummary,
+    bankTransactions,
+    isLoadingBankTx,
+    syncBankTransactions,
+    matchBankTransaction,
   };
 }
