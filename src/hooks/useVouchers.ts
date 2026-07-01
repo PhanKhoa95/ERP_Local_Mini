@@ -164,6 +164,7 @@ function saveLocalVouchers(list: Voucher[]) {
       target_customer_group: item.target_customer_group ?? "all",
       promo_type: item.promo_type ?? "order_discount",
       target_product_id: item.target_product_id ?? "",
+      target_category: item.target_category ?? "all",
       description: item.description ?? "",
     };
     return {
@@ -239,6 +240,7 @@ export function useVouchers() {
               target_customer_group: merged.target_customer_group ?? "all",
               promo_type: merged.promo_type ?? "order_discount",
               target_product_id: merged.target_product_id ?? "",
+              target_category: merged.target_category ?? "all",
               description: merged.description ?? "",
             };
             return {
@@ -263,6 +265,7 @@ export function useVouchers() {
         target_customer_group: voucher.target_customer_group !== undefined ? voucher.target_customer_group : (existingParsed?.target_customer_group ?? "all"),
         promo_type: voucher.promo_type !== undefined ? voucher.promo_type : (existingParsed?.promo_type ?? "order_discount"),
         target_product_id: voucher.target_product_id !== undefined ? voucher.target_product_id : (existingParsed?.target_product_id ?? ""),
+        target_category: voucher.target_category !== undefined ? voucher.target_category : (existingParsed?.target_category ?? "all"),
         description: voucher.description !== undefined ? voucher.description : (existingParsed?.description ?? ""),
       };
       patch.description = JSON.stringify(meta);
