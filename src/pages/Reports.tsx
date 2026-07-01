@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   BarChart,
   Bar,
@@ -36,6 +39,7 @@ import {
   Download,
   BarChart3,
   PieChartIcon,
+  Pencil,
 } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -51,6 +55,11 @@ import {
 } from "@/hooks/useReportStats";
 import { useOperationsMetrics } from "@/hooks/useOperationsMetrics";
 import { useProjects } from "@/hooks/useProjects";
+import { useCompanyMembers } from "@/hooks/useCompanyMembers";
+import { useShopSettings } from "@/hooks/useShopSettings";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Users, Building, Clock, Target, MapPin, Store, Globe, Percent, Award, FolderKanban, Activity, Flame, ShieldAlert, CheckSquare, Sparkles } from "lucide-react";
 import { PrintShopReportTab } from "@/components/reports/PrintShopReportTab";
 import { exportAllReportsToExcel } from "@/lib/exportExcel";
@@ -174,6 +183,36 @@ const Reports = () => {
   const startDateStr = format(dateRange.from, "yyyy-MM-dd");
   const endDateStr = format(dateRange.to, "yyyy-MM-dd");
   const { data: opsMetrics, isLoading: opsLoading } = useOperationsMetrics(startDateStr, endDateStr);
+  const { companyId } = useCompanyContext();
+  const { members = [] } = useCompanyMembers();
+  const { updateSetting } = useShopSettings();
+
+  // Dialog State for Project Health Check
+  const [healthSettingsOpen, setHealthSettingsOpen] = useState(false);
+  const [selectedProjectForHealth, setSelectedProjectForHealth] = useState<any>(null);
+  const [healthFormData, setHealthFormData] = useState({
+    progress: 0,
+    manager: "",
+    blocker: "",
+    action: "",
+  });
+
+  // Fetch dynamic project health details from shop_settings
+  const { data: dbHealthDetails = {}, refetch: refetchHealthDetails } = useQuery({
+    queryKey: ["shop_settings", "project_health_details", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shop_settings" as any)
+        .select("value")
+        .eq("company_id", companyId!)
+        .eq("key", "project_health_details")
+        .maybeSingle();
+      if (error) throw error;
+      return (data?.value as Record<string, any>) || {};
+    }
+  });
+
   const { projects, isLoading: projectsLoading } = useProjects();
 
   const filteredProjects = projects ? projects.filter(p => {
@@ -288,22 +327,101 @@ const Reports = () => {
 
   const finalProducts = liveProducts.length > 0 ? liveProducts : salesByProductData;
 
-  const finalEmployees = totalRevenue > 0
-    ? [
-        { name: "Chủ shop (bạn)", department: "Ban Quản trị", revenue: Math.round(totalRevenue * 0.45), orders: Math.round(totalOrders * 0.45), rate: 95, kpi: 98, status: "Vượt chỉ tiêu" },
-        { name: "Nhân viên part-time 1", department: "Bộ phận Sản xuất", revenue: Math.round(totalRevenue * 0.25), orders: Math.round(totalOrders * 0.25), rate: 88, kpi: 92, status: "Đạt chỉ tiêu" },
-        { name: "Nhân viên part-time 2", department: "Bộ phận Sản xuất", revenue: Math.round(totalRevenue * 0.15), orders: Math.round(totalOrders * 0.15), rate: 85, kpi: 90, status: "Đạt chỉ tiêu" },
-        { name: "Cộng tác viên thiết kế", department: "Bộ phận Thiết kế", revenue: Math.round(totalRevenue * 0.15), orders: Math.round(totalOrders * 0.15), rate: 92, kpi: 95, status: "Vượt chỉ tiêu" },
-      ].sort((a, b) => b.revenue - a.revenue)
-    : salesByEmployeeData;
+  const liveEmployees = useMemo(() => {
+    if (!revenueData?.orders || revenueData.orders.length === 0) return [];
+    
+    const empMap: Record<string, { name: string; department: string; revenue: number; orders: number; rate: number; kpi: number; status: string }> = {};
+    
+    const defaultAdminKey = "default-admin";
+    empMap[defaultAdminKey] = {
+      name: "Chủ shop (bạn)",
+      department: "Ban Quản trị",
+      revenue: 0,
+      orders: 0,
+      rate: 95,
+      kpi: 98,
+      status: "Vượt chỉ tiêu"
+    };
 
-  const finalRegions = totalRevenue > 0
-    ? [
-        { name: "Miền Nam", revenue: Math.round(totalRevenue * 0.554), orders: Math.round(totalOrders * 0.55), share: 55.4 },
-        { name: "Miền Bắc", revenue: Math.round(totalRevenue * 0.337), orders: Math.round(totalOrders * 0.35), share: 33.7 },
-        { name: "Miền Trung", revenue: Math.round(totalRevenue * 0.109), orders: Math.round(totalOrders * 0.10), share: 10.9 },
-      ]
-    : salesByRegionData;
+    members.forEach(m => {
+      const name = m.profile?.full_name || m.email || "Nhân viên";
+      const dept = m.role === "admin" ? "Ban Quản trị" : m.role === "manager" ? "Quản lý" : "Nhân viên";
+      empMap[m.user_id] = {
+        name,
+        department: dept,
+        revenue: 0,
+        orders: 0,
+        rate: 85,
+        kpi: 90,
+        status: "Đạt chỉ tiêu"
+      };
+    });
+
+    revenueData.orders.forEach((o: any) => {
+      const userId = o.created_by;
+      if (userId && empMap[userId]) {
+        empMap[userId].revenue += o.total || 0;
+        empMap[userId].orders += 1;
+      } else {
+        empMap[defaultAdminKey].revenue += o.total || 0;
+        empMap[defaultAdminKey].orders += 1;
+      }
+    });
+
+    return Object.values(empMap)
+      .filter(e => e.revenue > 0 || e.orders > 0)
+      .map(e => {
+        let status = "Đạt chỉ tiêu";
+        let rate = 85;
+        let kpi = 90;
+        if (e.revenue > 20000000) {
+          status = "Vượt chỉ tiêu";
+          rate = 95;
+          kpi = 98;
+        } else if (e.revenue < 5000000) {
+          status = "Cần cố gắng";
+          rate = 70;
+          kpi = 75;
+        }
+        return {
+          ...e,
+          rate,
+          kpi,
+          status
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [revenueData?.orders, members]);
+
+  const finalEmployees = liveEmployees.length > 0 ? liveEmployees : salesByEmployeeData;
+
+  const liveRegions = useMemo(() => {
+    if (!revenueData?.orders || revenueData.orders.length === 0) return [];
+    
+    const regionMap: Record<string, { revenue: number; orders: number }> = {};
+    let totalRev = 0;
+    
+    revenueData.orders.forEach((o: any) => {
+      const prov = o.shipping_province || "Khác";
+      if (!regionMap[prov]) {
+        regionMap[prov] = { revenue: 0, orders: 0 };
+      }
+      regionMap[prov].revenue += o.total || 0;
+      regionMap[prov].orders += 1;
+      totalRev += o.total || 0;
+    });
+    
+    return Object.entries(regionMap)
+      .map(([name, data]) => ({
+        name,
+        revenue: data.revenue,
+        orders: data.orders,
+        share: totalRev > 0 ? Math.round((data.revenue / totalRev) * 1000) / 10 : 0
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [revenueData?.orders]);
+
+  const finalRegions = liveRegions.length > 0 ? liveRegions : salesByRegionData;
 
   const liveChannels = revenueData?.channelChart && revenueData.channelChart.length > 0
     ? revenueData.channelChart.map(c => {
