@@ -127,7 +127,7 @@ export function exportInventoryToExcel(transactions: any[]) {
   exportToExcel(formattedData, columns, "kho_hang");
 }
 
-export function exportPartnersToExcel(partners: any[]) {
+export function exportPartnersToExcel(partners: any[], warehouses: any[] = []) {
   const columns: ExportColumn[] = [
     { key: "code", header: "Mã", width: 12 },
     { key: "name", header: "Tên", width: 25 },
@@ -137,6 +137,9 @@ export function exportPartnersToExcel(partners: any[]) {
     { key: "partner_type", header: "Loại", width: 12 },
     { key: "total_spent", header: "Tổng chi tiêu", width: 15 },
     { key: "loyalty_points", header: "Điểm tích lũy", width: 12 },
+    { key: "branch_id", header: "Chi nhánh", width: 20 },
+    { key: "warehouse_name", header: "Kho mặc định", width: 20 },
+    { key: "promo_segment_label", header: "Tệp khuyến mãi", width: 20 },
   ];
 
   const typeLabels: Record<string, string> = {
@@ -148,6 +151,8 @@ export function exportPartnersToExcel(partners: any[]) {
   const formattedData = partners.map((p) => ({
     ...p,
     partner_type: typeLabels[p.partner_type] || p.partner_type,
+    warehouse_name: warehouses.find(w => w.id === p.warehouse_id)?.name || p.warehouse_id || "Tự động chọn (POS)",
+    promo_segment_label: p.promo_segment === "all" ? "Khách lẻ (retail)" : p.promo_segment === "loyalty" ? "Thành viên VIP (loyalty)" : p.promo_segment === "wholesale" ? "Khách sỉ (wholesale)" : "Khách lẻ (retail)",
   }));
 
   exportToExcel(formattedData, columns, "doi_tac");
@@ -287,7 +292,10 @@ export async function exportAllReportsToExcel(
         "Phân loại": partnerTypeLabels[p.partner_type] || p.partner_type,
         "Tổng chi tiêu": p.total_spent || 0,
         "Công nợ hiện tại": p.debt_amount || 0,
-        "Điểm tích lũy": p.loyalty_points || 0
+        "Điểm tích lũy": p.loyalty_points || 0,
+        "Chi nhánh": p.branch_id || "Toàn quốc",
+        "Kho xuất mặc định": p.warehouse_id || "Tự động chọn (POS)",
+        "Tệp khuyến mãi": p.promo_segment === "all" ? "Khách lẻ (retail)" : p.promo_segment === "loyalty" ? "Thành viên VIP (loyalty)" : p.promo_segment === "wholesale" ? "Khách sỉ (wholesale)" : "Khách lẻ (retail)",
       }))
     );
     XLSX.utils.book_append_sheet(workbook, wsPartners, "Danh sách Đối tác");
