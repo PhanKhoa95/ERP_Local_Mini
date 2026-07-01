@@ -391,7 +391,9 @@ const Inventory = () => {
                       <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">SKU</th>
                       <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">Sản phẩm</th>
                       <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm hidden lg:table-cell">Danh mục</th>
-                      <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm hidden md:table-cell">Giá nhập</th>
+                      {hasFieldPermission("inventory", "cost_price") && (
+                        <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm hidden md:table-cell">Giá nhập</th>
+                      )}
                       <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">Giá bán</th>
                       <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">Tồn kho</th>
                       <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm hidden sm:table-cell">Trạng thái</th>
@@ -420,9 +422,11 @@ const Inventory = () => {
                             </div>
                           </td>
                           <td className="p-3 sm:p-4 text-sm text-muted-foreground hidden lg:table-cell">{product.category || "-"}</td>
-                          <td className="p-3 sm:p-4 text-sm text-muted-foreground hidden md:table-cell">
-                            {Number(product.cost_price || 0).toLocaleString("vi-VN")}đ
-                          </td>
+                          {hasFieldPermission("inventory", "cost_price") && (
+                            <td className="p-3 sm:p-4 text-sm text-muted-foreground hidden md:table-cell">
+                              {Number(product.cost_price || 0).toLocaleString("vi-VN")}đ
+                            </td>
+                          )}
                           <td className="p-3 sm:p-4 font-semibold text-sm text-foreground">
                             {Number(product.selling_price || 0).toLocaleString("vi-VN")}đ
                           </td>
