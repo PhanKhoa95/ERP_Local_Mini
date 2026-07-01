@@ -49,15 +49,15 @@ Configuration clean-up and dynamic warranty calculations sync for ERP Local Mini
 |-------|------|-----------|--------|---------|
 | 3613d53b-fbbe-4113-8264-a4f01bee39f1 | teamwork_preview_explorer | Explore configuration components and files | completed | 3613d53b-fbbe-4113-8264-a4f01bee39f1 |
 | 42496679-eb5f-4d49-ab3f-5482671fc461 | teamwork_preview_worker | Implement fixes and cleanup | completed | 42496679-eb5f-4d49-ab3f-5482671fc461 |
-| 92f45180-0706-44d9-a87f-2b388b177aff | teamwork_preview_reviewer | Review implementation correctness & quality (Rev 1) | pending | 92f45180-0706-44d9-a87f-2b388b177aff |
-| 52e72c99-a1a5-4409-9025-fe96fff7539d | teamwork_preview_reviewer | Review implementation correctness & quality (Rev 2) | pending | 52e72c99-a1a5-4409-9025-fe96fff7539d |
-| bcb56270-e779-478f-8849-f162fd14f016 | teamwork_preview_challenger | Run Playwright E2E and verify regressions (Chal 1) | pending | bcb56270-e779-478f-8849-f162fd14f016 |
-| 25dad2fb-0b38-4273-adef-2cf203ae5010 | teamwork_preview_challenger | Run Playwright E2E and verify regressions (Chal 2) | pending | 25dad2fb-0b38-4273-adef-2cf203ae5010 |
-| afae5a08-59b5-4801-bab4-aefb163ff826 | teamwork_preview_auditor | Perform integrity forensics | pending | afae5a08-59b5-4801-bab4-aefb163ff826 |
+| 92f45180-0706-44d9-a87f-2b388b177aff | teamwork_preview_reviewer | Review implementation correctness & quality (Rev 1) | completed | 92f45180-0706-44d9-a87f-2b388b177aff |
+| 52e72c99-a1a5-4409-9025-fe96fff7539d | teamwork_preview_reviewer | Review implementation correctness & quality (Rev 2) | completed | 52e72c99-a1a5-4409-9025-fe96fff7539d |
+| bcb56270-e779-478f-8849-f162fd14f016 | teamwork_preview_challenger | Run Playwright E2E and verify regressions (Chal 1) | completed | bcb56270-e779-478f-8849-f162fd14f016 |
+| 25dad2fb-0b38-4273-adef-2cf203ae5010 | teamwork_preview_challenger | Run Playwright E2E and verify regressions (Chal 2) | completed | 25dad2fb-0b38-4273-adef-2cf203ae5010 |
+| afae5a08-59b5-4801-bab4-aefb163ff826 | teamwork_preview_auditor | Perform integrity forensics | completed | afae5a08-59b5-4801-bab4-aefb163ff826 |
 
 ## Succession Status
 - Spawn count: 7 / 16
-- Pending subagents: 92f45180-0706-44d9-a87f-2b388b177aff, 52e72c99-a1a5-4409-9025-fe96fff7539d, bcb56270-e779-478f-8849-f162fd14f016, 25dad2fb-0b38-4273-adef-2cf203ae5010, afae5a08-59b5-4801-bab4-aefb163ff826
+- Pending subagents: none
 - Predecessor: none
 - Successor: not yet spawned
 

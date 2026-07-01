@@ -14,7 +14,7 @@
 | 4 | Run Full Verification Pipeline | Execute `npm run test:local` and `npx playwright test` to ensure all tests compile and pass. | M1, M2, M3 | DONE (28697184-53aa-4c96-a11e-24609de1c41a) |
 | 5 | Configuration Clean-up | Form thêm/sửa danh mục tại `CategoriesTab` không còn trường nhập "Thời gian bảo hành". Tab `SalesPoliciesTab` hiển thị đầy đủ 2 phần: chính sách theo phân khúc và thời gian bảo hành theo danh mục. | None | DONE (42496679) |
 | 6 | Dynamic Partner Warranty Sync | Hồ sơ khách hàng (`PartnerDetailDialog`) hiển thị chính sách động và tính toán bảo hành động một cách chính xác. Optimize UI for Desktop and Mobile. | M5 | DONE (42496679) |
-| 7 | Full Verification | Playwright E2E tests pass 100%. `npm run typecheck` and `npm run test` pass. | M5, M6 | IN_PROGRESS (bcb56270, 25dad2fb, afae5a08, 92f45180, 52e72c99) |
+| 7 | Full Verification | Playwright E2E tests pass 100%. `npm run typecheck` and `npm run test` pass. | M5, M6 | DONE (bcb56270, 25dad2fb, afae5a08, 92f45180, 52e72c99) |
 
 ## Interface Contracts
 - **E2E Screenshot Path**: E2E tests must read the screenshot path dynamically or from an environment variable, fallback to the current conversation brain directory `C:/Users/KHOA MEDIA/.gemini/antigravity/brain/0981d539-feb1-4def-9660-a5731a4a4b16`.
