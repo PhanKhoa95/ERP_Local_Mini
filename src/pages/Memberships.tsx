@@ -100,10 +100,10 @@ export default function Memberships() {
     });
   }, [memberships, customers]);
 
-  // Selectable customers for new cards (those who do not have a card yet)
+  // Selectable customers for new cards (all customers)
   const availableCustomers = useMemo(() => {
-    return customers.filter(c => !memberships.some(m => m.partner_id === c.id));
-  }, [customers, memberships]);
+    return customers;
+  }, [customers]);
 
   // Auto-generate card number when partner changes
   const handlePartnerSelect = (pid: string) => {
@@ -115,11 +115,6 @@ export default function Memberships() {
     }
   };
 
-  // Filtered list
-  const filteredMemberships = useMemo(() => {
-    return membershipsWithPartner.filter(m => {
-      const matchesSearch =
-        m.card_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.partnerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.partnerPhone.includes(searchQuery);
 
