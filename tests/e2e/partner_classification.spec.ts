@@ -97,11 +97,18 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await expect(page.locator("body")).not.toContainText("Wholesale Mega Deal");
 
     // Now select "Cửa hàng Thời trang BlueSky" as the customer
-    await page.click('button:has-text("Chọn khách hàng")');
-    const searchCustomerInput = page.locator('input[placeholder="Tìm khách hàng (F4)..."]');
+    const searchCustomerInput = page.locator('input[placeholder="Tìm khách hàng (tên, SĐT, mã)..."]');
+    await expect(searchCustomerInput).toBeVisible({ timeout: 5000 });
     await searchCustomerInput.fill("BlueSky");
     await page.waitForTimeout(600);
-    await page.click('text=Cửa hàng Thời trang BlueSky');
+
+    // Open customer select dropdown
+    const customerSelectTrigger = page.locator('div.space-y-2 button[role="combobox"]').first();
+    await customerSelectTrigger.click();
+    await page.waitForTimeout(500);
+
+    // Select Cửa hàng Thời trang BlueSky
+    await page.click('div[role="presentation"] >> text=Cửa hàng Thời trang BlueSky');
 
     // Trigger auto-apply evaluation
     await page.waitForTimeout(1500);
