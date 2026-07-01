@@ -37,6 +37,7 @@ const DirectiveDashboard = lazy(() => import("./pages/DirectiveDashboard"));
 const Accounting = lazy(() => import("./pages/Accounting"));
 const SalesAgent = lazy(() => import("./pages/SalesAgent"));
 const DataHub = lazy(() => import("./pages/DataHub"));
+const Promotions = lazy(() => import("./pages/Promotions"));
 
 function PageLoader() {
   return (
@@ -119,6 +120,7 @@ export function AppRoutes() {
         <Route path="/data-hub" element={
           <ProtectedRoute minRole="manager"><DataHub /></ProtectedRoute>
         } />
+        <Route path="/promotions" element={<Promotions />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
