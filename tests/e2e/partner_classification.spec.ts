@@ -177,16 +177,15 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     // Click "Tiền mặt" checkout button (Channel is auto-selected on POS load)
     await page.click('button:has-text("Tiền mặt")');
 
-    // Wait for the thăng hạng VIP toast & checkout success toast!
-    await expect(page.locator("text=Thanh toán thành công").first()).toBeVisible({ timeout: 15000 });
+    // Wait for the consolidated thăng hạng VIP toast
     await expect(page.locator("text=Thăng hạng Thành viên VIP").first()).toBeVisible({ timeout: 15000 });
 
     // 4. Now let's navigate to Partners, search for Khách Hàng Mới and check detail card
     await page.goto("/partners");
     await page.waitForSelector("text=Quản lý đối tác");
 
-    // Search for the upgraded customer
-    const searchInput = page.locator('input[placeholder="Tìm kiếm..."]');
+    // Search for the upgraded customer using the last placeholder input to avoid strict mode header conflicts
+    const searchInput = page.locator('input[placeholder="Tìm kiếm..."]').last();
     await searchInput.fill("Khách Hàng Mới");
     await page.waitForTimeout(500);
 

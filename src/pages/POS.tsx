@@ -684,15 +684,20 @@ const POS = () => {
         if (didAutoUpgrade) {
           toast({
             title: "🎉 Thăng hạng Thành viên VIP",
-            description: `Khách hàng "${customer.name}" đã tích lũy ${newTotalSpent.toLocaleString("vi-VN")}đ và tự động thăng hạng lên tệp VIP/Loyalty!`,
+            description: `Đơn hàng ${orderNumber} đã được tạo. Khách hàng "${customer.name}" đã tích lũy ${newTotalSpent.toLocaleString("vi-VN")}đ và tự động thăng hạng lên tệp VIP/Loyalty!`,
+          });
+        } else {
+          toast({
+            title: "Thanh toán thành công",
+            description: `Đơn hàng ${orderNumber} đã được tạo`,
           });
         }
+      } else {
+        toast({
+          title: "Thanh toán thành công",
+          description: `Đơn hàng ${orderNumber} đã được tạo`,
+        });
       }
-
-      toast({
-        title: "Thanh toán thành công",
-        description: `Đơn hàng ${orderNumber} đã được tạo`,
-      });
 
       clearCart();
       setCartOpen(false);
