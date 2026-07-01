@@ -47,6 +47,7 @@ import { useWarehouses } from "@/hooks/useWarehouses";
 import { useWarehouseStock } from "@/hooks/useWarehouseStock";
 import { useToast } from "@/hooks/use-toast";
 import { useVouchers } from "@/hooks/useVouchers";
+import { PartnerDialog } from "@/components/partners/PartnerDialog";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/orderControl";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,7 +284,7 @@ const POSTextInput: React.FC<POSTextInputProps> = ({
 
 const POS = () => {
   const { products, isLoading: productsLoading } = useProducts();
-  const { customers, updatePartner } = usePartners();
+  const { customers, updatePartner, createPartner } = usePartners();
   const { channels } = useSalesChannels();
   const { orders, createOrder } = useOrders();
   const { warehouses } = useWarehouses();
@@ -295,6 +296,25 @@ const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+
+  const handleQuickAddCustomerSubmit = async (data: any) => {
+    try {
+      const newCust = await createPartner.mutateAsync(data);
+      setSelectedCustomer(newCust.id);
+      setQuickAddOpen(false);
+      toast({
+        title: "Thêm đối tác thành công",
+        description: `Đã chọn khách hàng "${newCust.name}" cho đơn hàng.`,
+      });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi tạo đối tác",
+        description: e.message || "Không thể tạo đối tác.",
+      });
+    }
+  };
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
   const { vouchers, applyVoucher } = useVouchers();
@@ -543,7 +563,22 @@ const POS = () => {
       
       const actualUsed = computedUsedCount[v.id] || 0;
       if (v.usage_limit && actualUsed >= v.usage_limit) return false;
-      if (v.min_order_value && subtotal < v.min_order_value) return false;
+
+      // Category check: If target_category is specified and not "all", cart must contain a matching product
+      if (v.target_category && v.target_category !== "all") {
+        const hasMatchingItem = cart.some(item => item.product.category === v.target_category);
+        if (!hasMatchingItem) return false;
+      }
+
+      // Check min order value against applicable subtotal
+      let applicableSubtotal = subtotal;
+      if (v.target_category && v.target_category !== "all") {
+        applicableSubtotal = cart
+          .filter(item => item.product.category === v.target_category)
+          .reduce((sum, item) => sum + item.quantity * item.unit_price - item.discount, 0);
+      }
+      
+      if (v.min_order_value && applicableSubtotal < v.min_order_value) return false;
       
       // Synchronize with customer classification segment
       if (v.target_customer_group && v.target_customer_group !== "all") {
@@ -564,8 +599,15 @@ const POS = () => {
     let bestPromoId: string | null = null;
 
     eligiblePromos.forEach(v => {
+      let applicableSubtotal = subtotal;
+      if (v.target_category && v.target_category !== "all") {
+        applicableSubtotal = cart
+          .filter(item => item.product.category === v.target_category)
+          .reduce((sum, item) => sum + item.quantity * item.unit_price - item.discount, 0);
+      }
+
       let currentDiscount = v.discount_type === "percentage"
-        ? subtotal * (v.discount_value / 100)
+        ? applicableSubtotal * (v.discount_value / 100)
         : v.discount_value;
 
       if (v.max_discount && currentDiscount > v.max_discount) {
@@ -582,7 +624,7 @@ const POS = () => {
     setDiscount(bestDiscount);
     setAppliedPromoName(bestPromoName);
     setAppliedVoucherId(bestPromoId);
-  }, [subtotal, vouchers, isManualDiscount, selectedCustomer, customers, computedUsedCount]);
+  }, [subtotal, cart, vouchers, isManualDiscount, selectedCustomer, customers, computedUsedCount]);
 
   // Submit order
   const handleCheckout = async () => {
@@ -809,12 +851,24 @@ const POS = () => {
           </Button>
         </div>
         <div className="space-y-2">
-          <POSTextInput
-            placeholder="Tìm khách hàng (tên, SĐT, mã)..."
-            value={customerSearch}
-            onChange={setCustomerSearch}
-            className="h-8 text-sm"
-          />
+          <div className="flex gap-2">
+            <POSTextInput
+              placeholder="Tìm khách hàng (tên, SĐT, mã)..."
+              value={customerSearch}
+              onChange={setCustomerSearch}
+              className="h-8 text-sm flex-1"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              type="button"
+              onClick={() => setQuickAddOpen(true)}
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
+              title="Thêm khách hàng mới"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
           <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
             <SelectTrigger className="bg-background">
               <SelectValue placeholder="Khách lẻ" />
@@ -1140,6 +1194,13 @@ const POS = () => {
             <CartContent />
           </SheetContent>
         </Sheet>
+        <PartnerDialog
+          open={quickAddOpen}
+          onOpenChange={setQuickAddOpen}
+          onSubmit={handleQuickAddCustomerSubmit}
+          isLoading={createPartner.isPending}
+          defaultType="customer"
+        />
       </div>
     </MainLayout>
   );
