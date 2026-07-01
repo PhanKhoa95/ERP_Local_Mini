@@ -639,8 +639,18 @@ function saveLocalOrders(orders: Order[]) {
 
 /** Deduct stock for order items (local demo mode) */
 function deductLocalStock(items: any[], orderNumber: string) {
+  const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+  const products = rawProducts ? JSON.parse(rawProducts) : [];
   for (const item of items) {
     if (!item.product_id) continue;
+    const prod = products.find((p: any) => p.id === item.product_id);
+    if (prod) {
+      const isService = prod.is_service === true;
+      const isLimitedService = isService && ((prod.stock_quantity || 0) > 0 || (prod.min_stock || 0) > 0);
+      if (isService && !isLimitedService) {
+        continue;
+      }
+    }
     try {
       createLocalInventoryTransaction({
         product_id: item.product_id,
@@ -657,8 +667,18 @@ function deductLocalStock(items: any[], orderNumber: string) {
 
 /** Restore stock for order items (local demo mode) */
 function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: string) {
+  const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+  const products = rawProducts ? JSON.parse(rawProducts) : [];
   for (const item of items) {
     if (!item.product_id) continue;
+    const prod = products.find((p: any) => p.id === item.product_id);
+    if (prod) {
+      const isService = prod.is_service === true;
+      const isLimitedService = isService && ((prod.stock_quantity || 0) > 0 || (prod.min_stock || 0) > 0);
+      if (isService && !isLimitedService) {
+        continue;
+      }
+    }
     try {
       createLocalInventoryTransaction({
         product_id: item.product_id,

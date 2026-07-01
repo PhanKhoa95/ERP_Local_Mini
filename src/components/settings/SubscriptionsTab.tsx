@@ -153,7 +153,7 @@ export function SubscriptionsTab() {
     },
     {
       name: "Kênh bán hàng kết nối",
-      current: channels.length,
+      current: channels.filter(c => c.is_active !== false).length,
       limit: activePlan.limits.channels,
       unit: "kênh",
       isUnlimited: activePlan.id === "enterprise" || activePlan.id === "growth",

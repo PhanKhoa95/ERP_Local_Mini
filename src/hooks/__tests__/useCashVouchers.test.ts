@@ -118,3 +118,66 @@ describe("Cash Voucher Double-Entry Posting", () => {
     expect(lines[1].credit).toBe(500000);
   });
 });
+
+describe("Project Budget Verification", () => {
+  interface MockVoucherForBudget {
+    project_id: string | null;
+    voucher_type: "receipt" | "payment";
+    status: "draft" | "confirmed" | "voided";
+    amount: number;
+  }
+
+  function checkProjectBudget(
+    newAmount: number,
+    projectId: string,
+    projectBudget: number,
+    existingVouchers: MockVoucherForBudget[]
+  ) {
+    const existingCost = existingVouchers
+      .filter((v) => v.project_id === projectId && v.voucher_type === "payment" && v.status !== "voided")
+      .reduce((sum, v) => sum + v.amount, 0);
+
+    if (existingCost + newAmount > projectBudget) {
+      throw new Error("Không thể tạo phiếu chi: Tổng chi phí vượt quá ngân sách được phê duyệt của dự án.");
+    }
+  }
+
+  it("permits payment voucher when total cost is within budget", () => {
+    const existing: MockVoucherForBudget[] = [
+      { project_id: "proj-123", voucher_type: "payment", status: "confirmed", amount: 5000000 },
+      { project_id: "proj-123", voucher_type: "payment", status: "draft", amount: 2000000 },
+    ];
+    
+    expect(() => checkProjectBudget(1000000, "proj-123", 10000000, existing)).not.toThrow();
+  });
+
+  it("throws error when payment voucher exceeds project budget", () => {
+    const existing: MockVoucherForBudget[] = [
+      { project_id: "proj-123", voucher_type: "payment", status: "confirmed", amount: 8000000 },
+      { project_id: "proj-123", voucher_type: "payment", status: "draft", amount: 1000000 },
+    ];
+    
+    expect(() => checkProjectBudget(2000000, "proj-123", 10000000, existing)).toThrow(
+      "Không thể tạo phiếu chi: Tổng chi phí vượt quá ngân sách được phê duyệt của dự án."
+    );
+  });
+
+  it("ignores voided payment vouchers when calculating project cost", () => {
+    const existing: MockVoucherForBudget[] = [
+      { project_id: "proj-123", voucher_type: "payment", status: "confirmed", amount: 8000000 },
+      { project_id: "proj-123", voucher_type: "payment", status: "voided", amount: 5000000 },
+    ];
+    
+    expect(() => checkProjectBudget(1500000, "proj-123", 10000000, existing)).not.toThrow();
+  });
+
+  it("ignores receipt vouchers when calculating project cost", () => {
+    const existing: MockVoucherForBudget[] = [
+      { project_id: "proj-123", voucher_type: "payment", status: "confirmed", amount: 8000000 },
+      { project_id: "proj-123", voucher_type: "receipt", status: "confirmed", amount: 5000000 },
+    ];
+    
+    expect(() => checkProjectBudget(1500000, "proj-123", 10000000, existing)).not.toThrow();
+  });
+});
+

@@ -108,6 +108,22 @@ export function useCashVouchers() {
       project_id?: string | null;
     }) => {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+
+      if (payload.voucher_type === "payment" && payload.project_id) {
+        const localProjects = JSON.parse(localStorage.getItem("erp-mini-local-demo-projects") || "[]");
+        const project = localProjects.find((p: any) => p.id === payload.project_id);
+        if (project && project.budget !== null && project.budget !== undefined) {
+          const vouchers = getLocalVouchers();
+          const existingCost = vouchers
+            .filter((v: any) => v.project_id === payload.project_id && v.voucher_type === "payment" && v.status !== "voided")
+            .reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
+          
+          if (existingCost + payload.amount > project.budget) {
+            throw new Error("Không thể tạo phiếu chi: Tổng chi phí vượt quá ngân sách được phê duyệt của dự án.");
+          }
+        }
+      }
+
       const all = getLocalVouchers();
       const now = new Date().toISOString();
       const newV: CashVoucher = {

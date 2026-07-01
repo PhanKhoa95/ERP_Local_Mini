@@ -488,8 +488,9 @@ const POS = () => {
     if (!item) return;
     
     const isService = item.product.is_service === true;
-    // Skip stock check for service items
-    if (!isService && newQuantity > (item.product.stock_quantity || 0)) {
+    const isLimitedService = isService && ((item.product.stock_quantity || 0) > 0 || (item.product.min_stock || 0) > 0);
+    const shouldCheckStock = !isService || isLimitedService;
+    if (shouldCheckStock && newQuantity > (item.product.stock_quantity || 0)) {
       toast({
         variant: "destructive",
         title: "Vượt quá tồn kho",
