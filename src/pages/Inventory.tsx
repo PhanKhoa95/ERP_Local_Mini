@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductionPlanPanel } from "@/components/inventory/ProductionPlanPanel";
 import { PickingPackingTab } from "@/components/inventory/PickingPackingTab";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import {
   Plus,
   Search,
@@ -110,6 +111,18 @@ const Inventory = () => {
     },
     enabled: !!companyId,
   });
+
+  const { startDate, endDate } = useGlobalDateFilter();
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx: any) => {
+      if (!tx.created_at) return true;
+      const txDateStr = tx.created_at.split("T")[0];
+      if (startDate && txDateStr < startDate) return false;
+      if (endDate && txDateStr > endDate) return false;
+      return true;
+    });
+  }, [transactions, startDate, endDate]);
 
   // Filter products - exclude service items from stock calculations
   const physicalProducts = products.filter(p => p.is_service !== true);
@@ -513,7 +526,7 @@ const Inventory = () => {
                         </td>
                       </tr>
                     ) : (
-                      transactions.map((tx: any) => (
+                      filteredTransactions.map((tx: any) => (
                         <tr key={tx.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                           <td className="p-4">
                             <Badge
@@ -555,7 +568,7 @@ const Inventory = () => {
                         </tr>
                       ))
                     )}
-                    {!txLoading && transactions.length === 0 && (
+                    {!txLoading && filteredTransactions.length === 0 && (
                       <tr>
                         <td colSpan={5} className="p-8 text-center text-muted-foreground">
                           Chưa có giao dịch nhập xuất nào
