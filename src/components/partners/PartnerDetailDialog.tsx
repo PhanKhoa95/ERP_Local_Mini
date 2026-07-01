@@ -13,7 +13,7 @@ import { useWarehouses } from "@/hooks/useWarehouses";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
-  Trash2, Calendar, FileText, Sparkles
+  Trash2, Calendar, FileText, Sparkles, ShieldCheck, ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";

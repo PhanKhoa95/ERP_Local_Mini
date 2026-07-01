@@ -157,7 +157,7 @@ const DEFAULT_PARTNERS: any[] = [
   }
 ];
 
-function getLocalPartners(companyId: string): Partner[] {
+export function getLocalPartners(companyId: string): Partner[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(PARTNERS_KEY);
   if (!raw) {
@@ -173,7 +173,7 @@ function getLocalPartners(companyId: string): Partner[] {
   }
 }
 
-function saveLocalPartners(partners: Partner[]) {
+export function saveLocalPartners(partners: Partner[]) {
   const serialized = partners.map(p => {
     const meta = {
       branch_id: p.branch_id ?? "",

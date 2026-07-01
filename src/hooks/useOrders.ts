@@ -6,6 +6,7 @@ import { createLocalInventoryTransaction, logLocalAction } from "@/lib/localInve
 import { invalidateOrderRelated } from "@/lib/queryInvalidation";
 import { toast } from "sonner";
 import { erpEventBus } from "@/lib/erpEventBus";
+import { getLocalPartners, saveLocalPartners, serializePartnerMetadata, type Partner } from "./usePartners";
 
 export interface OrderItem {
   id: string;
@@ -757,13 +758,94 @@ export function useOrders() {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
       
       const { items, order: orderData } = payload;
+
+      // Background Customer Auto-Profiling & Omni-channel Resolution
+      let resolvedPartnerId = orderData.partner_id;
+
+      if (!resolvedPartnerId && (orderData.customer_phone || orderData.customer_email)) {
+        const phone = orderData.customer_phone?.trim();
+        const email = orderData.customer_email?.trim();
+        
+        if (isLocalDemoAuthEnabled()) {
+          const localPartners = getLocalPartners(companyId);
+          const existing = localPartners.find(p => 
+            (phone && p.phone === phone) || 
+            (email && p.email?.toLowerCase() === email.toLowerCase())
+          );
+          
+          if (existing) {
+            resolvedPartnerId = existing.id;
+          } else if (orderData.customer_name) {
+            // Auto-create partner profile in background!
+            const newPartner: Partner = {
+              id: `partner-${Date.now()}`,
+              company_id: companyId,
+              name: orderData.customer_name,
+              phone: phone || "",
+              email: email || "",
+              partner_type: "customer",
+              code: phone ? `KH-${phone}` : `KH-${Date.now().toString().slice(-6)}`,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              debt_amount: 0,
+              loyalty_points: 0,
+              total_spent: 0,
+              promo_segment: "all"
+            };
+            localPartners.unshift(newPartner);
+            saveLocalPartners(localPartners);
+            resolvedPartnerId = newPartner.id;
+            logLocalAction("Tạo đối tác tự động (Đa kênh)", "partners", newPartner.id, newPartner, null);
+          }
+        } else {
+          // Supabase mode lookup
+          let query = supabase.from("partners").select("id");
+          if (phone && email) {
+            query = query.or(`phone.eq.${phone},email.eq.${email}`);
+          } else if (phone) {
+            query = query.eq("phone", phone);
+          } else {
+            query = query.eq("email", email);
+          }
+          const { data: existing } = await query.limit(1);
+          if (existing && existing.length > 0) {
+            resolvedPartnerId = existing[0].id;
+          } else if (orderData.customer_name) {
+            // Auto-create partner profile in background
+            const serialized = serializePartnerMetadata({
+              name: orderData.customer_name,
+              phone: phone || "",
+              email: email || "",
+              partner_type: "customer",
+              code: phone ? `KH-${phone}` : `KH-${Date.now().toString().slice(-6)}`,
+              promo_segment: "all"
+            });
+            const { data: newP, error: pErr } = await supabase
+              .from("partners")
+              .insert({
+                ...serialized,
+                company_id: companyId,
+              })
+              .select()
+              .single();
+            if (!pErr && newP) {
+              resolvedPartnerId = newP.id;
+            }
+          }
+        }
+      }
+
+      const resolvedOrderData = {
+        ...orderData,
+        partner_id: resolvedPartnerId,
+      };
       
       if (isLocalDemoAuthEnabled()) {
         const all = getLocalOrders(companyId);
         const orderId = `ord-${Date.now()}`;
-        const orderNumber = orderData.order_number || orderId;
+        const orderNumber = resolvedOrderData.order_number || orderId;
         const newOrder: Order = {
-          ...orderData,
+          ...resolvedOrderData,
           id: orderId,
           company_id: companyId,
           created_at: new Date().toISOString(),
@@ -800,7 +882,7 @@ export function useOrders() {
       const { data: order, error: orderErr } = await supabase
         .from("orders")
         .insert({
-          ...orderData,
+          ...resolvedOrderData,
           company_id: companyId,
         } as any)
         .select()
