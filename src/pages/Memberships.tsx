@@ -384,21 +384,7 @@ export default function Memberships() {
     await updateMembershipTier.mutateAsync({ id, tier });
   };
 
-  // Card gradient backgrounds for gorgeous visualization
-  const getCardBg = (tier: MembershipTier) => {
-    switch (tier) {
-      case "bronze":
-        return "from-amber-700 via-amber-800 to-amber-950 text-amber-50 shadow-amber-950/20";
-      case "silver":
-        return "from-slate-500 via-slate-600 to-slate-800 text-slate-50 shadow-slate-900/20";
-      case "gold":
-        return "from-amber-400 via-yellow-500 to-amber-600 text-yellow-950 shadow-yellow-500/10";
-      case "diamond":
-        return "from-cyan-500 via-blue-600 to-indigo-800 text-cyan-50 shadow-blue-800/20";
-      default:
-        return "from-slate-700 to-slate-900 text-slate-50";
-    }
-  };
+
 
   if (isLoading) {
     return (
