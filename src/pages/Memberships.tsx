@@ -115,6 +115,11 @@ export default function Memberships() {
     }
   };
 
+  // Filtered list
+  const filteredMemberships = useMemo(() => {
+    return membershipsWithPartner.filter(m => {
+      const matchesSearch =
+        m.card_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.partnerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.partnerPhone.includes(searchQuery);
 
@@ -124,6 +129,131 @@ export default function Memberships() {
       return matchesSearch && matchesStatus && matchesTier;
     });
   }, [membershipsWithPartner, searchQuery, statusFilter, tierFilter]);
+
+  const handleCardImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi file",
+        description: "Vui lòng chọn file hình ảnh",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi file",
+        description: "Kích thước file không được vượt quá 5MB",
+      });
+      return;
+    }
+
+    setIsUploadingImage(true);
+
+    try {
+      if (isLocalDemoAuthEnabled()) {
+        const LOCAL_IMAGE_MAX_DIMENSION = 900;
+        const LOCAL_IMAGE_QUALITY = 0.72;
+
+        const readFileAsDataUrl = (f: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error ?? new Error("Không thể đọc file ảnh"));
+            reader.readAsDataURL(f);
+          });
+        };
+
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error("Không thể xử lý file ảnh"));
+            img.src = src;
+          });
+        };
+
+        const dataUrl = await readFileAsDataUrl(file);
+        if (file.type === "image/svg+xml") {
+          setNewCardImage(dataUrl);
+        } else {
+          const img = await loadImage(dataUrl);
+          const scale = Math.min(
+            1,
+            LOCAL_IMAGE_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight)
+          );
+          const width = Math.max(1, Math.round(img.naturalWidth * scale));
+          const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext("2d");
+          if (context) {
+            context.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL("image/jpeg", LOCAL_IMAGE_QUALITY);
+            setNewCardImage(compressed);
+          } else {
+            setNewCardImage(dataUrl);
+          }
+        }
+        toast({ title: "Đã nạp hình ảnh local thành công" });
+      } else {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `cards/${fileName}`;
+
+        let uploadBucket = "membership-cards";
+        let uploadResult = await supabase.storage.from(uploadBucket).upload(filePath, file);
+
+        if (uploadResult.error) {
+          uploadBucket = "member-cards";
+          uploadResult = await supabase.storage.from(uploadBucket).upload(filePath, file);
+        }
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        const { data } = supabase.storage.from(uploadBucket).getPublicUrl(filePath);
+        setNewCardImage(data.publicUrl);
+        toast({ title: "Upload hình ảnh thẻ thành công" });
+      }
+    } catch (err: any) {
+      console.error("Card image upload failed:", err);
+      toast({
+        variant: "destructive",
+        title: "Lỗi tải ảnh",
+        description: err.message || "Không thể tải hình ảnh lên",
+      });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleOffsetAccountChange = async (newCode: string) => {
+    const oldCode = offsetAccountCode;
+    setOffsetAccountCode(newCode);
+    localStorage.setItem("erp-mini-membership-offset-account", newCode);
+    toast({
+      title: "Cấu hình thành công",
+      description: `Đã đổi tài khoản đối ứng từ ${oldCode} sang ${newCode}`,
+    });
+
+    try {
+      await logAction(
+        "Thay đổi tài khoản đối ứng ví thành viên",
+        "shop_settings",
+        "wallet_offset_account_id",
+        { accountId: oldCode },
+        { accountId: newCode }
+      );
+    } catch (e) {
+      console.error("Failed to log setting change to audit logs", e);
+    }
+  };
 
   // Filtered transactions
   const filteredTransactions = useMemo(() => {
@@ -148,10 +278,12 @@ export default function Memberships() {
       status: "active",
       expiry_date: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().split("T")[0],
       notes: newNotes,
+      card_image: newCardImage || undefined,
     });
     setCreateDialogOpen(false);
     setNewPartnerId("");
     setNewCardNumber("");
+    setNewCardImage(null);
   };
 
   const handleTransactionSubmit = async (e: React.FormEvent) => {
@@ -220,10 +352,16 @@ export default function Memberships() {
             {/* Visual Card Simulation */}
             {selectedWithPartner ? (
               <Card className="overflow-hidden border-none shadow-xl">
-                <div className={cn(
-                  "p-6 bg-gradient-to-br relative min-h-[220px] rounded-xl flex flex-col justify-between transition-all duration-300",
-                  getCardBg(selectedWithPartner.tier)
-                )}>
+                <div 
+                  className={cn(
+                    "p-6 bg-gradient-to-br relative min-h-[220px] rounded-xl flex flex-col justify-between transition-all duration-300",
+                    selectedWithPartner.card_image ? "bg-slate-900 text-white" : getCardBg(selectedWithPartner.tier)
+                  )}
+                  style={selectedWithPartner.card_image ? { backgroundImage: `url(${selectedWithPartner.card_image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                >
+                  {selectedWithPartner.card_image && (
+                    <div className="absolute inset-0 bg-black/45 rounded-xl pointer-events-none" />
+                  )}
                   {/* Glassmorphic overlay grid */}
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 to-transparent pointer-events-none rounded-xl" />
                   
@@ -374,9 +512,12 @@ export default function Memberships() {
           {/* RIGHT COLUMN: DIRECTORIES & HISTORY TABS (7 cols) */}
           <div className="lg:col-span-7">
             <Tabs defaultValue="cards" className="w-full">
-              <TabsList className="grid grid-cols-2 mb-4">
+              <TabsList className={cn("grid mb-4", isManagerOrAdmin ? "grid-cols-3" : "grid-cols-2")}>
                 <TabsTrigger value="cards" className="text-xs sm:text-sm">Danh sách thẻ</TabsTrigger>
                 <TabsTrigger value="txs" className="text-xs sm:text-sm">Lịch sử giao dịch</TabsTrigger>
+                {isManagerOrAdmin && (
+                  <TabsTrigger value="settings" className="text-xs sm:text-sm">Cài đặt ví</TabsTrigger>
+                )}
               </TabsList>
 
               {/* TAB 1: CARD DIRECTORY */}
@@ -456,9 +597,20 @@ export default function Memberships() {
                                 onClick={() => setSelectedMembershipId(m.id)}
                               >
                                 <TableCell className="py-2.5">
-                                  <div className="font-mono text-xs font-semibold">{m.card_number}</div>
-                                  <div className="text-xs font-medium text-foreground">{m.partnerName}</div>
-                                  <div className="text-[10px] text-muted-foreground">{m.partnerPhone}</div>
+                                  <div className="flex items-center gap-2">
+                                    {m.card_image ? (
+                                      <div className="h-8 w-12 rounded border bg-cover bg-center shrink-0" style={{ backgroundImage: `url(${m.card_image})` }} />
+                                    ) : (
+                                      <div className="h-8 w-12 rounded border bg-muted flex items-center justify-center shrink-0">
+                                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                    <div>
+                                      <div className="font-mono text-xs font-semibold">{m.card_number}</div>
+                                      <div className="text-xs font-medium text-foreground">{m.partnerName}</div>
+                                      <div className="text-[10px] text-muted-foreground">{m.partnerPhone}</div>
+                                    </div>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-center py-2.5">
                                   <Badge className={cn("text-[9px] uppercase px-1.5 py-0 border", TIER_COLORS[m.tier])}>
@@ -543,6 +695,43 @@ export default function Memberships() {
                   </CardContent>
                 </Card>
               </TabsContent>
+
+              {isManagerOrAdmin && (
+                <TabsContent value="settings" className="space-y-4 focus-visible:outline-none">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-primary" /> Cấu hình Ví thành viên
+                      </CardTitle>
+                      <CardDescription>
+                        Chọn tài khoản kế toán đối ứng khi khách hàng nạp tiền, hoàn tiền hoặc thanh toán bằng ví.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Tài khoản đối ứng Ví mua hàng *</Label>
+                        <Select value={offsetAccountCode} onValueChange={handleOffsetAccountChange}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Chọn tài khoản kế toán..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accountingAccounts
+                              .filter(a => a.account_type === "liability" || a.account_type === "asset")
+                              .map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                  {a.code} - {a.name} ({a.account_type === "liability" ? "Nợ phải trả" : "Tài sản"})
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Các tài khoản thông dụng: 3387 (Doanh thu chưa thực hiện / Nhận trước), 131 (Phải thu khách hàng), 3388 (Phải trả khác)...
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         </div>
@@ -612,11 +801,36 @@ export default function Memberships() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="card-image-upload">Hình ảnh thẻ thành viên</Label>
+              <Input
+                id="card-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleCardImageChange}
+                disabled={isUploadingImage}
+              />
+              {newCardImage && (
+                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border">
+                  <img src={newCardImage} alt="Card preview" className="w-full h-full object-cover" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => setNewCardImage(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={!newPartnerId || !newCardNumber || createMembership.isPending}>
+              <Button type="submit" disabled={!newPartnerId || !newCardNumber || createMembership.isPending || isUploadingImage}>
                 {createMembership.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Xác nhận
               </Button>

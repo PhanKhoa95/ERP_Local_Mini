@@ -12,6 +12,7 @@ import { usePartnerDetail } from "@/hooks/usePartnerDetail";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useSalesPolicies, SEGMENT_COLORS, type PolicySegment } from "@/hooks/useSalesPolicies";
+import { useMemberships } from "@/hooks/useMemberships";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
@@ -62,6 +63,12 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { categories } = useProductCategories();
   const { getPoliciesForSegment } = useSalesPolicies();
   const { orders, transactions, topProducts, purchasedItems = [], notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
+  const { memberships = [] } = useMemberships();
+  const partnerMemberships = useMemo(() => {
+    if (!partner?.id) return [];
+    return memberships.filter(m => m.partner_id === partner.id);
+  }, [memberships, partner?.id]);
+
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("general");
   const [followUpDate, setFollowUpDate] = useState("");
@@ -254,57 +261,82 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                   </Card>
                 </div>
 
-                {/* Glassmorphic VIP Membership Card (1 col) */}
-                <div className="md:col-span-1">
-                  <div className={cn(
-                    "relative overflow-hidden rounded-xl p-5 text-white shadow-xl border flex flex-col justify-between transition-all hover:scale-[1.02] h-full min-h-[220px]",
-                    partner.promo_segment === "loyalty" 
-                      ? "bg-gradient-to-br from-slate-900 via-amber-955/70 to-slate-900 border-amber-500/30" 
-                      : partner.promo_segment === "wholesale"
-                      ? "bg-gradient-to-br from-slate-900 via-indigo-955/70 to-slate-900 border-indigo-500/30"
-                      : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 border-white/10"
-                  )}>
-                    {/* Metallic glow accents */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-                    
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-xs font-semibold tracking-widest text-white/70">LOCAL MINI ERP</div>
-                        <div className="text-[10px] text-white/50">MEMBER CARD</div>
-                      </div>
-                      <Badge className={cn(
-                        "text-[9px] px-1.5 py-0 leading-none uppercase font-mono border-none",
-                        partner.promo_segment === "loyalty" 
-                          ? "bg-amber-500 text-amber-950 hover:bg-amber-400" 
-                          : partner.promo_segment === "wholesale"
-                          ? "bg-indigo-500 text-indigo-950 hover:bg-indigo-400"
-                          : "bg-slate-700 text-slate-100 hover:bg-slate-600"
-                      )}>
-                        {partner.promo_segment === "loyalty" ? "VIP Member" : partner.promo_segment === "wholesale" ? "Khách Sỉ" : "Khách Lẻ"}
-                      </Badge>
-                    </div>
-
-                    {/* Middle: QR & Code */}
-                    <div className="flex items-center justify-between gap-4 mt-2">
-                      <div className="space-y-1">
-                        <div className="text-sm font-semibold truncate max-w-[130px]">{partner.name}</div>
-                        <div className="text-[10px] text-white/60 font-mono tracking-wider">{partner.code}</div>
-                      </div>
-                      {renderSimulatedQRCode(partner.code)}
-                    </div>
-
-                    {/* Footer: points accumulation */}
-                    <div className="flex items-end justify-between border-t border-white/10 pt-2 mt-2">
-                      <div className="text-[9px] text-white/50">
-                        Chi tiêu: <span className="font-semibold text-white">{fmtMoney(partner.total_spent || 0)}</span>
-                      </div>
-                      <div className="text-[9px] text-white/50 flex items-center gap-0.5">
-                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                        <span className="font-semibold text-white">{partner.loyalty_points || 0} điểm</span>
-                      </div>
-                    </div>
+                {/* Glassmorphic VIP Membership Cards (1 col) */}
+                <div className="md:col-span-1 space-y-4">
+                  <div className="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
+                    Thẻ thành viên ({partnerMemberships.length})
                   </div>
+                  {partnerMemberships.length === 0 ? (
+                    <div className="border border-dashed rounded-xl p-6 text-center text-muted-foreground">
+                      <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-xs">Chưa phát hành thẻ thành viên</p>
+                    </div>
+                  ) : (
+                    partnerMemberships.map((card) => (
+                      <div 
+                        key={card.id}
+                        className={cn(
+                          "relative overflow-hidden rounded-xl p-5 text-white shadow-xl border flex flex-col justify-between transition-all hover:scale-[1.02] min-h-[220px]",
+                          card.card_image 
+                            ? "bg-slate-900 text-white" 
+                            : card.tier === "diamond"
+                            ? "bg-gradient-to-br from-cyan-900 via-blue-955/70 to-indigo-950 border-cyan-500/30"
+                            : card.tier === "gold"
+                            ? "bg-gradient-to-br from-slate-900 via-amber-955/70 to-slate-900 border-amber-500/30"
+                            : card.tier === "silver"
+                            ? "bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 border-slate-600/30"
+                            : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 border-white/10"
+                        )}
+                        style={card.card_image ? { backgroundImage: `url(${card.card_image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                      >
+                        {card.card_image && (
+                          <div className="absolute inset-0 bg-black/45 rounded-xl pointer-events-none" />
+                        )}
+                        {/* Metallic glow accents */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+                        
+                        {/* Header */}
+                        <div className="flex items-start justify-between z-10">
+                          <div>
+                            <div className="text-[9px] font-bold tracking-widest text-white/80">VIETERP SMART CARD</div>
+                            <div className="text-[7px] text-white/50">MEMBER CARD</div>
+                          </div>
+                          <Badge className={cn(
+                            "text-[8px] px-1.5 py-0.5 leading-none uppercase font-mono border-none",
+                            card.tier === "diamond"
+                              ? "bg-cyan-500 text-cyan-950 hover:bg-cyan-400"
+                              : card.tier === "gold"
+                              ? "bg-amber-500 text-amber-950 hover:bg-amber-400"
+                              : card.tier === "silver"
+                              ? "bg-slate-300 text-slate-900 hover:bg-slate-200"
+                              : "bg-orange-400 text-orange-950 hover:bg-orange-300"
+                          )}>
+                            {card.tier}
+                          </Badge>
+                        </div>
+
+                        {/* Middle: QR & Code */}
+                        <div className="flex items-center justify-between gap-4 mt-2 z-10">
+                          <div className="space-y-1">
+                            <div className="text-sm font-semibold truncate max-w-[130px]">{partner.name}</div>
+                            <div className="text-[10px] text-white/60 font-mono tracking-wider">{card.card_number}</div>
+                          </div>
+                          {renderSimulatedQRCode(card.card_number)}
+                        </div>
+
+                        {/* Footer: balance and points */}
+                        <div className="flex items-end justify-between border-t border-white/10 pt-2 mt-2 z-10">
+                          <div className="text-[9px] text-white/60">
+                            Ví: <span className="font-semibold text-white">{card.balance.toLocaleString("vi-VN")}đ</span>
+                          </div>
+                          <div className="text-[9px] text-white/60 flex items-center gap-0.5">
+                            <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                            <span className="font-semibold text-white">{card.points || 0} điểm</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </TabsContent>
