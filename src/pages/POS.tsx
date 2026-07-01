@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,9 +74,13 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
   onChange,
 }) => {
   const [localValue, setLocalValue] = useState<string>(value.toString());
+  const lastSentValue = useRef<number>(value);
 
   useEffect(() => {
-    setLocalValue(value.toString());
+    if (value !== lastSentValue.current) {
+      setLocalValue(value.toString());
+      lastSentValue.current = value;
+    }
   }, [value]);
 
   const handleInputChange = (valStr: string) => {
@@ -89,8 +93,10 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
         if (!isService && num > maxStock) {
           onChange(maxStock);
           setLocalValue(maxStock.toString());
+          lastSentValue.current = maxStock;
         } else {
           onChange(num);
+          lastSentValue.current = num;
         }
       }
     }
@@ -100,6 +106,13 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
     if (localValue === "" || parseInt(localValue, 10) < 1) {
       onChange(1);
       setLocalValue("1");
+      lastSentValue.current = 1;
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      (e.target as HTMLInputElement).blur();
     }
   };
 
@@ -111,6 +124,7 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
       value={localValue}
       onChange={(e) => handleInputChange(e.target.value)}
       onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
       className="w-14 h-8 text-center text-sm font-semibold border-border bg-background focus-visible:ring-1 focus-visible:ring-primary shadow-xs px-1"
     />
   );
