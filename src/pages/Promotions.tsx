@@ -341,7 +341,7 @@ export default function Promotions() {
                             className="p-0 h-auto font-medium hover:underline text-primary"
                             onClick={() => handleOpenDetail(v)}
                           >
-                            {v.used_count || 0} / {v.usage_limit || "∞"}
+                            {computedUsedCount[v.id] || 0} / {v.usage_limit || "∞"}
                           </Button>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground space-y-1">
@@ -629,7 +629,7 @@ export default function Promotions() {
                   <div>
                     <span className="text-muted-foreground block text-xs">Giới hạn số lần dùng</span>
                     <span className="font-medium text-foreground">
-                      {selectedVoucher.used_count} đã dùng / {selectedVoucher.usage_limit || "Không giới hạn"} lượt
+                      {computedUsedCount[selectedVoucher.id] || 0} đã dùng / {selectedVoucher.usage_limit || "Không giới hạn"} lượt
                     </span>
                   </div>
                   <div>
