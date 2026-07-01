@@ -461,6 +461,7 @@ export default function Accounting() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="ledger"><BookOpen className="h-4 w-4 mr-1" />Sổ cái</TabsTrigger>
+            <TabsTrigger value="cash_vouchers"><Wallet className="h-4 w-4 mr-1" />Phiếu thu/chi (Quỹ)</TabsTrigger>
             <TabsTrigger value="journal"><FileText className="h-4 w-4 mr-1" />Bút toán</TabsTrigger>
             <TabsTrigger value="balance"><PieChart className="h-4 w-4 mr-1" />Bảng CĐKT</TabsTrigger>
             <TabsTrigger value="pnl"><TrendingUp className="h-4 w-4 mr-1" />P&L</TabsTrigger>
@@ -692,7 +693,9 @@ export default function Accounting() {
                   </span>
                 </div>
               </CardContent>
-            </Card>
+          </TabsContent>
+          <TabsContent value="cash_vouchers">
+            <CashVoucherTab />
           </TabsContent>
         </Tabs>
       </div>
