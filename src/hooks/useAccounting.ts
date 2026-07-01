@@ -634,6 +634,67 @@ export function useAccounting() {
     }
   });
 
+  const updateAccount = useMutation({
+    mutationFn: async (payload: { id: string; name: string; account_type: ChartOfAccount["account_type"] }) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isLocalDemoAuthEnabled()) {
+        const list = getLocalAccounts(companyId);
+        const idx = list.findIndex(a => a.id === payload.id);
+        if (idx === -1) throw new Error("Không tìm thấy tài khoản");
+        list[idx].name = payload.name;
+        list[idx].account_type = payload.account_type;
+        localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(list));
+        return list[idx];
+      }
+      const { data, error } = await supabase
+        .from("chart_of_accounts")
+        .update({ name: payload.name, account_type: payload.account_type })
+        .eq("id", payload.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as ChartOfAccount;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", companyId] });
+      toast.success("Đã cập nhật tài khoản");
+    },
+    onError: (e: any) => {
+      toast.error("Lỗi cập nhật tài khoản: " + e.message);
+    }
+  });
+
+  const deleteAccount = useMutation({
+    mutationFn: async (accountId: string) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isLocalDemoAuthEnabled()) {
+        const list = getLocalAccounts(companyId);
+        const acc = list.find(a => a.id === accountId);
+        if (!acc) throw new Error("Không tìm thấy tài khoản");
+        if (Math.abs(acc.balance || 0) > 0) throw new Error("Không thể xóa tài khoản có số dư khác 0");
+        // Check if any journal lines reference this account
+        const allLines = JSON.parse(localStorage.getItem(LOCAL_LINES_KEY) || "[]");
+        const hasLines = allLines.some((l: any) => l.account_id === accountId);
+        if (hasLines) throw new Error("Không thể xóa tài khoản đã có phát sinh bút toán");
+        const filtered = list.filter(a => a.id !== accountId);
+        localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(filtered));
+        return;
+      }
+      const { error } = await supabase
+        .from("chart_of_accounts")
+        .delete()
+        .eq("id", accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chart-of-accounts", companyId] });
+      toast.success("Đã xóa tài khoản");
+    },
+    onError: (e: any) => {
+      toast.error("Lỗi: " + e.message);
+    }
+  });
+
   return {
     accounts,
     entries,
@@ -641,6 +702,8 @@ export function useAccounting() {
     isLoading,
     initAccounts,
     createAccount,
+    updateAccount,
+    deleteAccount,
     createManualEntry,
     voidJournalEntry
   };
