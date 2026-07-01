@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVouchers, type Voucher } from "@/hooks/useVouchers";
 import { useOrders } from "@/hooks/useOrders";
+import { useProducts } from "@/hooks/useProducts";
 import { format } from "date-fns";
 import {
   Ticket, Plus, Search, Trash2, Calendar, Sparkles, Percent, DollarSign,
@@ -22,6 +23,15 @@ import {
 export default function Promotions() {
   const { vouchers, isLoading, createVoucher, updateVoucher, deleteVoucher } = useVouchers();
   const { orders } = useOrders();
+  const { products } = useProducts();
+  
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach(p => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+  }, [products]);
   
   const [createOpen, setCreateOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -41,6 +51,7 @@ export default function Promotions() {
   const [maxDiscount, setMaxDiscount] = useState("");
   const [usageLimit, setUsageLimit] = useState("");
   const [targetGroup, setTargetGroup] = useState<"all" | "loyalty" | "wholesale">("all");
+  const [targetCategory, setTargetCategory] = useState("all");
   const [promoType, setPromoType] = useState<"order_discount" | "free_shipping" | "buy_x_get_y">("order_discount");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -57,6 +68,7 @@ export default function Promotions() {
     setMaxDiscount("");
     setUsageLimit("");
     setTargetGroup("all");
+    setTargetCategory("all");
     setPromoType("order_discount");
     setStartDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     setEndDate(format(new Date(Date.now() + 30 * 24 * 3600 * 1000), "yyyy-MM-dd'T'HH:mm"));
@@ -76,6 +88,7 @@ export default function Promotions() {
     setMaxDiscount(v.max_discount?.toString() || "");
     setUsageLimit(v.usage_limit?.toString() || "");
     setTargetGroup(v.target_customer_group ?? "all");
+    setTargetCategory(v.target_category ?? "all");
     setPromoType(v.promo_type ?? "order_discount");
     setStartDate(v.start_date ? format(new Date(v.start_date), "yyyy-MM-dd'T'HH:mm") : "");
     setEndDate(v.end_date ? format(new Date(v.end_date), "yyyy-MM-dd'T'HH:mm") : "");
@@ -107,6 +120,7 @@ export default function Promotions() {
       description: description.trim(),
       is_auto_apply: isAutoApply,
       target_customer_group: targetGroup,
+      target_category: targetCategory,
       promo_type: promoType,
     };
 
@@ -454,7 +468,7 @@ export default function Promotions() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label>Loại khuyến mãi</Label>
                 <Select value={promoType} onValueChange={(val: any) => setPromoType(val)}>
@@ -474,6 +488,19 @@ export default function Promotions() {
                     <SelectItem value="all">Tất cả khách hàng</SelectItem>
                     <SelectItem value="loyalty">Khách thiết lập Loyalty</SelectItem>
                     <SelectItem value="wholesale">Khách mua sỉ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Nhóm ngành hàng áp dụng</Label>
+                <Select value={targetCategory} onValueChange={setTargetCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tất cả sản phẩm</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
