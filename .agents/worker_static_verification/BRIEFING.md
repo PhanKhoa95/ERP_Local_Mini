@@ -27,19 +27,21 @@ Perform static verification (typecheck and lint) on ERP_Local_Mini, and resolve 
 - **Code layout**: Root of ERP_Local_Mini
 
 ## Key Decisions Made
-- [TBD]
+- Only fix linting errors that cause exit code 1 to keep changes minimal and prevent regressions.
 
 ## Artifact Index
 - `y:\ERP_Local_Mini\.agents\worker_static_verification\handoff.md` — Handoff report for verification outcomes.
 
 ## Change Tracker
-- **Files modified**: None yet
-- **Build status**: Untested
-- **Pending issues**: None yet
+- **Files modified**: 
+  - `src/components/performance/PolicyRecommendationsTab.tsx` (Fixed 'updatedPolicies' prefer-const error)
+  - `src/hooks/usePartners.ts` (Fixed empty catch block no-empty error)
+- **Build status**: Pass
+- **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Untested
-- **Lint status**: Untested
+- **Build/test result**: Pass (Typecheck command completed successfully with exit code 0)
+- **Lint status**: Pass (Lint command completed successfully with exit code 0, 0 errors, 16 warnings)
 - **Tests added/modified**: None
 
 ## Loaded Skills

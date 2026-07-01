@@ -47,11 +47,12 @@ Coordinate static verification, unit/integration testing (Vitest), end-to-end te
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| worker_static_verification | teamwork_preview_worker | Static Verification | in-progress | 3e55fb4d-3482-4b03-8bb9-8ddae4ba1492 |
+| worker_static_verification | teamwork_preview_worker | Static Verification | completed | 3e55fb4d-3482-4b03-8bb9-8ddae4ba1492 |
+| worker_unit_testing | teamwork_preview_worker | Unit and Integration Tests | in-progress | b6ec9f8b-82ce-40fa-86e5-79cc404ce673 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 1 / 16
+- Spawn count: 2 / 16
 - Pending subagents: none
 - Predecessor: 58c01fbe-bab5-42b8-9f0a-edeca380d8af
 - Successor: not yet spawned
