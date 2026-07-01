@@ -12,6 +12,22 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { usePermissions } from "@/hooks/usePermissions";
+
+const pathToModuleMap: Record<string, string> = {
+  "/pos": "pos",
+  "/orders": "orders",
+  "/inventory": "inventory",
+  "/warehouses": "inventory",
+  "/partners": "partners",
+  "/debt-report": "debt",
+  "/contracts": "contracts",
+  "/accounting": "accounting",
+  "/finance": "finance",
+  "/reports": "reports",
+  "/strategic-report": "reports",
+  "/settings": "settings"
+};
 
 interface MenuItem {
   title: string;
@@ -91,13 +107,17 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const location = useLocation();
   const { signOut } = useAuth();
   const { role } = useCompanyContext();
-
+  const { hasPermission } = usePermissions();
   const userLevel = roleLevel[role || "staff"] || 1;
 
   const handleNavClick = () => onNavigate?.();
 
   const filterItems = (items: MenuItem[]) =>
     items.filter(item => {
+      const module = pathToModuleMap[item.path];
+      if (module) {
+        return hasPermission(module, "view");
+      }
       if (!item.minRole) return true;
       return userLevel >= (roleLevel[item.minRole] || 0);
     });
@@ -190,17 +210,19 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       {/* Bottom Actions */}
       <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
-        <NavLink
-          to="/settings"
-          onClick={handleNavClick}
-          className={cn(
-            "sidebar-item",
-            location.pathname === "/settings" && "sidebar-item-active"
-          )}
-        >
-          <Settings className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span>Cài đặt</span>}
-        </NavLink>
+        {hasPermission("settings", "view") && (
+          <NavLink
+            to="/settings"
+            onClick={handleNavClick}
+            className={cn(
+              "sidebar-item",
+              location.pathname === "/settings" && "sidebar-item-active"
+            )}
+          >
+            <Settings className="h-5 w-5 flex-shrink-0" />
+            {!collapsed && <span>Cài đặt</span>}
+          </NavLink>
+        )}
         <button onClick={signOut} className="sidebar-item w-full text-left">
           <LogOut className="h-5 w-5 flex-shrink-0" />
           {!collapsed && <span>Đăng xuất</span>}
