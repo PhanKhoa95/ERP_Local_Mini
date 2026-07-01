@@ -625,12 +625,32 @@ function getLocalOrders(companyId: string): Order[] {
         ]
       }
     ];
-    localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(defaultOrders));
-    return defaultOrders;
+    const populatedDefaults = defaultOrders.map((o: any) => {
+      if (!o.shipping_province) {
+        const address = o.shipping_address || o.customer_address || "";
+        if (address.includes("Hà Nội") || address.includes("HN")) o.shipping_province = "Hà Nội";
+        else if (address.includes("TP.HCM") || address.includes("Hồ Chí Minh") || address.includes("Sài Gòn") || address.includes("SG")) o.shipping_province = "Hồ Chí Minh";
+        else if (address.includes("Đà Nẵng") || address.includes("ĐN")) o.shipping_province = "Đà Nẵng";
+        else o.shipping_province = "Hồ Chí Minh";
+      }
+      return o;
+    });
+    localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(populatedDefaults));
+    return populatedDefaults;
   }
 
   try {
-    return JSON.parse(raw);
+    const list = JSON.parse(raw) as Order[];
+    return list.map((o: any) => {
+      if (!o.shipping_province) {
+        const address = o.shipping_address || o.customer_address || "";
+        if (address.includes("Hà Nội") || address.includes("HN")) o.shipping_province = "Hà Nội";
+        else if (address.includes("TP.HCM") || address.includes("Hồ Chí Minh") || address.includes("Sài Gòn") || address.includes("SG")) o.shipping_province = "Hồ Chí Minh";
+        else if (address.includes("Đà Nẵng") || address.includes("ĐN")) o.shipping_province = "Đà Nẵng";
+        else o.shipping_province = "Hồ Chí Minh";
+      }
+      return o;
+    });
   } catch {
     return [];
   }
