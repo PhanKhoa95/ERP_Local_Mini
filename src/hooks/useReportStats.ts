@@ -375,8 +375,11 @@ export function useOrderReport(dateRange: DateRange) {
 }
 
 export function usePartnerReport(dateRange: DateRange) {
+  const { getUserRegion } = usePermissions();
+  const userRegion = getUserRegion();
+
   return useQuery({
-    queryKey: ["partner-report", dateRange.from, dateRange.to],
+    queryKey: ["partner-report", dateRange.from, dateRange.to, userRegion],
     queryFn: async () => {
       let partners: any[] = [];
       let orders: any[] = [];
@@ -451,6 +454,13 @@ export function usePartnerReport(dateRange: DateRange) {
 
         if (paymentError) throw paymentError;
         payments = paymentsData || [];
+      }
+
+      if (userRegion && userRegion !== "Toàn quốc") {
+        orders = orders.filter((o: any) => {
+          const orderRegion = getRegionFromProvince(o.shipping_province || "");
+          return orderRegion === userRegion;
+        });
       }
 
       // Aggregate customer stats
