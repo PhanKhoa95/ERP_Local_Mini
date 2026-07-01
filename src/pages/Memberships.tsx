@@ -184,7 +184,7 @@ export default function Memberships() {
   if (isLoading) {
     return (
       <MainLayout>
-        <Header title="Thẻ thành viên" description="Quản lý thẻ tích điểm và tài khoản trả trước" />
+        <Header title="Thẻ thành viên" subtitle="Quản lý thẻ tích điểm và tài khoản trả trước" />
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -192,13 +192,13 @@ export default function Memberships() {
     );
   }
 
-  const selectedWithPartner = membershipsWithPartner.find(m => m.id === currentMembership?.id) || currentMembership;
+  const selectedWithPartner = (membershipsWithPartner.find(m => m.id === currentMembership?.id) || currentMembership) as any;
 
   return (
     <MainLayout>
       <Header
         title="Thẻ thành viên & Ví"
-        description="Quản lý thẻ tích điểm thông minh, tài khoản mua hàng trả trước của khách hàng"
+        subtitle="Quản lý thẻ tích điểm thông minh, tài khoản mua hàng trả trước của khách hàng"
       />
 
       <div className="space-y-6">

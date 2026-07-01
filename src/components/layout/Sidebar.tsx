@@ -4,7 +4,7 @@ import {
   Settings, LogOut, ChevronLeft, Menu, Warehouse, FileText, Search, Star,
   FolderOpen, TrendingUp, Trophy, Target, Gamepad2, UsersRound, Mic,
   ChevronDown, ClipboardList, FolderKanban, Stamp, Workflow, PackageSearch, Coins,
-  FileSignature, CalendarDays, Activity, BookOpen, Bot, Database,
+  FileSignature, CalendarDays, Activity, BookOpen, Bot, Database, CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
