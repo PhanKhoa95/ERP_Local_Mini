@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,40 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const [noteType, setNoteType] = useState("general");
   const [followUpDate, setFollowUpDate] = useState("");
 
+  const frequencyText = useMemo(() => {
+    if (orders.length <= 1) return "Chưa đủ dữ liệu tần suất (cần tối thiểu 2 đơn)";
+    const dates = orders.map(o => new Date(o.order_date).getTime()).sort((a, b) => a - b);
+    const diffDays = Math.ceil((dates[dates.length - 1] - dates[0]) / (1000 * 3600 * 24));
+    const avgDays = Math.round(diffDays / (orders.length - 1));
+    return avgDays <= 1 ? "Mua hàng hằng ngày" : `Mua lại trung bình sau mỗi ${avgDays} ngày`;
+  }, [orders]);
+
+  const preferredChannel = useMemo(() => {
+    if (orders.length === 0) return "Chưa xác định";
+    const channelsCount: Record<string, number> = {};
+    orders.forEach(o => {
+      const channel = o.sales_channel_id || "Cửa hàng bán lẻ";
+      channelsCount[channel] = (channelsCount[channel] || 0) + 1;
+    });
+    const sorted = Object.entries(channelsCount).sort((a, b) => b[1] - a[1]);
+    return sorted[0][0];
+  }, [orders]);
+
+  const favoriteCategory = useMemo(() => {
+    if (topProducts.length === 0) return "Chưa xác định";
+    const categoryCount: Record<string, number> = {};
+    topProducts.forEach(item => {
+      const cat = item.product?.category || "Chưa phân loại";
+      categoryCount[cat] = (categoryCount[cat] || 0) + item.totalQty;
+    });
+    const sorted = Object.entries(categoryCount).sort((a, b) => b[1] - a[1]);
+    return sorted[0][0];
+  }, [topProducts]);
+
+  const totalItemsPurchased = useMemo(() => {
+    return topProducts.reduce((sum, item) => sum + item.totalQty, 0);
+  }, [topProducts]);
+
   if (!partner) return null;
 
   const handleAddNote = async () => {
@@ -102,8 +136,9 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
           </div>
         ) : (
           <Tabs defaultValue="overview" className="mt-4">
-            <TabsList className="w-full grid grid-cols-5">
+            <TabsList className="w-full grid grid-cols-6">
               <TabsTrigger value="overview" className="gap-1 text-xs sm:text-sm"><User className="h-4 w-4" /><span className="hidden sm:inline">Tổng quan</span></TabsTrigger>
+              <TabsTrigger value="behavior" className="gap-1 text-xs sm:text-sm"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Hành vi & Phân tích</span></TabsTrigger>
               <TabsTrigger value="orders" className="gap-1 text-xs sm:text-sm"><ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Đơn hàng</span></TabsTrigger>
               <TabsTrigger value="payments" className="gap-1 text-xs sm:text-sm"><CreditCard className="h-4 w-4" /><span className="hidden sm:inline">Thanh toán</span></TabsTrigger>
               <TabsTrigger value="products" className="gap-1 text-xs sm:text-sm"><Package className="h-4 w-4" /><span className="hidden sm:inline">Sản phẩm</span></TabsTrigger>
@@ -213,6 +248,126 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                   </div>
                 </div>
               </div>
+            </TabsContent>
+
+            {/* Behavior Tab */}
+            <TabsContent value="behavior" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" /> Phân tích hành vi mua sắm
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Tần suất mua sắm:</span>
+                      <span className="text-sm font-medium">{frequencyText}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Giá trị đơn trung bình (AOV):</span>
+                      <span className="text-sm font-medium">{fmtMoney(stats.totalSpent / (stats.totalOrders || 1))}</span>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Kênh mua sắm ưu thích:</span>
+                      <Badge variant="outline">{preferredChannel}</Badge>
+                    </div>
+                    <div className="flex justify-between pb-1">
+                      <span className="text-sm text-muted-foreground">Tổng số sản phẩm đã mua:</span>
+                      <span className="text-sm font-medium">{totalItemsPurchased} sản phẩm</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Star className="h-4 w-4 text-warning" /> Tiến trình nâng hạng thành viên
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Phân khúc hiện tại:</span>
+                      <Badge variant="secondary" className="uppercase text-[10px]">
+                        {partner.promo_segment === "loyalty" ? "VIP Member" : partner.promo_segment === "wholesale" ? "Khách mua sỉ" : "Khách bán lẻ"}
+                      </Badge>
+                    </div>
+                    {partner.promo_segment === "all" ? (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Chi tiêu tích lũy: {fmtMoney(partner.total_spent || 0)}</span>
+                          <span>Mục tiêu VIP: 10.000.000đ</span>
+                        </div>
+                        <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-primary h-full transition-all" 
+                            style={{ width: `${Math.min(((partner.total_spent || 0) / 10000000) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Tích lũy thêm {fmtMoney(Math.max(10000000 - (partner.total_spent || 0), 0))} để tự động thăng hạng VIP.
+                        </p>
+                      </div>
+                    ) : partner.promo_segment === "loyalty" ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-green-600 text-xs">
+                          <Check className="h-4 w-4" />
+                          <span>Đã đạt hạng Thành viên VIP tối đa</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Hưởng ưu đãi tự động trong các chiến dịch VIP Loyalty và tích lũy điểm thưởng.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-indigo-600 text-xs">
+                          <Check className="h-4 w-4" />
+                          <span>Đã áp dụng tệp khách hàng mua sỉ</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Hưởng chiết khấu tự động dành cho đối tác mua sỉ phân phối.
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Package className="h-4 w-4 text-indigo-500" /> Hồ sơ thu thập và sở thích ngành hàng
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Ngành hàng yêu thích nhất:</span>
+                      <Badge variant="secondary">{favoriteCategory}</Badge>
+                    </div>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-sm text-muted-foreground">Chi nhánh quản lý:</span>
+                      <span className="text-sm font-medium">{partner.branch_id || "Hệ thống chung"}</span>
+                    </div>
+                    <div className="flex justify-between pb-1">
+                      <span className="text-sm text-muted-foreground">Kho hàng mặc định:</span>
+                      <span className="text-sm font-medium">
+                        {warehouses.find(w => w.id === partner.warehouse_id)?.name || "Chưa thiết lập"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 p-3 bg-muted/30 rounded-md">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase">Hành vi phản hồi và khiếu nại (CSKH)</div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
+                      <div>Tổng ghi chú: <span className="font-semibold">{notes.length}</span></div>
+                      <div>Cần theo dõi: <span className="font-semibold">{notes.filter(n => n.follow_up_date).length}</span></div>
+                      <div>Ý kiến khiếu nại: <span className="font-semibold text-destructive">{notes.filter(n => n.note_type === "complaint").length}</span></div>
+                      <div>Gặp mặt trực tiếp: <span className="font-semibold text-success">{notes.filter(n => n.note_type === "meeting").length}</span></div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Orders Tab */}
