@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useOrders, type Order as HookOrder } from "@/hooks/useOrders";
+import { usePermissions, getRegionFromProvince } from "@/hooks/usePermissions";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useShippingZones } from "@/hooks/useShippingZones";
@@ -87,6 +88,9 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const { startDate, endDate } = useGlobalDateFilter();
 
+  const { getUserRegion, canCreate, canEdit, canDelete } = usePermissions();
+  const userRegion = getUserRegion();
+
   const paramSearch = searchParams.get("search") || stateSearchTerm;
   const paramStatus = searchParams.get("status") || "all";
   const paramChannel = searchParams.get("channel") || "all";
@@ -94,6 +98,13 @@ const Orders = () => {
   const [searchTerm, setSearchTerm] = useState(paramSearch);
   const [statusFilter, setStatusFilter] = useState<string>(paramStatus);
   const [channelFilter, setChannelFilter] = useState<string>(paramChannel);
+  const [regionFilter, setRegionFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (userRegion && userRegion !== "Toàn quốc") {
+      setRegionFilter(userRegion);
+    }
+  }, [userRegion]);
 
   useEffect(() => {
     const searchVal = searchParams.get("search");
@@ -146,10 +157,17 @@ const Orders = () => {
         if (startDate && orderDateStr < startDate) matchesDate = false;
         if (endDate && orderDateStr > endDate) matchesDate = false;
       }
+
+      // Region filter
+      let matchesRegion = true;
+      if (regionFilter !== "all") {
+        const orderRegion = getRegionFromProvince(order.shipping_province || "");
+        if (orderRegion !== regionFilter) matchesRegion = false;
+      }
       
-      return matchesSearch && matchesStatus && matchesChannel && matchesDate;
+      return matchesSearch && matchesStatus && matchesChannel && matchesDate && matchesRegion;
     });
-  }, [enrichedOrders, searchTerm, statusFilter, channelFilter, startDate, endDate]);
+  }, [enrichedOrders, searchTerm, statusFilter, channelFilter, startDate, endDate, regionFilter]);
 
   const getChannelInfo = (channelId: string | null) => {
     if (!channelId) return { name: "N/A", color: "#888" };
@@ -232,18 +250,22 @@ const Orders = () => {
                   <OrderAIAssistant 
                     orderContext={`Tổng ${orders.length} đơn hàng. ${filteredOrders.filter(o => o.status === 'pending').length} chờ xử lý, ${filteredOrders.filter(o => o.status === 'shipping').length} đang giao.`}
                   />
-                  <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="w-full sm:w-auto">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import
-                  </Button>
+                  {canCreate("orders") && (
+                    <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="w-full sm:w-auto">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={() => exportOrdersToExcel(filteredOrders)} className="w-full sm:w-auto">
                     <Download className="h-4 w-4 mr-2" />
                     Xuất Excel
                   </Button>
-                  <Button onClick={() => setCreateDialogOpen(true)} className="w-full sm:w-auto">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tạo đơn hàng
-                  </Button>
+                  {canCreate("orders") && (
+                    <Button onClick={() => setCreateDialogOpen(true)} className="w-full sm:w-auto">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tạo đơn hàng
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
@@ -280,6 +302,22 @@ const Orders = () => {
                           {channel.name}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select 
+                    value={regionFilter} 
+                    onValueChange={setRegionFilter}
+                    disabled={!!userRegion && userRegion !== "Toàn quốc"}
+                  >
+                    <SelectTrigger className="w-full sm:w-36 bg-background">
+                      <SelectValue placeholder="Vùng miền" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover z-50">
+                      <SelectItem value="all">Tất cả vùng</SelectItem>
+                      <SelectItem value="Miền Bắc">Miền Bắc</SelectItem>
+                      <SelectItem value="Miền Trung">Miền Trung</SelectItem>
+                      <SelectItem value="Miền Nam">Miền Nam</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -357,10 +395,12 @@ const Orders = () => {
                                 <span>{new Date(order.created_at).toLocaleDateString("vi-VN")}</span>
                                 <span className="font-semibold text-foreground">{Number(order.total || 0).toLocaleString("vi-VN")}đ</span>
                               </div>
-                              <QuickStatusButtons
-                                currentStatus={order.status}
-                                onStatusChange={(status) => handleStatusChange(order.id, status)}
-                              />
+                              {canEdit("orders") && (
+                                <QuickStatusButtons
+                                  currentStatus={order.status}
+                                  onStatusChange={(status) => handleStatusChange(order.id, status)}
+                                />
+                              )}
                             </CardContent>
                           </Card>
                         );
