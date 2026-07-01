@@ -269,6 +269,72 @@ export function useMemberships() {
       allT.unshift(newTx);
       localStorage.setItem(MEMBERSHIP_STORAGE_KEY, JSON.stringify(allM));
       localStorage.setItem(TRANSACTION_STORAGE_KEY, JSON.stringify(allT));
+
+      // === Auto-post accounting journal entry for deposit / refund ===
+      if (type === "deposit" || type === "refund") {
+        try {
+          const LOCAL_ACCOUNTS_KEY = "erp-mini-local-demo-accounts";
+          const LOCAL_ENTRIES_KEY = "erp-mini-local-demo-journal-entries";
+          const LOCAL_LINES_KEY = "erp-mini-local-demo-journal-lines";
+          const rawAccounts = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
+          if (rawAccounts) {
+            const accounts = JSON.parse(rawAccounts);
+            const entries = JSON.parse(localStorage.getItem(LOCAL_ENTRIES_KEY) || "[]");
+            const jLines = JSON.parse(localStorage.getItem(LOCAL_LINES_KEY) || "[]");
+
+            const entryId = `ent-wallet-${newTx.id}`;
+            const now = new Date().toISOString();
+            const entryDate = now.split("T")[0];
+            const isDeposit = type === "deposit";
+            const entryDesc = isDeposit
+              ? `Nạp ví thành viên: ${description}`
+              : `Hoàn tiền ví thành viên: ${description}`;
+
+            entries.unshift({
+              id: entryId,
+              company_id: "local-demo-company",
+              entry_date: entryDate,
+              description: entryDesc,
+              status: "posted",
+              source_type: "membership_wallet",
+              source_id: newTx.id,
+              created_by: "system",
+              posted_by: "system",
+              created_at: now,
+              updated_at: now,
+            });
+
+            if (isDeposit) {
+              // Deposit: Dr 1111 Cash / Cr 3387 Prepaid Wallet
+              jLines.push(
+                { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: "acc-1111", debit: amount, credit: 0, memo: `Thu tiền mặt nạp ví (${m.card_number})`, created_at: now },
+                { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: "acc-3387", debit: 0, credit: amount, memo: `Ghi nhận nhận trước KH - ví thành viên (${m.card_number})`, created_at: now }
+              );
+              accounts.forEach((a: any) => {
+                if (a.code === "1111") a.balance = (a.balance || 0) + amount;
+                if (a.code === "3387") a.balance = (a.balance || 0) + amount;
+              });
+            } else {
+              // Refund: Dr 3387 Prepaid Wallet / Cr 1111 Cash
+              jLines.push(
+                { id: `line-wd-dr-${newTx.id}`, entry_id: entryId, account_id: "acc-3387", debit: amount, credit: 0, memo: `Hoàn tiền ví thành viên (${m.card_number})`, created_at: now },
+                { id: `line-wd-cr-${newTx.id}`, entry_id: entryId, account_id: "acc-1111", debit: 0, credit: amount, memo: `Chi tiền mặt hoàn ví (${m.card_number})`, created_at: now }
+              );
+              accounts.forEach((a: any) => {
+                if (a.code === "3387") a.balance = (a.balance || 0) - amount;
+                if (a.code === "1111") a.balance = (a.balance || 0) - amount;
+              });
+            }
+
+            localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
+            localStorage.setItem(LOCAL_ENTRIES_KEY, JSON.stringify(entries));
+            localStorage.setItem(LOCAL_LINES_KEY, JSON.stringify(jLines));
+          }
+        } catch {
+          // Accounting integration is best-effort; don't block membership transaction
+        }
+      }
+
       return { membership: m, transaction: newTx };
     },
     onSuccess: () => {
