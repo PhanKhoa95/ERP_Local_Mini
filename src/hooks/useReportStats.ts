@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, subDays } from "date-fns";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { getLocalProductBom } from "@/lib/localInventoryStore";
+import { usePermissions, getRegionFromProvince } from "./usePermissions";
 
 const getProductCostPrice = (productId: string, directCost?: number | null) => {
   const bomItems = getLocalProductBom(productId);
@@ -18,8 +19,11 @@ export interface DateRange {
 }
 
 export function useRevenueReport(dateRange: DateRange) {
+  const { getUserRegion } = usePermissions();
+  const userRegion = getUserRegion();
+
   return useQuery({
-    queryKey: ["revenue-report", dateRange.from, dateRange.to],
+    queryKey: ["revenue-report", dateRange.from, dateRange.to, userRegion],
     queryFn: async () => {
       let orders: any[] = [];
 
@@ -59,6 +63,13 @@ export function useRevenueReport(dateRange: DateRange) {
 
         if (error) throw error;
         orders = data || [];
+      }
+
+      if (userRegion && userRegion !== "Toàn quốc") {
+        orders = orders.filter((o: any) => {
+          const orderRegion = getRegionFromProvince(o.shipping_province || "");
+          return orderRegion === userRegion;
+        });
       }
 
       // Calculate totals
@@ -117,8 +128,11 @@ export function useRevenueReport(dateRange: DateRange) {
 }
 
 export function useProductReport(dateRange: DateRange) {
+  const { getUserRegion } = usePermissions();
+  const userRegion = getUserRegion();
+
   return useQuery({
-    queryKey: ["product-report", dateRange.from, dateRange.to],
+    queryKey: ["product-report", dateRange.from, dateRange.to, userRegion],
     queryFn: async () => {
       let orderItems: any[] = [];
 
@@ -146,6 +160,7 @@ export function useProductReport(dateRange: DateRange) {
                 orders: {
                   status: o.status,
                   order_date: o.order_date || o.created_at,
+                  shipping_province: o.shipping_province,
                 },
               });
             });
@@ -157,7 +172,7 @@ export function useProductReport(dateRange: DateRange) {
           .select(`
             *,
             products(*),
-            orders!inner(status, order_date)
+            orders!inner(status, order_date, shipping_province)
           `)
           .gte("orders.order_date", dateRange.from.toISOString())
           .lte("orders.order_date", dateRange.to.toISOString())
@@ -165,6 +180,13 @@ export function useProductReport(dateRange: DateRange) {
 
         if (error) throw error;
         orderItems = data || [];
+      }
+
+      if (userRegion && userRegion !== "Toàn quốc") {
+        orderItems = orderItems.filter((item: any) => {
+          const orderRegion = getRegionFromProvince(item.orders?.shipping_province || "");
+          return orderRegion === userRegion;
+        });
       }
 
       // Aggregate by product
@@ -288,8 +310,11 @@ export function useInventoryReport() {
 }
 
 export function useOrderReport(dateRange: DateRange) {
+  const { getUserRegion } = usePermissions();
+  const userRegion = getUserRegion();
+
   return useQuery({
-    queryKey: ["order-report", dateRange.from, dateRange.to],
+    queryKey: ["order-report", dateRange.from, dateRange.to, userRegion],
     queryFn: async () => {
       let orders: any[] = [];
 
@@ -312,6 +337,13 @@ export function useOrderReport(dateRange: DateRange) {
 
         if (error) throw error;
         orders = data || [];
+      }
+
+      if (userRegion && userRegion !== "Toàn quốc") {
+        orders = orders.filter((o: any) => {
+          const orderRegion = getRegionFromProvince(o.shipping_province || "");
+          return orderRegion === userRegion;
+        });
       }
 
       const statusCounts: Record<string, number> = {};
