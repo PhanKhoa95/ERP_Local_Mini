@@ -48,12 +48,14 @@ Khắc phục 10 lỗi logic nghiệp vụ và 10 lỗi mất đồng bộ dữ 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| explorer_1 | teamwork_preview_explorer | Explore 10 logic and 10 sync issues | in-progress | 5f7d3837-a09e-4352-823b-78cd1f61510f |
+| explorer_1 | teamwork_preview_explorer | Explore 10 logic and 10 sync issues | completed | 5f7d3837-a09e-4352-823b-78cd1f61510f |
+| sub_orch_m1 | teamwork_preview_orchestrator | Milestone 1 (BOM, Inv, Product) | in-progress | c399e4ef-509c-410b-9aed-88ff225acae4 |
+| sub_orch_m2 | teamwork_preview_orchestrator | Milestone 2 (Finance, Casso) | in-progress | 67585048-4524-4e7c-9b95-0a4b73f1481e |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 2 / 16
-- Pending subagents: none
+- Spawn count: 4 / 16
+- Pending subagents: none (sub-orchestrators excluded)
 - Predecessor: sub_orch_logic_sync_gen2
 - Successor: not yet spawned
 
