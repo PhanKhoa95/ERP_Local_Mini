@@ -1200,6 +1200,7 @@ const POS = () => {
           onSubmit={handleQuickAddCustomerSubmit}
           isLoading={createPartner.isPending}
           defaultType="customer"
+          isQuickAdd={true}
         />
       </div>
     </MainLayout>
