@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, ArrowDownLeft, ArrowUpRight, Plus, Trash2, Layers } from "lucide-react";
+import { Loader2, ArrowDownLeft, ArrowUpRight, Plus, Trash2, Search, Barcode } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -32,6 +32,8 @@ interface StockTransactionItem {
   product_id: string;
   variant_id: string;
   quantity: number;
+  search_query: string;
+  is_open: boolean;
 }
 
 interface StockTransactionDialogProps {
@@ -53,10 +55,10 @@ export function StockTransactionDialog({
   const [transactionType, setTransactionType] = useState<"in" | "out">(defaultType);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<StockTransactionItem[]>([
-    { id: "init-1", product_id: "", variant_id: "", quantity: 1 }
+    { id: "init-1", product_id: "", variant_id: "", quantity: 1, search_query: "", is_open: false }
   ]);
 
-  // Fetch all variants in one query to allow local filtering by product_id in memory (efficient!)
+  // Fetch all variants in one query to allow local filtering by product_id in memory
   const { data: allVariants = [] } = useQuery<ProductVariant[]>({
     queryKey: ["all-product-variants-for-transactions"],
     queryFn: async () => {
@@ -75,14 +77,21 @@ export function StockTransactionDialog({
     if (open) {
       setTransactionType(defaultType);
       setNotes("");
-      setItems([{ id: "init-1", product_id: "", variant_id: "", quantity: 1 }]);
+      setItems([{ id: "init-1", product_id: "", variant_id: "", quantity: 1, search_query: "", is_open: false }]);
     }
   }, [open, defaultType]);
 
   const handleAddItem = () => {
     setItems([
       ...items,
-      { id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, product_id: "", variant_id: "", quantity: 1 }
+      {
+        id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        product_id: "",
+        variant_id: "",
+        quantity: 1,
+        search_query: "",
+        is_open: false
+      }
     ]);
   };
 
@@ -97,6 +106,10 @@ export function StockTransactionDialog({
         const updated = { ...item, [field]: value };
         if (field === "product_id") {
           updated.variant_id = ""; // Reset variant when product changes
+          const selected = products.find(p => p.id === value);
+          if (selected) {
+            updated.search_query = `${selected.sku} - ${selected.name}`;
+          }
         }
         return updated;
       }
@@ -135,7 +148,6 @@ export function StockTransactionDialog({
 
     // Check stock for outbound transaction
     if (transactionType === "out") {
-      // Aggregate quantities by product/variant to handle duplicate lines correctly
       const aggregates: Record<string, number> = {};
       items.forEach(item => {
         const key = item.variant_id ? `var-${item.variant_id}` : `prod-${item.product_id}`;
@@ -179,7 +191,6 @@ export function StockTransactionDialog({
         const localVariantsList = JSON.parse(localStorage.getItem(LOCAL_VARIANTS_KEY) || "[]");
         const localProductsList = JSON.parse(localStorage.getItem(LOCAL_PRODUCTS_KEY) || "[]");
 
-        // We process each item in stock vouchers
         for (const item of items) {
           const delta = transactionType === "in" ? item.quantity : -item.quantity;
           const prod = localProductsList.find((p: any) => p.id === item.product_id);
@@ -221,7 +232,6 @@ export function StockTransactionDialog({
           });
         }
 
-        // Save back local storage lists
         localStorage.setItem(LOCAL_VARIANTS_KEY, JSON.stringify(localVariantsList));
         localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(localProductsList));
 
@@ -356,7 +366,7 @@ export function StockTransactionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 font-bold text-lg">
+          <DialogTitle className="flex items-center gap-2 font-bold text-lg text-foreground">
             {transactionType === "in" ? (
               <>
                 <ArrowDownLeft className="h-5 w-5 text-success animate-bounce" />
@@ -370,7 +380,7 @@ export function StockTransactionDialog({
             )}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Thêm nhiều SKU (sản phẩm/biến thể) cùng lúc để xử lý nhập xuất nhanh chóng và đồng bộ dữ liệu.
+            Quét Barcode hoặc gõ tìm kiếm theo SKU, Tên sản phẩm để thao tác nhanh chóng và chính xác.
           </DialogDescription>
         </DialogHeader>
 
@@ -419,6 +429,18 @@ export function StockTransactionDialog({
                 const hasVars = prod?.has_variants || prodVars.length > 0;
                 const selectedVar = prodVars.find(v => v.id === item.variant_id);
 
+                // Filter products in memory based on local query
+                const filteredProducts = products.filter(p => {
+                  const q = item.search_query.trim().toLowerCase();
+                  if (!q || item.product_id) return true; // Show all if empty or product is already selected
+                  const barcode = (p as any).barcode || "";
+                  return (
+                    p.name.toLowerCase().includes(q) ||
+                    p.sku.toLowerCase().includes(q) ||
+                    barcode.toLowerCase().includes(q)
+                  );
+                }).slice(0, 10); // Limit to top 10 matches for neatness
+
                 return (
                   <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center p-3 rounded-lg border bg-secondary/20 hover:bg-secondary/40 transition-colors">
                     {/* Index */}
@@ -431,24 +453,52 @@ export function StockTransactionDialog({
                       )}
                     </div>
 
-                    {/* Product selector */}
-                    <div className="md:col-span-4 space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground md:hidden">Sản phẩm</Label>
-                      <Select
-                        value={item.product_id}
-                        onValueChange={(val) => handleItemChange(item.id, "product_id", val)}
-                      >
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="Chọn sản phẩm" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-60">
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="text-xs">
-                              {p.sku} - {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {/* Product Search Autocomplete */}
+                    <div className="md:col-span-4 relative space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground md:hidden">Sản phẩm (Barcode/SKU/Tên)</Label>
+                      <div className="relative">
+                        <Input
+                          placeholder="Gõ hoặc quét Barcode..."
+                          value={item.search_query}
+                          onChange={(e) => {
+                            handleItemChange(item.id, "search_query", e.target.value);
+                            handleItemChange(item.id, "product_id", ""); // Reset product id when typing
+                            handleItemChange(item.id, "is_open", true);
+                          }}
+                          onFocus={() => handleItemChange(item.id, "is_open", true)}
+                          onBlur={() => setTimeout(() => handleItemChange(item.id, "is_open", false), 250)} // Delay for click event
+                          className="h-9 text-xs pl-8 pr-3"
+                        />
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+
+                      {/* Dropdown panel */}
+                      {item.is_open && filteredProducts.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border rounded-md shadow-lg z-50 max-h-56 overflow-y-auto divide-y">
+                          {filteredProducts.map((p) => {
+                            const bc = (p as any).barcode;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="w-full text-left p-2.5 hover:bg-primary/10 text-xs transition-colors flex flex-col gap-0.5"
+                                onClick={() => handleItemChange(item.id, "product_id", p.id)}
+                              >
+                                <span className="font-semibold text-foreground">{p.name}</span>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                                  <span>SKU: {p.sku}</span>
+                                  {bc && (
+                                    <span className="flex items-center gap-0.5 text-primary">
+                                      <Barcode className="h-3 w-3" />
+                                      {bc}
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Variant selector */}
