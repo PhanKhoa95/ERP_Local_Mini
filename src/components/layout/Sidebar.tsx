@@ -36,6 +36,7 @@ const menuSections: MenuSection[] = [
       { title: "Kho hàng", icon: Package, path: "/inventory" },
       { title: "Quản lý kho", icon: Warehouse, path: "/warehouses" },
       { title: "Đối tác", icon: Users, path: "/partners" },
+      { title: "Thẻ thành viên", icon: CreditCard, path: "/memberships" },
       { title: "Tra cứu đơn hàng", icon: PackageSearch, path: "/tracking" },
       { title: "Công nợ", icon: FileText, path: "/debt-report" },
       { title: "E-Office", icon: Stamp, path: "/e-office" },

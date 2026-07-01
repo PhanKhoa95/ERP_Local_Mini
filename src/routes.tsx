@@ -10,6 +10,7 @@ const Orders = lazy(() => import("./pages/Orders"));
 const POS = lazy(() => import("./pages/POS"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Partners = lazy(() => import("./pages/Partners"));
+const Memberships = lazy(() => import("./pages/Memberships"));
 const Finance = lazy(() => import("./pages/Finance"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -65,6 +66,7 @@ export function AppRoutes() {
         <Route path="/orders" element={<Orders />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/partners" element={<Partners />} />
+        <Route path="/memberships" element={<Memberships />} />
         <Route path="/finance" element={
           <ProtectedRoute minRole="manager"><Finance /></ProtectedRoute>
         } />
