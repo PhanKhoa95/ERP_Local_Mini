@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, ArrowDownLeft, ArrowUpRight, Plus, Trash2, Search, Barcode } from "lucide-react";
+import { Loader2, ArrowDownLeft, ArrowUpRight, Plus, Trash2, Search, Barcode, Scale } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -34,6 +34,7 @@ interface StockTransactionItem {
   quantity: number;
   search_query: string;
   is_open: boolean;
+  uom_id: string; // Alternative unit conversion ID
 }
 
 interface StockTransactionDialogProps {
@@ -55,7 +56,7 @@ export function StockTransactionDialog({
   const [transactionType, setTransactionType] = useState<"in" | "out">(defaultType);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<StockTransactionItem[]>([
-    { id: "init-1", product_id: "", variant_id: "", quantity: 1, search_query: "", is_open: false }
+    { id: "init-1", product_id: "", variant_id: "", quantity: 1, search_query: "", is_open: false, uom_id: "" }
   ]);
 
   // Fetch all variants in one query to allow local filtering by product_id in memory
@@ -73,11 +74,22 @@ export function StockTransactionDialog({
     enabled: open,
   });
 
+  // Fetch all unit conversions for dynamic conversion calculation
+  const { data: allConversions = [] } = useQuery<any[]>({
+    queryKey: ["all-unit-conversions-for-transactions"],
+    queryFn: async () => {
+      const LOCAL_CONVERSIONS_KEY = "erp-mini-local-unit-conversions";
+      // Ensure seeded defaults are loaded if they exist
+      return JSON.parse(localStorage.getItem(LOCAL_CONVERSIONS_KEY) || "[]");
+    },
+    enabled: open,
+  });
+
   useEffect(() => {
     if (open) {
       setTransactionType(defaultType);
       setNotes("");
-      setItems([{ id: "init-1", product_id: "", variant_id: "", quantity: 1, search_query: "", is_open: false }]);
+      setItems([{ id: "init-1", product_id: "", variant_id: "", quantity: 1, search_query: "", is_open: false, uom_id: "" }]);
     }
   }, [open, defaultType]);
 
@@ -90,7 +102,8 @@ export function StockTransactionDialog({
         variant_id: "",
         quantity: 1,
         search_query: "",
-        is_open: false
+        is_open: false,
+        uom_id: ""
       }
     ]);
   };
@@ -107,6 +120,7 @@ export function StockTransactionDialog({
           const updated = { ...item, ...updates };
           if (updates.hasOwnProperty("product_id")) {
             updated.variant_id = ""; // Reset variant when product changes
+            updated.uom_id = "";     // Reset unit conversion when product changes
             const selected = products.find((p) => p.id === updates.product_id);
             if (selected) {
               updated.search_query = `${selected.sku} - ${selected.name}`;
@@ -148,12 +162,18 @@ export function StockTransactionDialog({
       }
     }
 
-    // Check stock for outbound transaction
+    // Check stock for outbound transaction (taking conversion factors into account)
     if (transactionType === "out") {
       const aggregates: Record<string, number> = {};
       items.forEach(item => {
         const key = item.variant_id ? `var-${item.variant_id}` : `prod-${item.product_id}`;
-        aggregates[key] = (aggregates[key] || 0) + item.quantity;
+        
+        // Calculate UOM conversion factor
+        const selectedConv = allConversions.find(c => c.id === item.uom_id);
+        const factor = selectedConv ? selectedConv.factor : 1;
+        const actualQty = item.quantity * factor;
+
+        aggregates[key] = (aggregates[key] || 0) + actualQty;
       });
 
       for (const [key, qty] of Object.entries(aggregates)) {
@@ -194,14 +214,20 @@ export function StockTransactionDialog({
         const localProductsList = JSON.parse(localStorage.getItem(LOCAL_PRODUCTS_KEY) || "[]");
 
         for (const item of items) {
-          const delta = transactionType === "in" ? item.quantity : -item.quantity;
+          // Calculate UOM conversion factor
+          const selectedConv = allConversions.find(c => c.id === item.uom_id);
+          const factor = selectedConv ? selectedConv.factor : 1;
+          const actualQty = item.quantity * factor;
+
+          const delta = transactionType === "in" ? actualQty : -actualQty;
           const prod = localProductsList.find((p: any) => p.id === item.product_id);
           const prodVars = localVariantsList.filter((v: any) => v.product_id === item.product_id);
           const hasVars = prod?.has_variants || prodVars.length > 0;
 
           const selectedVar = localVariantsList.find((v: any) => v.id === item.variant_id);
           const variantLogText = selectedVar ? ` [Biến thể: ${selectedVar.name}]` : "";
-          const finalNotes = (notes || "").trim() + variantLogText;
+          const uomLogText = selectedConv ? ` [Quy đổi đơn vị: ${item.quantity} ${selectedConv.from_unit} = ${actualQty} ${selectedConv.to_unit}]` : "";
+          const finalNotes = (notes || "").trim() + variantLogText + uomLogText;
 
           if (hasVars && item.variant_id) {
             // Update variant stock
@@ -229,7 +255,7 @@ export function StockTransactionDialog({
           createLocalInventoryTransaction({
             product_id: item.product_id,
             transaction_type: transactionType,
-            quantity: item.quantity,
+            quantity: actualQty,
             notes: finalNotes || null,
           });
         }
@@ -251,14 +277,20 @@ export function StockTransactionDialog({
 
       // Online logic (Supabase)
       for (const item of items) {
-        const delta = transactionType === "in" ? item.quantity : -item.quantity;
+        // Calculate UOM conversion factor
+        const selectedConv = allConversions.find(c => c.id === item.uom_id);
+        const factor = selectedConv ? selectedConv.factor : 1;
+        const actualQty = item.quantity * factor;
+
+        const delta = transactionType === "in" ? actualQty : -actualQty;
         const prod = products.find(p => p.id === item.product_id);
         const prodVars = allVariants.filter(v => v.product_id === item.product_id);
         const hasVars = prod?.has_variants || prodVars.length > 0;
         const selectedVar = allVariants.find(v => v.id === item.variant_id);
 
         const variantLogText = selectedVar ? ` [Biến thể: ${selectedVar.name}]` : "";
-        const finalNotes = (notes || "").trim() + variantLogText;
+        const uomLogText = selectedConv ? ` [Quy đổi đơn vị: ${item.quantity} ${selectedConv.from_unit} = ${actualQty} ${selectedConv.to_unit}]` : "";
+        const finalNotes = (notes || "").trim() + variantLogText + uomLogText;
 
         if (hasVars && item.variant_id) {
           // 1. Update variant stock
@@ -297,7 +329,7 @@ export function StockTransactionDialog({
           .insert({
             product_id: item.product_id,
             transaction_type: transactionType,
-            quantity: transactionType === "in" ? item.quantity : -item.quantity,
+            quantity: transactionType === "in" ? actualQty : -actualQty,
             notes: finalNotes || null,
           });
         if (txError) throw txError;
@@ -336,7 +368,7 @@ export function StockTransactionDialog({
                 .insert({
                   warehouse_id: defaultWh.id,
                   product_id: item.product_id,
-                  quantity: item.quantity,
+                  quantity: actualQty,
                 });
             }
           }
@@ -366,7 +398,7 @@ export function StockTransactionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-bold text-lg text-foreground">
             {transactionType === "in" ? (
@@ -382,7 +414,7 @@ export function StockTransactionDialog({
             )}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Quét Barcode hoặc gõ tìm kiếm theo SKU, Tên sản phẩm để thao tác nhanh chóng và chính xác.
+            Quét Barcode hoặc gõ tìm kiếm theo SKU, Tên sản phẩm. Hệ thống tự động quy đổi và chia số lượng khi xé lẻ hoặc nhập đơn vị lớn.
           </DialogDescription>
         </DialogHeader>
 
@@ -431,6 +463,13 @@ export function StockTransactionDialog({
                 const hasVars = prod?.has_variants || prodVars.length > 0;
                 const selectedVar = prodVars.find(v => v.id === item.variant_id);
 
+                // Filter unit conversions for this product
+                const prodConversions = allConversions.filter(c => c.product_id === item.product_id);
+                const selectedUom = prodConversions.find(c => c.id === item.uom_id);
+                const uomFactor = selectedUom ? selectedUom.factor : 1;
+                const convertedQty = item.quantity * uomFactor;
+                const baseUnit = prod?.unit || "Cái";
+
                 // Filter products in memory based on local query
                 const filteredProducts = products.filter(p => {
                   const q = item.search_query.trim().toLowerCase();
@@ -456,7 +495,7 @@ export function StockTransactionDialog({
                     </div>
 
                     {/* Product Search Autocomplete */}
-                    <div className="md:col-span-4 relative space-y-1">
+                    <div className="md:col-span-3 relative space-y-1">
                       <Label className="text-[10px] uppercase tracking-wider text-muted-foreground md:hidden">Sản phẩm (Barcode/SKU/Tên)</Label>
                       <div className="relative">
                         <Input
@@ -488,7 +527,7 @@ export function StockTransactionDialog({
                                 type="button"
                                 className="w-full text-left p-2.5 hover:bg-primary/10 text-xs transition-colors flex flex-col gap-0.5"
                                 onMouseDown={(e) => {
-                                  e.preventDefault(); // Ngên chặn input mất focus trước khi cập nhật
+                                  e.preventDefault(); // Ngăn chặn input mất focus trước khi cập nhật
                                   // Atomic update: set selected product and close panel
                                   handleItemUpdate(item.id, {
                                     product_id: p.id,
@@ -514,7 +553,7 @@ export function StockTransactionDialog({
                     </div>
 
                     {/* Variant selector */}
-                    <div className="md:col-span-4 space-y-1">
+                    <div className="md:col-span-3 space-y-1">
                       <Label className="text-[10px] uppercase tracking-wider text-muted-foreground md:hidden">Biến thể</Label>
                       {hasVars ? (
                         <Select
@@ -537,6 +576,28 @@ export function StockTransactionDialog({
                           Không có biến thể
                         </div>
                       )}
+                    </div>
+
+                    {/* UOM Selector */}
+                    <div className="md:col-span-2 space-y-1">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground md:hidden">Đơn vị tính</Label>
+                      <Select
+                        value={item.uom_id}
+                        onValueChange={(val) => handleItemUpdate(item.id, { uom_id: val })}
+                        disabled={!item.product_id}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder={baseUnit} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="" className="text-xs">{baseUnit} (Cơ bản)</SelectItem>
+                          {prodConversions.map((c) => (
+                            <SelectItem key={c.id} value={c.id} className="text-xs">
+                              {c.from_unit} (x{c.factor})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Quantity */}
@@ -564,14 +625,22 @@ export function StockTransactionDialog({
                       )}
                     </div>
 
-                    {/* Stock preview badge */}
+                    {/* Stock preview and unit conversion helper badge */}
                     {item.product_id && (
                       <div className="col-span-1 md:col-start-2 md:col-span-10 text-[10px] text-muted-foreground flex justify-between flex-wrap gap-2 mt-1 border-t border-dashed pt-1.5 opacity-80">
+                        {/* Conversion formula helper */}
+                        {selectedUom && (
+                          <span className="text-primary flex items-center gap-1">
+                            <Scale className="h-3 w-3" />
+                            Quy đổi: <span className="font-semibold">{item.quantity} {selectedUom.from_unit}</span> x {selectedUom.factor} = <span className="font-semibold">{convertedQty} {baseUnit}</span>
+                          </span>
+                        )}
+
                         {hasVars && selectedVar ? (
                           <>
                             <span>Tồn hiện tại: <span className="font-semibold text-foreground">{selectedVar.stock_quantity}</span></span>
                             <span>Sau giao dịch: <span className={`font-semibold ${transactionType === "in" ? "text-success" : "text-destructive"}`}>
-                              {selectedVar.stock_quantity + (transactionType === "in" ? item.quantity : -item.quantity)}
+                              {selectedVar.stock_quantity + (transactionType === "in" ? convertedQty : -convertedQty)}
                             </span></span>
                           </>
                         ) : (
@@ -579,7 +648,7 @@ export function StockTransactionDialog({
                             <>
                               <span>Tồn hiện tại: <span className="font-semibold text-foreground">{prod.stock_quantity || 0}</span></span>
                               <span>Sau giao dịch: <span className={`font-semibold ${transactionType === "in" ? "text-success" : "text-destructive"}`}>
-                                {(prod.stock_quantity || 0) + (transactionType === "in" ? item.quantity : -item.quantity)}
+                                {(prod.stock_quantity || 0) + (transactionType === "in" ? convertedQty : -convertedQty)}
                               </span></span>
                             </>
                           )
