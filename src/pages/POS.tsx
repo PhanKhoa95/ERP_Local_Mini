@@ -37,7 +37,8 @@ import {
   Warehouse,
   AlertTriangle,
   CheckCircle2,
-  QrCode
+  QrCode,
+  Coins
 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { usePartners } from "@/hooks/usePartners";
@@ -293,17 +294,17 @@ const POS = () => {
   const { toast } = useToast();
   const { memberships, performTransaction } = useMemberships();
 
-  const customerMembership = useMemo(() => {
-    if (!selectedCustomer || selectedCustomer === "walk-in") return null;
-    return memberships.find(m => m.partner_id === selectedCustomer);
-  }, [selectedCustomer, memberships]);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+
+  const customerMembership = useMemo(() => {
+    if (!selectedCustomer || selectedCustomer === "walk-in") return null;
+    return memberships.find(m => m.partner_id === selectedCustomer);
+  }, [selectedCustomer, memberships]);
 
   const handleQuickAddCustomerSubmit = async (data: any) => {
     try {
