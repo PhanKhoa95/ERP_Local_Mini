@@ -1,12 +1,12 @@
 # Progress
 
-- Last visited: 2026-07-01T12:03:23+07:00
-- Status: Initialized.
+- Last visited: 2026-07-01T12:06:23+07:00
+- Status: Completed.
 - Steps:
   - [x] Initialized workspace and briefing/progress tracking.
-  - [ ] Investigate CategoriesTab.tsx and SalesPoliciesTab.tsx.
-  - [ ] Investigate usePartnerDetail.ts and PartnerDetailDialog.tsx.
-  - [ ] Run initial build/tests to see the starting state.
-  - [ ] Implement changes.
-  - [ ] Verify build/tests.
-  - [ ] Generate reports.
+  - [x] Investigate CategoriesTab.tsx and SalesPoliciesTab.tsx.
+  - [x] Investigate usePartnerDetail.ts and PartnerDetailDialog.tsx.
+  - [x] Run initial build/tests to see the starting state.
+  - [x] Implement changes.
+  - [x] Verify build/tests.
+  - [x] Generate reports.

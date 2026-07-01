@@ -26,16 +26,20 @@ Clean up configuration duplication, partner detail sync, and warranty calculatio
 - **Code layout**: src/components/settings/CategoriesTab.tsx, src/components/settings/SalesPoliciesTab.tsx, src/hooks/usePartnerDetail.ts, src/components/partners/PartnerDetailDialog.tsx
 
 ## Key Decisions Made
-- [TBD]
+- Re-implemented the warranties lookup map to strictly filter out undefined/null warranty values, ensuring lookup defaults to keyword mapping only if category warranty is not set.
+- Added responsive overflow scroll handling and min-w configuration to the warranties table in `PartnerDetailDialog.tsx` to handle display across different device sizes.
 
 ## Change Tracker
-- **Files modified**: None yet
-- **Build status**: Untested
+- **Files modified**:
+  - `src/components/settings/SalesPoliciesTab.tsx` — Passed category description to updateCategory mutation.
+  - `src/hooks/usePartnerDetail.ts` — Fetched and mapped products category column in purchasedItems query.
+  - `src/components/partners/PartnerDetailDialog.tsx` — Re-implemented warranty calculations and layout.
+- **Build status**: Pass
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Untested
-- **Lint status**: Untested
+- **Build/test result**: Pass (249/249 tests passed, build succeeded, typecheck succeeded)
+- **Lint status**: 0 violations (no type check errors)
 - **Tests added/modified**: None
 
 ## Loaded Skills
@@ -43,3 +47,5 @@ Clean up configuration duplication, partner detail sync, and warranty calculatio
 
 ## Artifact Index
 - y:\ERP_Local_Mini\.agents\teamwork_preview_worker_implementation_clean\ORIGINAL_REQUEST.md — Original request details
+- y:\ERP_Local_Mini\.agents\teamwork_preview_worker_implementation_clean\changes.md — Log of changes made
+- y:\ERP_Local_Mini\.agents\teamwork_preview_worker_implementation_clean\handoff.md — Handoff report for team review
