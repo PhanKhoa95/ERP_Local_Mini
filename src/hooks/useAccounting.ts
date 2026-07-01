@@ -50,16 +50,16 @@ const LOCAL_ENTRIES_KEY = "erp-mini-local-demo-journal-entries";
 const LOCAL_LINES_KEY = "erp-mini-local-demo-journal-lines";
 
 const DEFAULT_ACCOUNTS = (companyId: string): ChartOfAccount[] => [
-  { id: "acc-1111", company_id: companyId, code: "1111", name: "Tiền mặt", account_type: "asset", balance: 50000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-1121", company_id: companyId, code: "1121", name: "Tiền gửi ngân hàng", account_type: "asset", balance: 150000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-131", company_id: companyId, code: "131", name: "Phải thu khách hàng", account_type: "asset", balance: 12000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-156", company_id: companyId, code: "156", name: "Hàng hóa", account_type: "asset", balance: 45000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-211", company_id: companyId, code: "211", name: "Tài sản cố định (CAPEX)", account_type: "asset", balance: 38500000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-331", company_id: companyId, code: "331", name: "Phải trả người bán", account_type: "liability", balance: 25000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-4111", company_id: companyId, code: "4111", name: "Vốn góp chủ sở hữu", account_type: "equity", balance: 252500000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-511", company_id: companyId, code: "511", name: "Doanh thu bán hàng", account_type: "revenue", balance: 75000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-632", company_id: companyId, code: "632", name: "Giá vốn bán hàng", account_type: "expense", balance: 42000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-642", company_id: companyId, code: "642", name: "Chi phí quản lý doanh nghiệp", account_type: "expense", balance: 15000000, parent_id: null, is_active: true, created_at: new Date().toISOString() }
+  { id: "acc-1111", company_id: companyId, code: "1111", name: "Tiền mặt", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-1121", company_id: companyId, code: "1121", name: "Tiền gửi ngân hàng", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-131", company_id: companyId, code: "131", name: "Phải thu khách hàng", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-156", company_id: companyId, code: "156", name: "Hàng hóa", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-211", company_id: companyId, code: "211", name: "Tài sản cố định (CAPEX)", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-331", company_id: companyId, code: "331", name: "Phải trả người bán", account_type: "liability", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-4111", company_id: companyId, code: "4111", name: "Vốn góp chủ sở hữu", account_type: "equity", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-511", company_id: companyId, code: "511", name: "Doanh thu bán hàng", account_type: "revenue", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-632", company_id: companyId, code: "632", name: "Giá vốn bán hàng", account_type: "expense", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-642", company_id: companyId, code: "642", name: "Chi phí quản lý doanh nghiệp", account_type: "expense", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() }
 ];
 
 function getLocalAccounts(companyId: string): ChartOfAccount[] {
@@ -80,6 +80,34 @@ function getLocalAccounts(companyId: string): ChartOfAccount[] {
 function seedJournalEntriesFromData(companyId: string): { entries: JournalEntry[], lines: JournalLine[] } {
   const entries: JournalEntry[] = [];
   const lines: JournalLine[] = [];
+
+  const openingEntryId = "ent-opening-balances";
+  entries.push({
+    id: openingEntryId,
+    company_id: companyId,
+    entry_date: new Date(Date.now() - 3600000 * 24 * 30).toISOString().split("T")[0],
+    description: "Khai báo số dư đầu kỳ",
+    status: "posted",
+    source_type: "manual",
+    source_id: null,
+    created_by: "system",
+    posted_by: "system",
+    created_at: new Date(Date.now() - 3600000 * 24 * 30).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 24 * 30).toISOString()
+  });
+
+  lines.push(
+    { id: "line-open-1111", entry_id: openingEntryId, account_id: "acc-1111", debit: 50000000, credit: 0, memo: "Số dư đầu kỳ: Tiền mặt", created_at: new Date().toISOString() },
+    { id: "line-open-1121", entry_id: openingEntryId, account_id: "acc-1121", debit: 150000000, credit: 0, memo: "Số dư đầu kỳ: Tiền gửi ngân hàng", created_at: new Date().toISOString() },
+    { id: "line-open-131", entry_id: openingEntryId, account_id: "acc-131", debit: 12000000, credit: 0, memo: "Số dư đầu kỳ: Phải thu khách hàng", created_at: new Date().toISOString() },
+    { id: "line-open-156", entry_id: openingEntryId, account_id: "acc-156", debit: 45000000, credit: 0, memo: "Số dư đầu kỳ: Hàng hóa", created_at: new Date().toISOString() },
+    { id: "line-open-211", entry_id: openingEntryId, account_id: "acc-211", debit: 38500000, credit: 0, memo: "Số dư đầu kỳ: Tài sản cố định (CAPEX)", created_at: new Date().toISOString() },
+    { id: "line-open-331", entry_id: openingEntryId, account_id: "acc-331", debit: 0, credit: 25000000, memo: "Số dư đầu kỳ: Phải trả người bán", created_at: new Date().toISOString() },
+    { id: "line-open-4111", entry_id: openingEntryId, account_id: "acc-4111", debit: 0, credit: 252500000, memo: "Số dư đầu kỳ: Vốn góp chủ sở hữu", created_at: new Date().toISOString() },
+    { id: "line-open-511", entry_id: openingEntryId, account_id: "acc-511", debit: 0, credit: 75000000, memo: "Số dư đầu kỳ: Doanh thu bán hàng tích lũy", created_at: new Date().toISOString() },
+    { id: "line-open-632", entry_id: openingEntryId, account_id: "acc-632", debit: 42000000, credit: 0, memo: "Số dư đầu kỳ: Giá vốn tích lũy", created_at: new Date().toISOString() },
+    { id: "line-open-642", entry_id: openingEntryId, account_id: "acc-642", debit: 15000000, credit: 0, memo: "Số dư đầu kỳ: Chi phí quản lý tích lũy", created_at: new Date().toISOString() }
+  );
 
   // Read orders from localStorage
   const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
@@ -346,6 +374,13 @@ export function useAccounting() {
   const { companyId } = useCompanyContext();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  if (typeof window !== "undefined" && localStorage.getItem("erp-mini-accounting-migrated-v2") !== "true") {
+    localStorage.removeItem(LOCAL_ACCOUNTS_KEY);
+    localStorage.removeItem(LOCAL_ENTRIES_KEY);
+    localStorage.removeItem(LOCAL_LINES_KEY);
+    localStorage.setItem("erp-mini-accounting-migrated-v2", "true");
+  }
 
   // 1. Fetch Accounts
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
