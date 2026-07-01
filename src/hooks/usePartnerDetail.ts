@@ -92,6 +92,37 @@ export function usePartnerDetail(partnerId: string | null) {
     },
   });
 
+  const { data: purchasedItems = [], isLoading: purchasedItemsLoading } = useQuery({
+    queryKey: ["partner-purchased-items", partnerId, companyId],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("order_items")
+        .select(`
+          id,
+          product_id,
+          quantity,
+          unit_price,
+          total,
+          products(id, name, sku),
+          orders!inner(partner_id, company_id, order_date)
+        `)
+        .eq("orders.partner_id", partnerId!)
+        .eq("orders.company_id", companyId!);
+      if (error) throw error;
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        product_id: item.product_id,
+        name: item.products?.name || "Sản phẩm không tên",
+        sku: item.products?.sku || "N/A",
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total,
+        order_date: item.orders?.order_date || new Date().toISOString(),
+      }));
+    },
+  });
+
   // customer_notes không có company_id — bảo vệ qua partner_id (đã được lọc theo company qua RLS partners)
   const { data: notes = [], isLoading: notesLoading } = useQuery({
     queryKey: ["customer-notes", partnerId, companyId],
@@ -168,9 +199,10 @@ export function usePartnerDetail(partnerId: string | null) {
     orders,
     transactions,
     topProducts,
+    purchasedItems,
     notes,
     stats,
-    isLoading: ordersLoading || transactionsLoading || productsLoading || notesLoading,
+    isLoading: ordersLoading || transactionsLoading || productsLoading || notesLoading || purchasedItemsLoading,
     createNote,
     updateNote,
     deleteNote,

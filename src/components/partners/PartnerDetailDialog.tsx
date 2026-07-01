@@ -57,10 +57,39 @@ const renderSimulatedQRCode = (code: string) => {
 
 export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { warehouses } = useWarehouses();
-  const { orders, transactions, topProducts, notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
+  const { orders, transactions, topProducts, purchasedItems = [], notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("general");
   const [followUpDate, setFollowUpDate] = useState("");
+
+  const warranties = useMemo(() => {
+    return purchasedItems.map((item: any) => {
+      let months = 3;
+      const sku = (item.sku || "").toUpperCase();
+      const name = (item.name || "").toUpperCase();
+      if (sku.includes("QR-CARD") || name.includes("THẺ QR")) {
+        months = 12;
+      } else if (sku.includes("BOARD") || name.includes("BẢNG QR")) {
+        months = 6;
+      }
+
+      const pDate = new Date(item.order_date);
+      const expDate = new Date(pDate.getTime());
+      expDate.setMonth(expDate.getMonth() + months);
+      
+      const isActive = expDate.getTime() > Date.now();
+
+      return {
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        purchaseDate: item.order_date,
+        expirationDate: expDate.toISOString(),
+        durationMonths: months,
+        isActive,
+      };
+    });
+  }, [purchasedItems]);
 
   const frequencyText = useMemo(() => {
     if (orders.length <= 1) return "Chưa đủ dữ liệu tần suất (cần tối thiểu 2 đơn)";
