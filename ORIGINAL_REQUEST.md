@@ -153,3 +153,37 @@ Integrity mode: development
 ### Test & Stability
 - [ ] Toàn bộ 18 kịch bản test Playwright E2E vượt qua 100% (`npx playwright test`).
 - [ ] Lệnh kiểm tra tổng thể `npm run typecheck` chạy hoàn tất không có lỗi biên dịch.
+
+## Follow-up — 2026-07-01T07:23:17Z
+
+Kiểm thử toàn diện và đánh giá độ sẵn sàng vận hành của hệ thống ERP_Local_Mini, bao gồm kiểm tra tĩnh mã nguồn, chạy unit/integration tests và thực hiện e2e tests trên các luồng nghiệp vụ cốt lõi.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Kiểm tra tĩnh mã nguồn (Static Verification)
+Hệ thống phải vượt qua các bước kiểm tra kiểu tĩnh (TypeScript typecheck) và định dạng mã nguồn (Lint) mà không phát sinh bất kỳ lỗi cảnh báo hoặc lỗi biên dịch nào.
+
+### R2. Kiểm thử Unit và Integration (Vitest Tests)
+Chạy toàn bộ bộ kiểm thử Vitest hiện có trong dự án. Tất cả các ca kiểm thử unit và integration (đối soát Casso, định mức BOM, tính toán số liệu báo cáo...) phải vượt qua 100%.
+
+### R3. Kiểm thử đầu-cuối (Playwright E2E Tests)
+Kích hoạt môi trường thử nghiệm cục bộ và chạy toàn bộ các bài test E2E bằng Playwright để xác minh các luồng giao diện người dùng cốt lõi (Phân quyền vai trò, đối soát giao dịch, responsive layouts, quy trình bán hàng/kho/tài chính).
+
+### R4. Đóng gói sản phẩm (Production Build)
+Đảm bảo dự án có thể build thành công cho môi trường production bằng công cụ Vite mà không gặp bất kỳ lỗi đóng gói nào.
+
+## Acceptance Criteria
+
+### Static Quality
+- [ ] Lệnh `npm run typecheck` hoàn thành thành công (exit code = 0).
+- [ ] Lệnh `npm run lint` hoàn thành không phát sinh lỗi nghiêm trọng.
+
+### Test Automation
+- [ ] 100% các test suite trong Vitest vượt qua thành công (`npm run test` hoặc `npm run test:local` có exit code = 0).
+- [ ] 100% các ca kiểm thử Playwright E2E vượt qua thành công (`npx playwright test` có exit code = 0).
+
+### Build & Package
+- [ ] Lệnh `npm run build` hoàn thành thành công và tạo ra thư mục `dist` chứa đầy đủ tài nguyên tĩnh (exit code = 0).
