@@ -178,6 +178,17 @@ export function useProducts() {
         return;
       }
 
+      const { data: bomUsage, error: bomError } = await supabase
+        .from("product_bom")
+        .select("product_id")
+        .eq("material_id", id)
+        .eq("is_active", true);
+
+      if (bomError) throw bomError;
+      if (bomUsage && bomUsage.length > 0) {
+        throw new Error("Không thể xóa: Sản phẩm đang được sử dụng trong định mức BOM của thành phẩm khác.");
+      }
+
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) {
         if (error.code === "23503") {

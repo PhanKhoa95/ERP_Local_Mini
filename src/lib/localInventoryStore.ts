@@ -645,13 +645,18 @@ export function updateLocalProduct(input: ProductUpdate & { id: string }): Produ
 }
 
 export function deleteLocalProduct(id: string) {
+  const bomItems = readJson<ProductBom[]>(BOM_KEY, []);
+  const activeUsage = bomItems.filter((item) => item.material_id === id && item.is_active !== false);
+  if (activeUsage.length > 0) {
+    throw new Error("Không thể xóa: Sản phẩm đang được sử dụng trong định mức BOM của thành phẩm khác.");
+  }
+
   const products = readJson<Product[]>(PRODUCTS_KEY, []);
   writeJson(PRODUCTS_KEY, products.filter((product) => product.id !== id));
 
   const transactions = readJson<InventoryTransaction[]>(TRANSACTIONS_KEY, []);
   writeJson(TRANSACTIONS_KEY, transactions.filter((transaction) => transaction.product_id !== id));
 
-  const bomItems = readJson<ProductBom[]>(BOM_KEY, []);
   writeJson(
     BOM_KEY,
     bomItems.filter((item) => item.product_id !== id && item.material_id !== id)

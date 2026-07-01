@@ -164,7 +164,7 @@ export function OrderDetailDialog({
                   <span className="font-medium text-foreground">
                     {getPaymentMethodLabel(order.payment_method)} · {
                       order.payment_status === "paid" ? "Đã thanh toán" :
-                      order.payment_status === "partially_paid" ? "Thanh toán một phần" : "Chưa thanh toán"
+                      (order.payment_status === "partially_paid" || order.payment_status === "partial") ? "Thanh toán một phần" : "Chưa thanh toán"
                     }
                   </span>
                 </div>

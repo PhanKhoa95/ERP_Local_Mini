@@ -356,7 +356,7 @@ export function usePaymentTransactions(partnerId?: string) {
             if (updatedPaidAmount >= total) {
               orders[orderIdx].payment_status = "paid";
             } else if (updatedPaidAmount > 0) {
-              orders[orderIdx].payment_status = "partially_paid";
+              orders[orderIdx].payment_status = "partial";
             } else {
               orders[orderIdx].payment_status = "unpaid";
             }
@@ -396,7 +396,7 @@ export function usePaymentTransactions(partnerId?: string) {
           if (updatedPaidAmount >= total) {
             paymentStatus = "paid";
           } else if (updatedPaidAmount > 0) {
-            paymentStatus = "partially_paid";
+            paymentStatus = "partial";
           }
           await supabase
             .from("orders")

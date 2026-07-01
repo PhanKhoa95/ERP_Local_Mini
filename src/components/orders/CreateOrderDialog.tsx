@@ -448,50 +448,57 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
             </div>
 
             {items.map((item, index) => (
-              <div key={index} className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg">
-                <div className="flex-1">
-                  <Select
-                    value={item.product_id}
-                    onValueChange={(value) => updateItem(index, "product_id", value)}
+              <div key={index} className="space-y-1 p-3 bg-secondary/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select
+                      value={item.product_id}
+                      onValueChange={(value) => updateItem(index, "product_id", value)}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Chọn sản phẩm" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.sku} - {product.name} (Tồn: {product.stock_quantity})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Input
+                    type="number"
+                    className="w-20"
+                    placeholder="SL"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                    min={1}
+                  />
+                  <Input
+                    type="number"
+                    className="w-28"
+                    placeholder="Đơn giá"
+                    value={item.unit_price}
+                    onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))}
+                  />
+                  <div className="w-28 text-right font-medium">
+                    {item.total.toLocaleString("vi-VN")}đ
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeItem(index)}
                   >
-                    <SelectTrigger className="bg-background">
-                      <SelectValue placeholder="Chọn sản phẩm" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover z-50">
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.sku} - {product.name} (Tồn: {product.stock_quantity})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-                <Input
-                  type="number"
-                  className="w-20"
-                  placeholder="SL"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
-                  min={1}
-                />
-                <Input
-                  type="number"
-                  className="w-28"
-                  placeholder="Đơn giá"
-                  value={item.unit_price}
-                  onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))}
-                />
-                <div className="w-28 text-right font-medium">
-                  {item.total.toLocaleString("vi-VN")}đ
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeItem(index)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                {item.product && item.unit_price > 0 && item.product.cost_price > 0 && item.unit_price < item.product.cost_price && (
+                  <div className="text-xs text-amber-500 font-medium pl-1">
+                    Cảnh báo: Đơn giá thấp hơn giá vốn ({item.product.cost_price.toLocaleString("vi-VN")}đ)
+                  </div>
+                )}
               </div>
             ))}
 

@@ -976,6 +976,11 @@ const POS = () => {
                     />
                     <span className="text-xs text-muted-foreground">đ/sp</span>
                   </div>
+                  {item.unit_price > 0 && item.product.cost_price > 0 && item.unit_price < item.product.cost_price && (
+                    <p className="text-[10px] text-amber-500 font-medium mt-1">
+                      Giá bán thấp hơn giá vốn ({item.product.cost_price.toLocaleString("vi-VN")}đ)
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end justify-between">
                   <Button
