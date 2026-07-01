@@ -25,11 +25,14 @@ Design, upgrade, and complete the dynamic RBAC/ABAC role system for ERP_Local_Mi
    - Escalate
 4. **Succession**: Self-succeed at 16 spawns, write handoff.md, spawn successor.
 - **Work items**:
-  1. Decompose & Plan [pending]
-  2. Implement RBAC/ABAC role system [pending]
-  3. Verify via tests & production build [pending]
-- **Current phase**: 1
-- **Current focus**: Decompose & Plan
+  1. Decompose & Plan [done]
+  2. M1: Exploration [pending]
+  3. M2: Role & Matrix UI [pending]
+  4. M3: Multi-tier Enforcement [pending]
+  5. M4: Storage & Audit [pending]
+  6. M5: Verification [pending]
+- **Current phase**: 2
+- **Current focus**: M1: Exploration
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -45,24 +48,27 @@ Design, upgrade, and complete the dynamic RBAC/ABAC role system for ERP_Local_Mi
 - Updated: not yet
 
 ## Key Decisions Made
-- [TBD]
+- Decomposed project into 5 milestones (M1 to M5).
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
+| explorer_m1 | teamwork_preview_explorer | Codebase Exploration | in-progress | ce19efd1-cfef-4ee4-8752-45b18c3e2847 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
-- Pending subagents: none
+- Spawn count: 1 / 16
+- Pending subagents: ce19efd1-cfef-4ee4-8752-45b18c3e2847
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
 - Heartbeat cron: task-9
-- Safety timer: none
+- Safety timer: task-43
 
 ## Artifact Index
 - y:\ERP_Local_Mini\.agents\orchestrator_rbac\ORIGINAL_REQUEST.md — Original user request
 - y:\ERP_Local_Mini\.agents\orchestrator_rbac\BRIEFING.md — Persistent working memory briefing
 - y:\ERP_Local_Mini\.agents\orchestrator_rbac\progress.md — Liveness and checkpoint progress
+- y:\ERP_Local_Mini\.agents\orchestrator_rbac\plan.md — Project Roadmap/Plan
+- y:\ERP_Local_Mini\.agents\orchestrator_rbac\SCOPE.md — Milestone Scope Details

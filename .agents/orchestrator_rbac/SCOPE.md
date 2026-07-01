@@ -15,7 +15,7 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | M1: Exploration | Explore codebase and document files to modify | none | PLANNED |
+| 1 | M1: Exploration | Explore codebase and document files to modify | none | IN_PROGRESS |
 | 2 | M2: Role & Matrix UI | Implement settings tab for managing roles and matrix | M1 | PLANNED |
 | 3 | M3: Multi-tier Enforcement | Integrate access control in Sidebar, Action Buttons, Region filtering, and Field hiding | M2 | PLANNED |
 | 4 | M4: Storage & Audit | Ensure Local/Supabase sync and write Audit Logs | M3 | PLANNED |

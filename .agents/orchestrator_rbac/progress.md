@@ -1,10 +1,13 @@
 # Progress — 2026-07-01T08:38:45Z
-Last visited: 2026-07-01T08:38:45Z
+Last visited: 2026-07-01T08:39:16Z
 
 ## Current Status
-- [ ] Decompose & Plan
-- [ ] Implement RBAC/ABAC role system
-- [ ] Verify via tests & production build
+- [x] Decompose & Plan
+- [ ] M1: Exploration
+- [ ] M2: Role & Matrix UI
+- [ ] M3: Multi-tier Enforcement
+- [ ] M4: Storage & Audit
+- [ ] M5: Verification
 
 ## Iteration Status
 Current iteration: 0 / 32
