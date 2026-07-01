@@ -21,6 +21,7 @@ import { ShippingZonesTab } from "@/components/settings/ShippingZonesTab";
 import { ShippingCarriersTab } from "@/components/settings/ShippingCarriersTab";
 import { CompanyMembersTab } from "@/components/settings/CompanyMembersTab";
 import { AuditLogsTab } from "@/components/settings/AuditLogsTab";
+import { DynamicRbacTab } from "@/components/settings/DynamicRbacTab";
 import { CustomerGroupsTab } from "@/components/settings/CustomerGroupsTab";
 import { CategoriesTab } from "@/components/settings/CategoriesTab";
 import { EmailPreferencesTab } from "@/components/settings/EmailPreferencesTab";
@@ -261,6 +262,12 @@ const Settings = () => {
               <TabsTrigger value="permissions" className="gap-2">
                 <ShieldCheck className="h-4 w-4" />
                 <span className="hidden sm:inline">Phân quyền</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="dynamic_rbac" className="gap-2">
+                <Shield className="h-4 w-4 text-primary" />
+                <span className="hidden sm:inline">Vai trò & Quyền</span>
               </TabsTrigger>
             )}
             {isAdmin && (
@@ -526,6 +533,12 @@ const Settings = () => {
           {isAdmin && (
             <TabsContent value="permissions">
               <PermissionPoliciesTab />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="dynamic_rbac">
+              <DynamicRbacTab />
             </TabsContent>
           )}
 
