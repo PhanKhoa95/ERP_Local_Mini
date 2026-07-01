@@ -33,6 +33,7 @@ import { SystemHealthTab } from "@/components/settings/SystemHealthTab";
 import { PriceListsTab } from "@/components/settings/PriceListsTab";
 import { SubscriptionsTab } from "@/components/settings/SubscriptionsTab";
 import { EventBusMonitorTab } from "@/components/settings/EventBusMonitorTab";
+import { SalesPoliciesTab } from "@/components/settings/SalesPoliciesTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
 
@@ -229,6 +230,10 @@ const Settings = () => {
             <TabsTrigger value="customers" className="gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Nhóm KH</span>
+            </TabsTrigger>
+            <TabsTrigger value="policies" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Chính sách</span>
             </TabsTrigger>
             <TabsTrigger value="price_lists" className="gap-2">
               <Tags className="h-4 w-4" />
@@ -498,6 +503,10 @@ const Settings = () => {
 
           <TabsContent value="customers">
             <CustomerGroupsTab />
+          </TabsContent>
+
+          <TabsContent value="policies">
+            <SalesPoliciesTab />
           </TabsContent>
 
           {isAdmin && (
