@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   BarChart,
   Bar,
@@ -49,6 +51,9 @@ import {
 import { useOperationsMetrics } from "@/hooks/useOperationsMetrics";
 import { useProjects } from "@/hooks/useProjects";
 import { Users, Building, Clock, Target, MapPin, Store, Globe, Percent, Award, FolderKanban, Activity, Flame, ShieldAlert, CheckSquare, Sparkles } from "lucide-react";
+import { PrintShopReportTab } from "@/components/reports/PrintShopReportTab";
+import { exportAllReportsToExcel } from "@/lib/exportExcel";
+import { printShopProducts, printShopMonthlyPlan } from "@/lib/printShopReportModel";
 
 
 const statusLabels: Record<string, string> = {
@@ -73,64 +78,62 @@ const statusColors: Record<string, string> = {
 
 const salesByTimeData = {
   day: [
-    { name: "15/06", revenue: 21000000, orders: 25, growth: 18 },
-    { name: "16/06", revenue: 9800000, orders: 12, growth: -8 },
-    { name: "17/06", revenue: 14500000, orders: 18, growth: -2 },
-    { name: "18/06", revenue: 18200000, orders: 22, growth: 12 },
-    { name: "19/06", revenue: 25400000, orders: 31, growth: 22 },
+    { name: "15/06", revenue: 1485000, orders: 8, growth: 18 },
+    { name: "16/06", revenue: 693000, orders: 4, growth: -8 },
+    { name: "17/06", revenue: 1188000, orders: 7, growth: -2 },
+    { name: "18/06", revenue: 1386000, orders: 9, growth: 12 },
+    { name: "19/06", revenue: 1980000, orders: 12, growth: 22 },
   ],
   week: [
-    { name: "Tuần 21", revenue: 82100000, orders: 105, growth: 2 },
-    { name: "Tuần 22", revenue: 78500000, orders: 98, growth: -3 },
-    { name: "Tuần 23", revenue: 94200000, orders: 125, growth: 15 },
-    { name: "Tuần 24", revenue: 115900000, orders: 142, growth: 18 },
+    { name: "Tuần 21", revenue: 5940000, orders: 35, growth: 2 },
+    { name: "Tuần 22", revenue: 5445000, orders: 32, growth: -3 },
+    { name: "Tuần 23", revenue: 6930000, orders: 42, growth: 15 },
+    { name: "Tuần 24", revenue: 7920000, orders: 48, growth: 18 },
   ],
   month: [
-    { name: "T3/2026", revenue: 294000000, orders: 390, growth: -2 },
-    { name: "T4/2026", revenue: 285900000, orders: 375, growth: 5 },
-    { name: "T5/2026", revenue: 312400000, orders: 412, growth: 14 },
-    { name: "T6/2026", revenue: 358600000, orders: 468, growth: 12 },
+    { name: "T3/2026", revenue: 18480000, orders: 120, growth: -2 },
+    { name: "T4/2026", revenue: 19800000, orders: 130, growth: 5 },
+    { name: "T5/2026", revenue: 22440000, orders: 148, growth: 14 },
+    { name: "T6/2026", revenue: 25740000, orders: 168, growth: 12 },
   ],
   quarter: [
-    { name: "Q3/2025", revenue: 742800000, orders: 980, growth: 5 },
-    { name: "Q4/2025", revenue: 912400000, orders: 1240, growth: 15 },
-    { name: "Q1/2026", revenue: 785200000, orders: 1015, growth: 8 },
-    { name: "Q2/2026", revenue: 956900000, orders: 1220, growth: 12 },
+    { name: "Q3/2025", revenue: 49500000, orders: 320, growth: 5 },
+    { name: "Q4/2025", revenue: 61380000, orders: 405, growth: 15 },
+    { name: "Q1/2026", revenue: 56100000, orders: 370, growth: 8 },
+    { name: "Q2/2026", revenue: 67980000, orders: 446, growth: 12 },
   ],
   year: [
-    { name: "Năm 2024", revenue: 2850000000, orders: 3820, growth: 8 },
-    { name: "Năm 2025", revenue: 3240500000, orders: 4350, growth: 14 },
-    { name: "Năm 2026", revenue: 1742100000, orders: 2235, growth: 11 },
+    { name: "Năm 2024", revenue: 178200000, orders: 1180, growth: 8 },
+    { name: "Năm 2025", revenue: 210540000, orders: 1400, growth: 14 },
+    { name: "Năm 2026", revenue: 124080000, orders: 816, growth: 11 },
   ],
 };
 
 const salesByProductData = [
-  { name: "Laptop Gaming Asus ROG", quantity: 45, revenue: 1350000000, cogs: 900000000, margin: 33.3, strategy: "Đẩy mạnh marketing & chăm sóc VIP" },
-  { name: "Điện thoại iPhone 15 Pro", quantity: 68, revenue: 2040000000, cogs: 1530000000, margin: 25.0, strategy: "Giữ mức tồn kho an toàn, bán combo" },
-  { name: "Bàn phím cơ Akko 3098B", quantity: 120, revenue: 240000000, cogs: 120000000, margin: 50.0, strategy: "Biên LN cao - Tăng ngân sách QC" },
-  { name: "Chuột không dây Logitech G Pro", quantity: 95, revenue: 285000000, cogs: 171000000, margin: 40.0, strategy: "Bán kèm combo với Laptop" },
-  { name: "Tai nghe Sony WH-1000XM5", quantity: 35, revenue: 280000000, cogs: 196000000, margin: 30.0, strategy: "Tập trung chiến dịch tựu trường" },
+  { name: "Sticker logo decal giấy", quantity: 320, revenue: 31680000, cogs: 14168000, margin: 55.3, strategy: "Sản phẩm chủ lực — đẩy Ads Shopee" },
+  { name: "Card cảm ơn / Thank you card", quantity: 280, revenue: 33320000, cogs: 15925000, margin: 52.2, strategy: "Bán kèm combo, cross-sell Zalo" },
+  { name: "Combo Shop Mới Khởi Nghiệp", quantity: 85, revenue: 29665000, cogs: 14748605, margin: 50.3, strategy: "Biên LN cao — AOV lớn nhất" },
+  { name: "Bảng QR để bàn mica", quantity: 120, revenue: 13080000, cogs: 6069000, margin: 53.6, strategy: "Mở rộng phân phối địa phương" },
+  { name: "Dịch vụ thiết kế Avatar & QR", quantity: 55, revenue: 8195000, cogs: 2200000, margin: 73.2, strategy: "Dịch vụ biên ròng cao nhất — upsell" },
 ];
 
 const salesByEmployeeData = [
-  { name: "Trần Thị Mai", department: "Phòng Sales 1", revenue: 450000000, orders: 55, rate: 84, kpi: 98, status: "Vượt chỉ tiêu" },
-  { name: "Nguyễn Văn Hùng", department: "Phòng Sales 2", revenue: 380000000, orders: 42, rate: 78, kpi: 92, status: "Đạt chỉ tiêu" },
-  { name: "Lê Hoàng Long", department: "Phòng Dự án", revenue: 520000000, orders: 12, rate: 65, kpi: 95, status: "Vượt chỉ tiêu" },
-  { name: "Phạm Thanh Thủy", department: "Phòng Sales 1", revenue: 210000000, orders: 28, rate: 52, kpi: 75, status: "Cần cải thiện" },
-  { name: "Hoàng Anh Tuấn", department: "Phòng Sales 2", revenue: 310000000, orders: 36, rate: 72, kpi: 88, status: "Đạt chỉ tiêu" },
+  { name: "Chủ shop (bạn)", department: "Vận hành chính", revenue: 42500000, orders: 280, rate: 84, kpi: 98, status: "Vượt chỉ tiêu" },
+  { name: "Nhân viên part-time 1", department: "Sản xuất", revenue: 18200000, orders: 120, rate: 78, kpi: 92, status: "Đạt chỉ tiêu" },
+  { name: "Nhân viên part-time 2", department: "Đóng gói & giao hàng", revenue: 14800000, orders: 100, rate: 72, kpi: 88, status: "Đạt chỉ tiêu" },
 ];
 
 const salesByRegionData = [
-  { name: "Miền Nam", revenue: 1840000000, orders: 1250, share: 55.4 },
-  { name: "Miền Bắc", revenue: 1120000000, orders: 780, share: 33.7 },
-  { name: "Miền Trung", revenue: 360000000, orders: 240, share: 10.9 },
+  { name: "TP.HCM & Miền Nam", revenue: 42240000, orders: 280, share: 56.0 },
+  { name: "Hà Nội & Miền Bắc", revenue: 22680000, orders: 150, share: 30.1 },
+  { name: "Miền Trung", revenue: 10480000, orders: 70, share: 13.9 },
 ];
 
 const salesByChannelData = [
-  { name: "Cửa hàng trực tiếp (POS)", revenue: 1250000000, orders: 950, share: 37.6 },
-  { name: "Website Online (Shop)", revenue: 850000000, orders: 620, share: 25.6 },
-  { name: "Sàn TMĐT (Shopee/Lazada)", revenue: 940000000, orders: 1120, share: 28.3 },
-  { name: "Bán lẻ qua CTV/Đại lý", revenue: 280000000, orders: 150, share: 8.5 },
+  { name: "Zalo Chat / Zalo OA", revenue: 29700000, orders: 196, share: 39.4 },
+  { name: "Facebook Page / Messenger", revenue: 21780000, orders: 144, share: 28.9 },
+  { name: "Shopee Shop", revenue: 16500000, orders: 110, share: 21.9 },
+  { name: "Cửa hàng POS", revenue: 7420000, orders: 50, share: 9.8 },
 ];
 
 const salesByRegionColors = ["hsl(var(--primary))", "#3B82F6", "#10B981"];
@@ -224,6 +227,42 @@ const Reports = () => {
 
   const finalTimeData = getFinalTimeData();
 
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    revenueSummary: true,
+    dailyRevenue: true,
+    products: true,
+    inventory: true,
+    orders: true,
+    partners: true,
+    projects: true,
+    printshop: true,
+  });
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    try {
+      await exportAllReportsToExcel({
+        revenue: revenueData,
+        products: productData,
+        inventory: inventoryData,
+        orders: orderData,
+        partners: partnerData,
+        projects: filteredProjects,
+        printshop: {
+          products: printShopProducts,
+          monthlyPlan: printShopMonthlyPlan,
+        },
+      }, exportOptions);
+      setExportDialogOpen(false);
+    } catch (error) {
+      console.error("Export error:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const liveProducts = productData?.topProfit && productData.topProfit.length > 0
     ? productData.topProfit.map(p => {
         const margin = p.revenue > 0 ? Math.round((p.profit / p.revenue) * 1000) / 10 : 0;
@@ -246,11 +285,10 @@ const Reports = () => {
 
   const finalEmployees = totalRevenue > 0
     ? [
-        { name: "Trần Thị Mai", department: "Phòng Sales 1", revenue: Math.round(totalRevenue * 0.25), orders: Math.round(totalOrders * 0.25), rate: 84, kpi: 98, status: "Vượt chỉ tiêu" },
-        { name: "Nguyễn Văn Hùng", department: "Phòng Sales 2", revenue: Math.round(totalRevenue * 0.20), orders: Math.round(totalOrders * 0.20), rate: 78, kpi: 92, status: "Đạt chỉ tiêu" },
-        { name: "Lê Hoàng Long", department: "Phòng Dự án", revenue: Math.round(totalRevenue * 0.35), orders: Math.round(totalOrders * 0.15), rate: 65, kpi: 95, status: "Vượt chỉ tiêu" },
-        { name: "Phạm Thanh Thủy", department: "Phòng Sales 1", revenue: Math.round(totalRevenue * 0.10), orders: Math.round(totalOrders * 0.20), rate: 52, kpi: 75, status: "Cần cải thiện" },
-        { name: "Hoàng Anh Tuấn", department: "Phòng Sales 2", revenue: Math.round(totalRevenue * 0.10), orders: Math.round(totalOrders * 0.20), rate: 72, kpi: 88, status: "Đạt chỉ tiêu" },
+        { name: "Chủ shop (bạn)", department: "Ban Quản trị", revenue: Math.round(totalRevenue * 0.45), orders: Math.round(totalOrders * 0.45), rate: 95, kpi: 98, status: "Vượt chỉ tiêu" },
+        { name: "Nhân viên part-time 1", department: "Bộ phận Sản xuất", revenue: Math.round(totalRevenue * 0.25), orders: Math.round(totalOrders * 0.25), rate: 88, kpi: 92, status: "Đạt chỉ tiêu" },
+        { name: "Nhân viên part-time 2", department: "Bộ phận Sản xuất", revenue: Math.round(totalRevenue * 0.15), orders: Math.round(totalOrders * 0.15), rate: 85, kpi: 90, status: "Đạt chỉ tiêu" },
+        { name: "Cộng tác viên thiết kế", department: "Bộ phận Thiết kế", revenue: Math.round(totalRevenue * 0.15), orders: Math.round(totalOrders * 0.15), rate: 92, kpi: 95, status: "Vượt chỉ tiêu" },
       ].sort((a, b) => b.revenue - a.revenue)
     : salesByEmployeeData;
 
@@ -327,7 +365,7 @@ const Reports = () => {
               ))}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="ml-auto">
+                  <Button variant="outline" size="sm">
                     <CalendarIcon className="w-4 h-4 mr-2" />
                     {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
                   </Button>
@@ -349,12 +387,27 @@ const Reports = () => {
                   />
                 </PopoverContent>
               </Popover>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20 shadow-sm"
+                onClick={() => setExportDialogOpen(true)}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Xuất báo cáo (Excel)
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="sales" className="space-y-6">
-          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 w-full max-w-4xl">
             <TabsTrigger value="sales">Bán hàng</TabsTrigger>
             <TabsTrigger value="revenue">Doanh thu</TabsTrigger>
             <TabsTrigger value="products">Sản phẩm</TabsTrigger>
@@ -362,6 +415,7 @@ const Reports = () => {
             <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
             <TabsTrigger value="partners">Đối tác</TabsTrigger>
             <TabsTrigger value="operations">Vận hành & Dự án</TabsTrigger>
+            <TabsTrigger value="printshop">Chiết tính & Dòng tiền</TabsTrigger>
           </TabsList>
 
 
@@ -1824,7 +1878,7 @@ const Reports = () => {
                               </div>
                               <div className="w-full bg-muted rounded-full h-1.5">
                                 <div className={cn("h-1.5 rounded-full transition-all duration-300", 
-                                  res.load > 100 ? "bg-red-500" : res.load >= 70 ? "bg-yellow-500" : "bg-emerald-500"
+                              res.load > 100 ? "bg-red-500" : res.load >= 70 ? "bg-yellow-500" : "bg-emerald-500"
                                 )} style={{ width: `${Math.min(res.load, 100)}%` }} />
                               </div>
                             </div>
@@ -1856,12 +1910,11 @@ const Reports = () => {
                             <tbody>
                               {(projects && filteredProjects.length > 0 ? filteredProjects.map(p => {
                                 const mockDetails = [
-                                  { code: "SHP", progress: 85, manager: "Trần Thị Mai (Sales 1)", blocker: "API Shopee timeout 504 khi sync giờ cao điểm", action: "Chuyển cấu hình kết nối sang API Gateway dự phòng" },
-                                  { code: "SCM", progress: 65, manager: "Nguyễn Văn Hùng (Sales 2)", blocker: "Hao hụt vải thun cotton thực tế 15% vs 3%", action: "Tổ chức audit quy trình QC đầu vào của Vải dệt" },
-                                  { code: "WHE", progress: 10, manager: "Lê Hoàng Long (Dự án)", blocker: "Chủ kho Bình Dương yêu cầu đặt cọc 3 tháng (120M)", action: "Đàm phán trả trước 1 tháng cọc, bảo lãnh ngân hàng" },
-                                  { code: "MKT", progress: 0, manager: "Phạm Thanh Thủy (Sales 1)", blocker: "Thiếu thiết kế banner key-visual chính", action: "Tuyển thêm Designer freelancer thực hiện gấp" },
-                                  { code: "AIC", progress: 40, manager: "Hoàng Anh Tuấn (Sales 2)", blocker: "API Gemini quá tải lượt gọi miễn phí", action: "Nâng cấp lên token trả phí để ổn định dịch vụ" }
-                                ].find(m => m.code === p.code) || { progress: p.status === "completed" ? 100 : p.status === "active" ? 50 : 10, manager: "Hệ thống", blocker: "Không có sự cố ghi nhận", action: "Không cần hành động khắc phục" };
+                                    { code: "SHP", progress: 85, manager: "Nhân viên part-time 1", blocker: "Hình ảnh mô tả sản phẩm bị lỗi kích thước", action: "Nhờ thiết kế cập nhật ảnh chuẩn 800x800px" },
+                                    { code: "BOM", progress: 65, manager: "Chủ shop (bạn)", blocker: "Giấy in decal cuộn bị kẹt khi bế decal tròn", action: "Điều chỉnh lại trục giữ giấy và lực cắt máy bế" },
+                                    { code: "AIC", progress: 40, manager: "Cộng tác viên thiết kế", blocker: "API Zalo OA cần xác thực doanh nghiệp", action: "Chuẩn bị giấy phép đăng ký hộ kinh doanh để nộp" },
+                                    { code: "MKT", progress: 0, manager: "Chủ shop (bạn)", blocker: "Chưa gom đủ danh sách địa chỉ shop", action: "Tìm kiếm thông tin shop trên các hội nhóm Facebook" }
+                                  ].find(m => m.code === p.code) || { progress: p.status === "completed" ? 100 : p.status === "active" ? 50 : 10, manager: "Chủ shop", blocker: "Không có sự cố ghi nhận", action: "Không cần hành động khắc phục" };
 
                                 return {
                                   ...p,
@@ -1871,9 +1924,6 @@ const Reports = () => {
                                   action: mockDetails.action
                                 };
                               }) : [
-                                { code: "SHP", name: "Tích hợp Kênh Bán Hàng Shopee", status: "active", budget: 50000000, progress: 85, priority: "critical", manager: "Trần Thị Mai (Sales 1)", blocker: "API Shopee timeout 504 khi sync giờ cao điểm", action: "Chuyển cấu hình kết nối sang API Gateway dự phòng" },
-                                { code: "SCM", name: "Tối ưu hóa Định mức BOM & Cung ứng", status: "active", budget: 35000000, progress: 65, priority: "high", manager: "Nguyễn Văn Hùng (Sales 2)", blocker: "Hao hụt vải thun cotton thực tế 15% vs 3%", action: "Tổ chức audit quy trình QC đầu vào của Vải dệt" },
-                                { code: "WHE", name: "Mở rộng Kho bãi Khu vực Miền Nam", status: "planning", budget: 120000000, progress: 10, priority: "normal", manager: "Lê Hoàng Long (Dự án)", blocker: "Chủ kho Bình Dương yêu cầu đặt cọc 3 tháng", action: "Đàm phán trả trước 1 tháng cọc, bảo lãnh ngân hàng" },
                                 { code: "MKT", name: "Chiến dịch Marketing Thu Đông 2026", status: "planning", budget: 80000000, progress: 0, priority: "normal", manager: "Phạm Thanh Thủy (Sales 1)", blocker: "Thiếu thiết kế banner key-visual chính", action: "Tuyển thêm Designer freelancer thực hiện gấp" },
                                 { code: "AIC", name: "Xây dựng Trợ lý ảo AI CSKH", status: "active", budget: 45000000, progress: 40, priority: "high", manager: "Hoàng Anh Tuấn (Sales 2)", blocker: "API Gemini quá tải lượt gọi miễn phí", action: "Nâng cấp lên token trả phí để ổn định dịch vụ" }
                               ]).map((p, idx) => (
@@ -2079,8 +2129,175 @@ const Reports = () => {
               </>
             )}
           </TabsContent>
+
+          {/* Print Shop V5 Tab */}
+          <TabsContent value="printshop" className="space-y-6">
+            <PrintShopReportTab />
+          </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="w-5 h-5 text-emerald-600" />
+              Xuất dữ liệu báo cáo
+            </DialogTitle>
+            <DialogDescription>
+              Chọn các phân hệ báo cáo bạn muốn kết xuất sang tệp Excel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <span className="text-sm font-semibold">Tất cả báo cáo</span>
+              <Checkbox
+                id="select-all"
+                checked={Object.values(exportOptions).every(Boolean)}
+                onCheckedChange={(checked) => {
+                  setExportOptions({
+                    revenueSummary: !!checked,
+                    dailyRevenue: !!checked,
+                    products: !!checked,
+                    inventory: !!checked,
+                    orders: !!checked,
+                    partners: !!checked,
+                    projects: !!checked,
+                    printshop: !!checked,
+                  });
+                }}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-rev-summary" className="text-sm cursor-pointer select-none">
+                  Tổng quan Doanh thu
+                </label>
+                <Checkbox
+                  id="opt-rev-summary"
+                  checked={exportOptions.revenueSummary}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, revenueSummary: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-daily-rev" className="text-sm cursor-pointer select-none">
+                  Doanh thu theo ngày
+                </label>
+                <Checkbox
+                  id="opt-daily-rev"
+                  checked={exportOptions.dailyRevenue}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, dailyRevenue: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-products" className="text-sm cursor-pointer select-none">
+                  Báo cáo Sản phẩm
+                </label>
+                <Checkbox
+                  id="opt-products"
+                  checked={exportOptions.products}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, products: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-inventory" className="text-sm cursor-pointer select-none">
+                  Báo cáo Tồn kho
+                </label>
+                <Checkbox
+                  id="opt-inventory"
+                  checked={exportOptions.inventory}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, inventory: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-orders" className="text-sm cursor-pointer select-none">
+                  Danh sách Đơn hàng
+                </label>
+                <Checkbox
+                  id="opt-orders"
+                  checked={exportOptions.orders}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, orders: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-partners" className="text-sm cursor-pointer select-none">
+                  Danh sách Đối tác
+                </label>
+                <Checkbox
+                  id="opt-partners"
+                  checked={exportOptions.partners}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, partners: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-projects" className="text-sm cursor-pointer select-none">
+                  Vận hành & Dự án
+                </label>
+                <Checkbox
+                  id="opt-projects"
+                  checked={exportOptions.projects}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, projects: !!checked }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label htmlFor="opt-printshop" className="text-sm cursor-pointer select-none">
+                  Chiết tính & Dòng tiền
+                </label>
+                <Checkbox
+                  id="opt-printshop"
+                  checked={exportOptions.printshop}
+                  onCheckedChange={(checked) =>
+                    setExportOptions((prev) => ({ ...prev, printshop: !!checked }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button variant="outline" size="sm" onClick={() => setExportDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+              onClick={handleExportAll}
+              disabled={isExporting || !Object.values(exportOptions).some(Boolean)}
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Xuất Excel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };

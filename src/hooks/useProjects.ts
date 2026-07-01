@@ -17,9 +17,21 @@ export interface Project {
   org_unit_id: string | null;
   budget: number | null;
   priority: "low" | "normal" | "high" | "critical";
+  actual_cost?: number | null;
+  progress?: number | null;
+  owner_name?: string | null;
+  milestones?: string | null;
+  deliverables?: string | null;
+  cost_documents?: string | null;
+  delay_reason?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+type SupabaseProjectUpdate = Omit<
+  Partial<Project>,
+  "actual_cost" | "progress" | "owner_name" | "milestones" | "deliverables" | "cost_documents" | "delay_reason"
+>;
 
 export interface ProjectMember {
   id: string;
@@ -36,15 +48,22 @@ const DEFAULT_PROJECTS: Project[] = [
   {
     id: "proj-1",
     company_id: "demo-company",
-    name: "Tích hợp Kênh Bán Hàng Shopee",
+    name: "Setup Cửa hàng Shopee Shop",
     code: "SHP",
-    description: "Kết nối API Shopee để tự động đồng bộ đơn hàng, tồn kho và trạng thái vận chuyển.",
+    description: "Thiết lập gian hàng Shopee Shop, đăng bán các sản phẩm Sticker, Card cảm ơn, Bảng QR mica và tối ưu SEO.",
     status: "active",
     start_date: "2026-06-01",
     end_date: "2026-06-30",
-    manager_id: "emp-2",
+    manager_id: "emp-b",
     org_unit_id: null,
-    budget: 50000000,
+    budget: 2000000,
+    actual_cost: 1500000,
+    progress: 75,
+    owner_name: "Trần Thị B",
+    milestones: "Đăng ký shop, Đăng bán sản phẩm, Cấu hình SEO",
+    deliverables: "Gian hàng trực tuyến vận hành ổn định",
+    cost_documents: "HD-012, HD-015",
+    delay_reason: "Chờ API Shopee phê duyệt kết nối chính thức",
     priority: "critical",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -52,15 +71,22 @@ const DEFAULT_PROJECTS: Project[] = [
   {
     id: "proj-2",
     company_id: "demo-company",
-    name: "Tối ưu hóa Định mức BOM & Cung ứng",
-    code: "SCM",
-    description: "Rà soát định mức nguyên vật liệu sản xuất áo thun, tối ưu quy trình hao hụt sợi vải.",
+    name: "Tối ưu Định mức & Hao hụt Nguyên vật liệu in",
+    code: "BOM",
+    description: "Tối ưu hóa tiêu hao giấy decal, mực in màu Epson L8050 để giảm tỷ lệ tem lỗi xuống dưới 5%.",
     status: "active",
     start_date: "2026-06-05",
     end_date: "2026-07-15",
-    manager_id: "emp-1",
+    manager_id: "emp-a",
     org_unit_id: null,
-    budget: 35000000,
+    budget: 3000000,
+    actual_cost: 2800000,
+    progress: 90,
+    owner_name: "Nguyễn Văn A",
+    milestones: "Đo lường hao hụt decal, Test mẻ in thử nghiệm",
+    deliverables: "Bộ tiêu chuẩn định mức hao hụt < 5%",
+    cost_documents: "HD-088",
+    delay_reason: null,
     priority: "high",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -68,15 +94,22 @@ const DEFAULT_PROJECTS: Project[] = [
   {
     id: "proj-3",
     company_id: "demo-company",
-    name: "Mở rộng Kho bãi Khu vực Miền Nam",
-    code: "WHE",
-    description: "Khảo sát và thuê kho bãi mới tại Bình Dương có diện tích 500m2 phục vụ chiến dịch cuối năm.",
+    name: "Xây dựng Trợ lý ảo AI Chăm sóc Khách hàng Zalo",
+    code: "AIC",
+    description: "Tích hợp chatbot AI tự động tư vấn báo giá in ấn và duyệt file in trên kênh Zalo Chat / Zalo OA.",
     status: "planning",
     start_date: "2026-07-01",
-    end_date: "2026-09-30",
-    manager_id: "emp-3",
+    end_date: "2026-08-30",
+    manager_id: "emp-d",
     org_unit_id: null,
-    budget: 120000000,
+    budget: 5000000,
+    actual_cost: 0,
+    progress: 10,
+    owner_name: "Lê Văn C",
+    milestones: "Đăng ký Zalo OA, Kết nối webhook AI",
+    deliverables: "Chatbot trả lời mẫu tự động",
+    cost_documents: null,
+    delay_reason: "Zalo OA đang chờ duyệt giấy phép kinh doanh",
     priority: "normal",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -84,32 +117,23 @@ const DEFAULT_PROJECTS: Project[] = [
   {
     id: "proj-4",
     company_id: "demo-company",
-    name: "Chiến dịch Marketing Thu Đông 2026",
+    name: "Chiến dịch Marketing khai trương đại lý địa phương",
     code: "MKT",
-    description: "Triển khai chiến dịch truyền thông đa kênh phủ thương hiệu BST mới.",
+    description: "Thiết kế mẫu in thử miễn phí cho 50 shop online tại địa bàn TP.HCM để kéo khách trực tiếp.",
     status: "planning",
     start_date: "2026-08-15",
-    end_date: "2026-11-15",
-    manager_id: "emp-4",
+    end_date: "2026-09-15",
+    manager_id: "emp-a",
     org_unit_id: null,
-    budget: 80000000,
+    budget: 5000000,
+    actual_cost: 0,
+    progress: 0,
+    owner_name: "Phạm Thị D",
+    milestones: "Thiết kế mẫu in, Lập danh sách 50 shop online",
+    deliverables: "50 đối tác tiếp cận thử mẫu",
+    cost_documents: null,
+    delay_reason: null,
     priority: "normal",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "proj-5",
-    company_id: "demo-company",
-    name: "Xây dựng Trợ lý ảo AI Chăm sóc Khách hàng",
-    code: "AIC",
-    description: "Tích hợp mô hình Gemini để trả lời tin nhắn tự động trên Fanpage và Shopee chat.",
-    status: "active",
-    start_date: "2026-06-10",
-    end_date: "2026-08-10",
-    manager_id: "emp-1",
-    org_unit_id: null,
-    budget: 45000000,
-    priority: "high",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
@@ -233,9 +257,20 @@ export function useProjects() {
         throw new Error("Project not found");
       }
 
+      const {
+        actual_cost,
+        progress,
+        owner_name,
+        milestones,
+        deliverables,
+        cost_documents,
+        delay_reason,
+        ...supabaseUpdates
+      } = updates;
+
       const { data, error } = await supabase
         .from("projects")
-        .update(updates)
+        .update(supabaseUpdates satisfies SupabaseProjectUpdate)
         .eq("id", id)
         .select()
         .single();

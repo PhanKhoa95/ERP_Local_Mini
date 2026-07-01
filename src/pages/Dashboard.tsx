@@ -1,17 +1,25 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LowStockAlert } from "@/components/dashboard/LowStockAlert";
+import { ExecutiveWarningsAlert } from "@/components/dashboard/ExecutiveWarningsAlert";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { CashFlowCard } from "@/components/dashboard/CashFlowCard";
 import { SmartReplenishment } from "@/components/dashboard/SmartReplenishment";
 import { ExpiringDocumentsWidget } from "@/components/documents/ExpiringDocumentsWidget";
 import { DataIntegrityWidget } from "@/components/dashboard/DataIntegrityWidget";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, ShoppingCart, Package, Users } from "lucide-react";
+import { DollarSign, ShoppingCart, Package, Users, Calendar as CalendarIcon, Percent, TrendingUp, AlertTriangle, AlertCircle, ShieldAlert } from "lucide-react";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
+import { CapitalBalancingWidget } from "@/components/dashboard/CapitalBalancingWidget";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { vi } from "date-fns/locale";
 
 const RevenueChart = lazy(() => import("@/components/dashboard/RevenueChart").then(m => ({ default: m.RevenueChart })));
 const ChannelPieChart = lazy(() => import("@/components/dashboard/ChannelPieChart").then(m => ({ default: m.ChannelPieChart })));
@@ -21,7 +29,50 @@ const SalesChatWidget = lazy(() => import("@/components/sales/SalesChatWidget").
 const ChartFallback = () => <Skeleton className="h-72 rounded-xl" />;
 
 const Dashboard = () => {
-  const { stats, isLoading } = useDashboardStats();
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customRange, setCustomRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+
+  const getActiveRange = () => {
+    if (dateFilter === "all") return null;
+    const now = new Date();
+    if (dateFilter === "today") {
+      return {
+        from: startOfDay(now),
+        to: endOfDay(now),
+      };
+    }
+    if (dateFilter === "last7days") {
+      return {
+        from: startOfDay(subDays(now, 7)),
+        to: endOfDay(now),
+      };
+    }
+    if (dateFilter === "last30days") {
+      return {
+        from: startOfDay(subDays(now, 30)),
+        to: endOfDay(now),
+      };
+    }
+    if (dateFilter === "month") {
+      return {
+        from: startOfMonth(now),
+        to: endOfMonth(now),
+      };
+    }
+    if (dateFilter === "custom" && customRange.from && customRange.to) {
+      return {
+        from: startOfDay(customRange.from),
+        to: endOfDay(customRange.to),
+      };
+    }
+    return null;
+  };
+
+  const activeRange = getActiveRange();
+  const { stats, isLoading } = useDashboardStats(activeRange);
 
   if (isLoading) {
     return (
@@ -44,6 +95,54 @@ const Dashboard = () => {
       <Header title="Dashboard" subtitle="Tổng quan hoạt động kinh doanh" />
 
       <div className="p-4 md:p-5 lg:p-6 space-y-4 md:space-y-5 lg:space-y-6">
+        {/* Date Filter Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-xl border border-border/60 shadow-xs gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground">Bộ lọc thời gian:</span>
+            <span className="text-xs text-muted-foreground hidden md:inline">(Áp dụng cho số liệu tổng quan & phân tích kênh)</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-[180px] h-9 bg-background border-border shadow-sm">
+                <SelectValue placeholder="Chọn thời gian" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả thời gian</SelectItem>
+                <SelectItem value="today">Hôm nay</SelectItem>
+                <SelectItem value="last7days">7 ngày qua</SelectItem>
+                <SelectItem value="last30days">30 ngày qua</SelectItem>
+                <SelectItem value="month">Tháng này</SelectItem>
+                <SelectItem value="custom">Tùy chọn khoảng...</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {dateFilter === "custom" && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 border-border bg-background shadow-sm">
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    {customRange.from && customRange.to ? (
+                      `${format(customRange.from, "dd/MM/yyyy")} - ${format(customRange.to, "dd/MM/yyyy")}`
+                    ) : (
+                      "Chọn khoảng ngày"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="range"
+                    selected={customRange}
+                    onSelect={(range) => {
+                      setCustomRange(range ? { from: range.from, to: range.to } : { from: undefined, to: undefined });
+                    }}
+                    locale={vi}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
           <StatCard
@@ -76,20 +175,60 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Executive Financial Indicators Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+          <StatCard
+            title="Lợi nhuận gộp"
+            value={formatCurrency(stats?.grossProfit || 0)}
+            icon={TrendingUp}
+            iconColor="text-emerald-600 animate-pulse"
+            iconBgColor="bg-emerald-50"
+            description={`Tỷ suất: ${stats?.profitMargin?.toFixed(1) || 0}%`}
+          />
+          <StatCard
+            title="Giá vốn (COGS)"
+            value={formatCurrency(stats?.totalCOGS || 0)}
+            icon={DollarSign}
+            iconColor="text-rose-600"
+            iconBgColor="bg-rose-50"
+          />
+          <StatCard
+            title="Giá trị TB đơn (AOV)"
+            value={formatCurrency(stats?.aov || 0)}
+            icon={ShoppingCart}
+            iconColor="text-indigo-600"
+            iconBgColor="bg-indigo-50"
+          />
+          <StatCard
+            title="Marketing / Doanh thu"
+            value={`${stats?.mktToRevenue || 0}%`}
+            icon={Percent}
+            iconColor="text-violet-600"
+            iconBgColor="bg-violet-50"
+            description="Mức an toàn: < 20%"
+          />
+        </div>
+
         {/* Charts Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
           <div className="md:col-span-2 lg:col-span-2">
             <Suspense fallback={<ChartFallback />}><RevenueChart /></Suspense>
           </div>
-          <Suspense fallback={<ChartFallback />}><ChannelPieChart /></Suspense>
+          <Suspense fallback={<ChartFallback />}><ChannelPieChart dateRange={activeRange} /></Suspense>
+        </div>
+
+        {/* Capital Allocation & Balancing Simulator */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
+          <CapitalBalancingWidget />
         </div>
 
         {/* Orders and Alerts Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6">
           <div className="md:col-span-2 lg:col-span-2">
-            <RecentOrders />
+            <RecentOrders dateRange={activeRange} />
           </div>
           <div className="space-y-4 md:space-y-5 lg:space-y-6">
+            <ExecutiveWarningsAlert />
             <LowStockAlert />
             <CashFlowCard />
           </div>

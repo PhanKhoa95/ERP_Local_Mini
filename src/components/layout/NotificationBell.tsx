@@ -24,26 +24,27 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: "n-1",
-      title: "Phê duyệt báo cáo",
-      description: "Có 1 báo cáo chiến lược mới từ Nguyễn Văn An cần được duyệt.",
+      title: "Cảnh báo tồn kho",
+      description: "Sticker logo decal giấy sắp hết hàng (còn 12 tem). Cần nhập thêm giấy decal.",
       time: "5 phút trước",
       unread: true
     },
     {
       id: "n-2",
       title: "Thanh toán tự động",
-      description: "Đơn hàng DH001 đã khớp đối soát ngân hàng tự động (VietQR).",
+      description: "Đơn hàng POS-ORD-001 đã khớp đối soát ngân hàng tự động (VietQR).",
       time: "2 giờ trước",
       unread: true
     },
     {
       id: "n-3",
       title: "Vận hành hệ thống",
-      description: "Đồng bộ API Shopee Store hoàn thành thành công.",
+      description: "Đồng bộ API Shopee Shop hoàn thành thành công.",
       time: "1 ngày trước",
       unread: false
     }
   ]);
+
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 

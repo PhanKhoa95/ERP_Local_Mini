@@ -71,170 +71,169 @@ const DEFAULT_EMPLOYEES = (companyId: string): EmployeeRecord[] => [
   {
     id: "emp-a",
     user_id: "user-a",
-    title: "Kỹ sư Cấp cao",
-    hire_date: "2025-06-16",
+    title: "Chủ shop",
+    hire_date: "2024-01-01",
     is_active: true,
-    total_xp: 1550,
-    org_unit_id: "unit-tech",
-    position_id: "pos-lead",
-    org_unit_name: "Kỹ thuật",
-    position_name: "Trưởng phòng",
-    full_name: "Nguyễn Văn A",
+    total_xp: 2500,
+    org_unit_id: "unit-admin",
+    position_id: "pos-owner",
+    org_unit_name: "Ban Quản trị",
+    position_name: "Chủ shop (bạn)",
+    full_name: "Chủ shop (bạn)",
     phone: "0912345678",
     avatar_url: "",
     employee_profile: {
       employee_id: "emp-a",
       company_id: companyId,
-      date_of_birth: "1990-01-01",
+      date_of_birth: "1992-05-10",
       gender: "Nam",
       id_number: "123456789",
       id_issued_date: "2015-01-01",
-      id_issued_place: "Hà Nội",
-      permanent_address: "Hà Nội",
-      current_address: "Hà Nội",
-      personal_email: "a.nguyen@company.com",
-      emergency_contact_name: "Nguyễn Văn B",
+      id_issued_place: "TP.HCM",
+      permanent_address: "TP.HCM",
+      current_address: "TP.HCM",
+      personal_email: "chushop.nhainnho@company.com",
+      emergency_contact_name: "Nguyễn Thị Mẹ",
       emergency_contact_phone: "0987654321",
       bank_account: "111222333",
       bank_name: "Vietcombank",
-      tax_code: "MST-A",
-      social_insurance_number: "BH-A"
+      tax_code: "MST-CHUSHOP",
+      social_insurance_number: "BH-CHUSHOP"
     },
     work_history: [
-      { company: "VNG Corporation", role: "Kỹ sư phần mềm", period: "2022 - 2024", description: "Lập trình backend NodeJS và thiết kế microservices." },
-      { company: "FPT Software", role: "Lập trình viên PHP", period: "2020 - 2022", description: "Bảo trì và phát triển các hệ thống thương mại điện tử." }
+      { company: "Công ty Thiết kế & In ấn K", role: "Trưởng nhóm vận hành", period: "2020 - 2023", description: "Quản lý hệ thống máy in và hoàn thiện thành phẩm." }
     ],
     promotion_history: [
-      { date: "16/12/2025", previous_role: "Kỹ sư Tập sự", new_role: "Kỹ sư Cấp cao", reason: "Có đóng góp xuất sắc trong việc triển khai phân hệ Kế toán ERP ngoại tuyến." }
+      { date: "01/01/2024", previous_role: "Lập nghiệp", new_role: "Chủ shop", reason: "Khởi nghiệp thành lập Nhà In Nhỏ tại nhà." }
     ],
     education_history: [
-      { school: "Đại học Bách Khoa Hà Nội", degree: "Cử nhân Công nghệ thông tin", period: "2016 - 2020" }
+      { school: "Đại học Mỹ thuật TP.HCM", degree: "Cử nhân Thiết kế đồ họa", period: "2016 - 2020" }
     ]
   },
   {
     id: "emp-b",
     user_id: "user-b",
-    title: "Sales Agent",
-    hire_date: "2025-12-16",
+    title: "Nhân viên part-time 1",
+    hire_date: "2025-05-01",
     is_active: true,
-    total_xp: 800,
-    org_unit_id: "unit-sales",
-    position_id: "pos-staff",
-    org_unit_name: "Kinh doanh",
-    position_name: "Nhân viên",
-    full_name: "Trần Thị B",
+    total_xp: 950,
+    org_unit_id: "unit-ops",
+    position_id: "pos-staff-ops",
+    org_unit_name: "Bộ phận Sản xuất",
+    position_name: "Part-time Sản xuất",
+    full_name: "Nhân viên part-time 1",
     phone: "0923456789",
     avatar_url: "",
     employee_profile: {
       employee_id: "emp-b",
       company_id: companyId,
-      date_of_birth: "1995-05-15",
-      gender: "Nữ",
+      date_of_birth: "2003-08-15",
+      gender: "Nam",
       id_number: "223456789",
-      id_issued_date: "2018-05-15",
-      id_issued_place: "Hải Phòng",
-      permanent_address: "Hải Phòng",
-      current_address: "Hà Nội",
-      personal_email: "b.tran@company.com",
-      emergency_contact_name: "Trần Văn D",
+      id_issued_date: "2021-08-15",
+      id_issued_place: "Đồng Nai",
+      permanent_address: "Đồng Nai",
+      current_address: "TP.HCM",
+      personal_email: "parttime1@company.com",
+      emergency_contact_name: "Trần Văn A",
       emergency_contact_phone: "0987654322",
       bank_account: "444555666",
       bank_name: "Techcombank",
-      tax_code: "MST-B",
-      social_insurance_number: "BH-B"
+      tax_code: "MST-PT1",
+      social_insurance_number: "BH-PT1"
     },
     work_history: [
-      { company: "Thế giới Di động", role: "Nhân viên tư vấn bán hàng", period: "2023 - 2024", description: "Tư vấn và bán các thiết bị di động, chăm sóc khách hàng." }
+      { company: "Cửa hàng photocopy Q", role: "Nhân viên kỹ thuật in", period: "2024 - 2025", description: "Vận hành máy photocopy, máy cắt xén giấy thành phẩm." }
     ],
     promotion_history: [
-      { date: "01/01/2026", previous_role: "Thử việc", new_role: "Sales Agent chính thức", reason: "Đạt chỉ tiêu doanh số POS vượt định mức 120% trong thời gian thử việc." }
+      { date: "01/05/2025", previous_role: "Thử việc", new_role: "Nhân viên chính thức part-time", reason: "Nắm vững kỹ năng vận hành máy in ảnh và máy bế tem." }
     ],
     education_history: [
-      { school: "Đại học Kinh tế Quốc dân", degree: "Cử nhân Quản trị Kinh doanh", period: "2019 - 2023" }
+      { school: "Đại học Công nghiệp TP.HCM", degree: "Sinh viên năm 3 ngành Cơ khí", period: "2022 - Nay" }
     ]
   },
   {
     id: "emp-c",
     user_id: "user-c",
-    title: "Kế toán trưởng",
-    hire_date: "2025-10-16",
+    title: "Nhân viên part-time 2",
+    hire_date: "2025-06-01",
     is_active: true,
-    total_xp: 1100,
-    org_unit_id: "unit-acc",
-    position_id: "pos-chief",
-    org_unit_name: "Kế toán",
-    position_name: "Kế toán trưởng",
-    full_name: "Lê Văn C",
+    total_xp: 880,
+    org_unit_id: "unit-ops",
+    position_id: "pos-staff-shipping",
+    org_unit_name: "Bộ phận Sản xuất",
+    position_name: "Part-time Đóng gói",
+    full_name: "Nhân viên part-time 2",
     phone: "0934567890",
     avatar_url: "",
     employee_profile: {
       employee_id: "emp-c",
       company_id: companyId,
-      date_of_birth: "1988-08-20",
-      gender: "Nam",
+      date_of_birth: "2004-10-20",
+      gender: "Nữ",
       id_number: "323456789",
-      id_issued_date: "2012-08-20",
-      id_issued_place: "Đà Nẵng",
-      permanent_address: "Đà Nẵng",
-      current_address: "TP HCM",
-      personal_email: "c.le@company.com",
-      emergency_contact_name: "Lê Thị E",
+      id_issued_date: "2022-10-20",
+      id_issued_place: "Long An",
+      permanent_address: "Long An",
+      current_address: "TP.HCM",
+      personal_email: "parttime2@company.com",
+      emergency_contact_name: "Lê Thị B",
       emergency_contact_phone: "0987654323",
       bank_account: "777888999",
       bank_name: "BIDV",
-      tax_code: "MST-C",
-      social_insurance_number: "BH-C"
+      tax_code: "MST-PT2",
+      social_insurance_number: "BH-PT2"
     },
     work_history: [
-      { company: "Deloitte Việt Nam", role: "Kiểm toán viên cao cấp", period: "2021 - 2024", description: "Kiểm toán báo cáo tài chính cho các tập đoàn lớn." }
+      { company: "Kho Shopee Express", role: "Nhân viên đóng gói", period: "2024 - 2025", description: "Phân loại hàng hóa, đóng hộp và dán mã vận đơn giao hàng nhanh." }
     ],
     promotion_history: [
-      { date: "16/10/2025", previous_role: "Kế toán viên", new_role: "Kế toán trưởng", reason: "Sở hữu chứng chỉ CPA Việt Nam và hoàn thành xuất sắc kỳ quyết toán thuế năm." }
+      { date: "01/06/2025", previous_role: "Thử việc", new_role: "Nhân viên đóng gói chính thức", reason: "Đóng gói hàng chính xác, tốc độ cao, hỗ trợ giao hàng nhanh POS." }
     ],
     education_history: [
-      { school: "Học viện Tài chính", degree: "Cử nhân Kế toán - Kiểm toán", period: "2017 - 2021" }
+      { school: "Đại học Sư phạm Kỹ thuật", degree: "Sinh viên năm 2", period: "2023 - Nay" }
     ]
   },
   {
     id: "emp-d",
     user_id: "user-d",
-    title: "Trưởng phòng Nhân sự",
-    hire_date: "2025-09-16",
+    title: "Cộng tác viên thiết kế",
+    hire_date: "2025-08-01",
     is_active: true,
-    total_xp: 1300,
-    org_unit_id: "unit-hr",
-    position_id: "pos-hr-lead",
-    org_unit_name: "Nhân sự",
-    position_name: "Trưởng phòng",
-    full_name: "Phạm Thị D",
+    total_xp: 1200,
+    org_unit_id: "unit-design",
+    position_id: "pos-designer",
+    org_unit_name: "Bộ phận Thiết kế",
+    position_name: "CTV Thiết kế",
+    full_name: "Cộng tác viên thiết kế",
     phone: "0945678901",
     avatar_url: "",
     employee_profile: {
       employee_id: "emp-d",
       company_id: companyId,
-      date_of_birth: "1991-11-30",
+      date_of_birth: "2002-12-05",
       gender: "Nữ",
       id_number: "423456789",
-      id_issued_date: "2016-11-30",
-      id_issued_place: "Cần Thơ",
-      permanent_address: "Cần Thơ",
-      current_address: "TP HCM",
-      personal_email: "d.pham@company.com",
+      id_issued_date: "2020-12-05",
+      id_issued_place: "Lâm Đồng",
+      permanent_address: "Lâm Đồng",
+      current_address: "TP.HCM",
+      personal_email: "designer.ctv@company.com",
       emergency_contact_name: "Phạm Văn F",
       emergency_contact_phone: "0987654324",
       bank_account: "101010101",
       bank_name: "VietinBank",
-      tax_code: "MST-D",
-      social_insurance_number: "BH-D"
+      tax_code: "MST-CTV",
+      social_insurance_number: "BH-CTV"
     },
     work_history: [
-      { company: "Tập đoàn Vingroup", role: "Chuyên viên Tuyển dụng", period: "2022 - 2024", description: "Tìm kiếm nhân tài và xây dựng thương hiệu tuyển dụng." }
+      { company: "Freelance Designer", role: "Thiết kế nhận diện thương hiệu", period: "2022 - Nay", description: "Thiết kế logo, danh thiếp, bảng biển và ấn phẩm truyền thông." }
     ],
     promotion_history: [
-      { date: "16/09/2025", previous_role: "Chuyên viên HR", new_role: "Trưởng phòng Nhân sự", reason: "Thiết kế và số hóa thành công quy trình đánh giá KPI toàn diện." }
+      { date: "01/08/2025", previous_role: "Cộng tác", new_role: "CTV Thiết kế chính thức", reason: "Tốc độ thiết kế avatar & QR code nhanh, được khách hàng đánh giá cao." }
     ],
     education_history: [
-      { school: "Đại học Luật Hà Nội", degree: "Cử nhân Luật Kinh tế", period: "2018 - 2022" }
+      { school: "Đại học Kiến trúc TP.HCM", degree: "Sinh viên năm cuối thiết kế đồ họa", period: "2021 - Nay" }
     ]
   }
 ];

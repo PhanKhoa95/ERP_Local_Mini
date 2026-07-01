@@ -68,6 +68,9 @@ echo To access from another device on the same Wi-Fi/LAN, use this computer's IP
 echo Press Ctrl+C to stop the server.
 echo.
 
+echo [INFO] Khoi dong Cloudflare Tunnel o cua so moi...
+start "Cloudflare Tunnel" cmd /c npx cloudflared tunnel --url http://localhost:8017
+
 call pnpm run dev -- --host 0.0.0.0 --port 8017
 
 if errorlevel 1 (

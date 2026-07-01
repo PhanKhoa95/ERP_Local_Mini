@@ -19,7 +19,7 @@ export function useOrderReturns(orderId?: string) {
       if (isLocalDemoAuthEnabled()) {
         const raw = localStorage.getItem("erp-mini-local-demo-order-returns") || "[]";
         const localReturns = JSON.parse(raw);
-        const ordersRaw = localStorage.getItem("erp-mini-local-demo") || "[]";
+        const ordersRaw = localStorage.getItem("erp-mini-local-demo-orders") || "[]";
         const orders = JSON.parse(ordersRaw);
         const partnersRaw = localStorage.getItem("erp-mini-local-demo-partners") || "[]";
         const partners = JSON.parse(partnersRaw);
@@ -153,7 +153,7 @@ export function useOrderReturns(orderId?: string) {
 
           // If status is refunded, auto-hạch toán hoàn tiền
           if (status === "refunded") {
-            const localAccountsRaw = localStorage.getItem("erp-mini-local-demo-chart-of-accounts") || "[]";
+            const localAccountsRaw = localStorage.getItem("erp-mini-local-demo-accounts") || "[]";
             const localAccounts = JSON.parse(localAccountsRaw);
             
             const refundAmt = record.refund_amount || 0;
@@ -172,7 +172,7 @@ export function useOrderReturns(orderId?: string) {
             addBal("333", -vatRefund); // TK 333 Debit (negative of Credit balance)
             addBal("112", -refundAmt); // TK 112 Credit (negative of Debit balance)
             
-            localStorage.setItem("erp-mini-local-demo-chart-of-accounts", JSON.stringify(localAccounts));
+            localStorage.setItem("erp-mini-local-demo-accounts", JSON.stringify(localAccounts));
 
             // Journal Entry
             const entriesRaw = localStorage.getItem("erp-mini-local-demo-journal-entries") || "[]";

@@ -103,12 +103,27 @@ export async function initLocalDemoSync(queryClient: QueryClient) {
     debounceTimeout = setTimeout(doPushToServer, 100);
   };
 
+  let invalidationTimeout: any = null;
+  const triggerUIInvalidation = () => {
+    if (invalidationTimeout) {
+      clearTimeout(invalidationTimeout);
+    }
+    invalidationTimeout = setTimeout(() => {
+      console.log("[localDemoSync] Invalidating all React Query queries to sync UI...");
+      queryClient.invalidateQueries();
+    }, 200); // 200ms debounce to prevent layout thrashing
+  };
+
   // Override localStorage methods to capture changes
   const originalSetItem = localStorage.setItem;
   localStorage.setItem = function (key: string, value: string) {
+    const oldValue = localStorage.getItem(key);
     originalSetItem.apply(this, [key, value]);
     if (key.startsWith("erp-mini-local-demo-") && key !== "erp-mini-local-demo-auth" && key !== "erp-mini-local-demo-role") {
       pushToServer();
+      if (value !== oldValue) {
+        triggerUIInvalidation();
+      }
     }
   };
 
@@ -117,6 +132,7 @@ export async function initLocalDemoSync(queryClient: QueryClient) {
     originalRemoveItem.apply(this, [key]);
     if (key.startsWith("erp-mini-local-demo-") && key !== "erp-mini-local-demo-auth" && key !== "erp-mini-local-demo-role") {
       pushToServer();
+      triggerUIInvalidation();
     }
   };
 
@@ -124,6 +140,7 @@ export async function initLocalDemoSync(queryClient: QueryClient) {
   localStorage.clear = function () {
     originalClear.apply(this);
     pushToServer();
+    triggerUIInvalidation();
   };
 
   // Initial pull from server if logged in

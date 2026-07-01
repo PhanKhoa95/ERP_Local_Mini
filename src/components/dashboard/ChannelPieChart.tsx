@@ -4,10 +4,49 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
-export function ChannelPieChart() {
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+
+export function ChannelPieChart({ dateRange = null }: { dateRange?: { from?: Date; to?: Date } | null }) {
+  const fromStr = dateRange?.from?.toISOString() || "";
+  const toStr = dateRange?.to?.toISOString() || "";
+
   const { data: chartData = [], isLoading } = useQuery({
-    queryKey: ["channel-revenue-pie"],
+    queryKey: ["channel-revenue-pie", fromStr, toStr],
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const rawChannels = localStorage.getItem("erp-mini-local-demo-sales-channels");
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        const channels = rawChannels ? JSON.parse(rawChannels) : [];
+        let orders = rawOrders ? JSON.parse(rawOrders) : [];
+
+        // Apply dateRange filter
+        if (dateRange) {
+          orders = orders.filter((o: any) => {
+            const dateStr = o.order_date || o.created_at;
+            if (!dateStr) return false;
+            const orderDate = new Date(dateStr);
+            
+            if (dateRange.from && orderDate < dateRange.from) return false;
+            if (dateRange.to && orderDate > dateRange.to) return false;
+            return true;
+          });
+        }
+
+        const deliveredOrders = orders.filter((o: any) => o.status === "delivered");
+        const totalRevenue = deliveredOrders.reduce((sum: number, o: any) => sum + (Number(o.total) || 0), 0);
+
+        return channels.map((channel: any) => {
+          const channelOrders = deliveredOrders.filter((o: any) => o.channel_id === channel.id);
+          const revenue = channelOrders.reduce((sum: number, o: any) => sum + (Number(o.total) || 0), 0);
+          const percentage = totalRevenue > 0 ? Math.round((revenue / totalRevenue) * 100) : 0;
+          return {
+            name: channel.name,
+            value: percentage,
+            color: channel.color || "#3B82F6",
+          };
+        }).filter((item: any) => item.value > 0);
+      }
+
       const [channelsRes, ordersRes] = await Promise.all([
         supabase.from("sales_channels").select("*"),
         supabase.from("orders").select("channel_id, total, status"),
@@ -17,7 +56,20 @@ export function ChannelPieChart() {
       if (ordersRes.error) throw ordersRes.error;
 
       const channels = channelsRes.data || [];
-      const orders = ordersRes.data || [];
+      let orders = ordersRes.data || [];
+
+      // Apply dateRange filter for cloud mode if needed
+      if (dateRange) {
+        orders = orders.filter(o => {
+          const dateStr = (o as any).order_date || (o as any).created_at;
+          if (!dateStr) return false;
+          const orderDate = new Date(dateStr);
+          
+          if (dateRange.from && orderDate < dateRange.from) return false;
+          if (dateRange.to && orderDate > dateRange.to) return false;
+          return true;
+        });
+      }
 
       const deliveredOrders = orders.filter(o => o.status === "delivered");
       const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
@@ -34,6 +86,7 @@ export function ChannelPieChart() {
       }).filter(item => item.value > 0);
     },
   });
+
 
   if (isLoading) {
     return (

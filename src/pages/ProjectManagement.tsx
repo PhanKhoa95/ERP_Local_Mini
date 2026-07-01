@@ -268,45 +268,113 @@ export default function ProjectManagement() {
               ) : !projects?.length ? (
                 <p className="text-muted-foreground text-sm py-8 text-center">Chưa có dự án nào. Nhấn "Tạo dự án" để bắt đầu.</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Mã</TableHead>
-                      <TableHead>Tên dự án</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead>Ưu tiên</TableHead>
-                      <TableHead>Thời gian</TableHead>
-                      <TableHead>Ngân sách</TableHead>
-                      <TableHead className="w-24" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {projects.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-mono text-xs">{p.code}</TableCell>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={statusColors[p.status]}>
-                            {statusLabels[p.status]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{priorityLabels[p.priority]}</TableCell>
-                        <TableCell className="text-xs">{formatDate(p.start_date)} → {formatDate(p.end_date)}</TableCell>
-                        <TableCell>{formatMoney(p.budget)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => { setEditingProject(p); setProjectDialogOpen(true); }}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(p.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mã</TableHead>
+                        <TableHead>Tên dự án / Phụ trách</TableHead>
+                        <TableHead>Trạng thái / Tiến độ</TableHead>
+                        <TableHead>Ưu tiên / Thời gian</TableHead>
+                        <TableHead>Ngân sách / Thực chi</TableHead>
+                        <TableHead>Chi tiết công việc & Chậm trễ</TableHead>
+                        <TableHead className="w-24" />
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {projects.map(p => {
+                        const isOverdue = p.status !== "completed" && p.end_date && new Date(p.end_date) < new Date();
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs align-top pt-4">{p.code}</TableCell>
+                            <TableCell className="align-top pt-4">
+                              <div className="font-medium">{p.name}</div>
+                              {p.owner_name && (
+                                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                  <Users2 className="h-3 w-3" /> Phụ trách: {p.owner_name}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="align-top pt-4">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className={statusColors[p.status]}>
+                                  {statusLabels[p.status]}
+                                </Badge>
+                                {isOverdue && (
+                                  <Badge className="bg-destructive/10 text-destructive border-destructive/20 gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Quá hạn
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="mt-2 w-32">
+                                <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                                  <span>Tiến độ</span>
+                                  <span>{p.progress || 0}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                  <div 
+                                    className="bg-primary h-full rounded-full transition-all" 
+                                    style={{ width: `${p.progress || 0}%` }} 
+                                  />
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="align-top pt-4">
+                              <div className="text-xs font-semibold">{priorityLabels[p.priority]}</div>
+                              <div className="text-[11px] text-muted-foreground mt-1">
+                                {formatDate(p.start_date)} → {formatDate(p.end_date)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="align-top pt-4">
+                              <div className="text-xs font-medium text-muted-foreground">Kế hoạch:</div>
+                              <div className="text-xs">{formatMoney(p.budget)}</div>
+                              <div className="text-xs font-medium text-muted-foreground mt-1.5">Thực chi:</div>
+                              <div className="text-xs font-semibold text-primary">{formatMoney(p.actual_cost ?? 0)}</div>
+                            </TableCell>
+                            <TableCell className="align-top pt-4 max-w-[280px]">
+                              {p.milestones && (
+                                <div className="text-xs">
+                                  <span className="font-medium text-muted-foreground">Mốc CV: </span>
+                                  <span className="text-muted-foreground">{p.milestones}</span>
+                                </div>
+                              )}
+                              {p.deliverables && (
+                                <div className="text-xs mt-1">
+                                  <span className="font-medium text-muted-foreground">Đầu ra: </span>
+                                  <span>{p.deliverables}</span>
+                                </div>
+                              )}
+                              {p.cost_documents && (
+                                <div className="text-[10px] text-muted-foreground mt-1">
+                                  Chứng từ: <code className="bg-muted px-1 py-0.2 rounded font-mono">{p.cost_documents}</code>
+                                </div>
+                              )}
+                              {p.delay_reason && (
+                                <div className="text-xs mt-1.5 p-1 bg-yellow-50 rounded border border-yellow-100 text-yellow-800 flex items-start gap-1">
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                  <div>
+                                    <div className="font-medium text-[10px]">Lý do chậm trễ:</div>
+                                    <div className="text-[11px] leading-tight">{p.delay_reason}</div>
+                                  </div>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="align-top pt-3">
+                              <div className="flex gap-1 justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => { setEditingProject(p); setProjectDialogOpen(true); }}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(p.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>

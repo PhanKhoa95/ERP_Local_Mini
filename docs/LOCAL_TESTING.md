@@ -17,10 +17,10 @@ npm run dev
 Open:
 
 ```txt
-http://127.0.0.1:8080/
+http://127.0.0.1:8017/
 ```
 
-If port `8080` is already in use, use the URL printed by Vite.
+If port `8017` is already in use, use the URL printed by Vite.
 
 ## Demo Login
 
@@ -61,7 +61,7 @@ When logged in with `admin/admin`, inventory writes are local-only:
 - Product images are compressed and stored as local data URLs, so Supabase Storage RLS does not block local testing.
 - Real Supabase users still use the `products`, `inventory_transactions`, `product_bom`, `product_categories` tables and the `product-images` storage bucket.
 
-To reset local inventory demo data, clear site data for `http://127.0.0.1:8080`.
+To reset local inventory demo data, clear site data for `http://127.0.0.1:8017`.
 
 ## Verification Commands
 
@@ -90,7 +90,7 @@ Current known lint state: lint passes with warnings in pre-existing files.
 OPENROUTER_API_KEY=
 OPENROUTER_MODEL=google/gemini-2.5-flash
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_SITE_URL=http://127.0.0.1:8080
+OPENROUTER_SITE_URL=http://127.0.0.1:8017
 OPENROUTER_APP_TITLE=Multi Sale Organizer
 LOVABLE_API_KEY=
 ```

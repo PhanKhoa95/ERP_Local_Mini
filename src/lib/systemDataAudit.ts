@@ -193,6 +193,7 @@ function loadLocalSnapshot(): SystemAuditSnapshot {
   const payments = readJson<PaymentLike[]>("erp-mini-local-demo-payment-transactions", []);
   const rawEntries = readJson<JournalEntryLike[]>("erp-mini-local-demo-journal-entries", []);
   const journalLines = readJson<JournalLineLike[]>("erp-mini-local-demo-journal-lines", []);
+  const storedWarehouseStock = readJson<WarehouseStockLike[]>("erp-mini-local-demo-warehouse-stock", []);
   const productBom = readJson<ProductBomLike[]>("erp-mini-local-demo-product-bom", []).map((item) => ({
     ...item,
     product: productMap.get(item.product_id) || null,
@@ -206,14 +207,16 @@ function loadLocalSnapshot(): SystemAuditSnapshot {
 
   return {
     products,
-    warehouseStock: products
-      .filter((product) => !product.is_service)
-      .map((product) => ({
-        id: `local-stock-${product.id}`,
-        product_id: product.id,
-        warehouse_id: "local-warehouse-default",
-        quantity: product.stock_quantity || 0,
-      })),
+    warehouseStock: storedWarehouseStock.length > 0
+      ? storedWarehouseStock
+      : products
+        .filter((product) => !product.is_service)
+        .map((product) => ({
+          id: `local-stock-${product.id}`,
+          product_id: product.id,
+          warehouse_id: "local-warehouse-default",
+          quantity: product.stock_quantity || 0,
+        })),
     orders,
     payments,
     journalEntries,

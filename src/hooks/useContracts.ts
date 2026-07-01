@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { invalidateContractRelated } from "@/lib/queryInvalidation";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { erpEventBus } from "@/lib/erpEventBus";
 
 export interface SmartContract {
   id: string;
@@ -48,10 +49,64 @@ export interface ContractMilestone {
 const CONTRACTS_KEY = "erp-mini-local-demo-smart-contracts";
 const MILESTONES_KEY = "erp-mini-local-demo-contract-milestones";
 
-function getLocalContracts(): SmartContract[] {
+function getLocalContracts(companyId?: string): SmartContract[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(CONTRACTS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) {
+    const compId = companyId || "demo-company";
+    const defaultContracts: SmartContract[] = [
+      {
+        id: "contract-1",
+        company_id: compId,
+        partner_id: "partner-retail",
+        contract_number: "HD-2026-NIN-001",
+        contract_type: "Dịch vụ in ấn",
+        industry: "In ấn & Gia công",
+        title: "Hợp đồng thiết kế & in decal tem nhãn chuỗi Trà Sữa X",
+        content_template: null,
+        variables: null,
+        status: "signed",
+        signer_user_id: "user-a",
+        signer_vneid_hash: "vneid-hash-mock-1",
+        signed_at: new Date(Date.now() - 30 * 24 * 3600000).toISOString(),
+        total_value: 15000000,
+        token_auto_issue: false,
+        token_issue_percent: 0,
+        valid_from: new Date(Date.now() - 30 * 24 * 3600000).toISOString().split("T")[0],
+        valid_to: new Date(Date.now() + 60 * 24 * 3600000).toISOString().split("T")[0],
+        created_by: "demo-user",
+        created_at: new Date(Date.now() - 30 * 24 * 3600000).toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: "contract-2",
+        company_id: compId,
+        partner_id: "partner-retail",
+        contract_number: "HD-2026-NIN-002",
+        contract_type: "Cung cấp vật tư",
+        industry: "In ấn & Gia công",
+        title: "Hợp đồng in ấn ấn phẩm lịch Tết 2027 cho Công ty Y",
+        content_template: null,
+        variables: null,
+        status: "pending",
+        total_value: 35000000,
+        token_auto_issue: false,
+        token_issue_percent: 0,
+        valid_from: new Date(Date.now() - 5 * 24 * 3600000).toISOString().split("T")[0],
+        valid_to: new Date(Date.now() + 90 * 24 * 3600000).toISOString().split("T")[0],
+        created_by: "demo-user",
+        created_at: new Date(Date.now() - 5 * 24 * 3600000).toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
+    localStorage.setItem(CONTRACTS_KEY, JSON.stringify(defaultContracts));
+    return defaultContracts;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }
 
 function saveLocalContracts(contracts: SmartContract[]) {
@@ -61,7 +116,74 @@ function saveLocalContracts(contracts: SmartContract[]) {
 function getLocalMilestones(): ContractMilestone[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(MILESTONES_KEY);
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) {
+    const defaultMilestones: ContractMilestone[] = [
+      {
+        id: "ms-1-1",
+        contract_id: "contract-1",
+        milestone_name: "Tạm ứng thiết kế & in test mẫu thử",
+        milestone_order: 1,
+        due_date: new Date(Date.now() - 25 * 24 * 3600000).toISOString().split("T")[0],
+        amount: 5000000,
+        status: "completed",
+        completed_at: new Date(Date.now() - 25 * 24 * 3600000).toISOString(),
+        token_issue_amount: 0,
+        created_at: new Date(Date.now() - 30 * 24 * 3600000).toISOString()
+      },
+      {
+        id: "ms-1-2",
+        contract_id: "contract-1",
+        milestone_name: "Bàn giao decal & tem nhãn đợt 1",
+        milestone_order: 2,
+        due_date: new Date(Date.now() - 5 * 24 * 3600000).toISOString().split("T")[0],
+        amount: 5000000,
+        status: "completed",
+        completed_at: new Date(Date.now() - 5 * 24 * 3600000).toISOString(),
+        token_issue_amount: 0,
+        created_at: new Date(Date.now() - 30 * 24 * 3600000).toISOString()
+      },
+      {
+        id: "ms-1-3",
+        contract_id: "contract-1",
+        milestone_name: "Nghiệm thu thanh lý hợp đồng",
+        milestone_order: 3,
+        due_date: new Date(Date.now() + 15 * 24 * 3600000).toISOString().split("T")[0],
+        amount: 5000000,
+        status: "pending",
+        token_issue_amount: 0,
+        created_at: new Date(Date.now() - 30 * 24 * 3600000).toISOString()
+      },
+      {
+        id: "ms-2-1",
+        contract_id: "contract-2",
+        milestone_name: "Đặt cọc sản xuất",
+        milestone_order: 1,
+        due_date: new Date(Date.now() + 5 * 24 * 3600000).toISOString().split("T")[0],
+        amount: 15000000,
+        status: "pending",
+        token_issue_amount: 0,
+        created_at: new Date(Date.now() - 5 * 24 * 3600000).toISOString()
+      },
+      {
+        id: "ms-2-2",
+        contract_id: "contract-2",
+        milestone_name: "Nghiệm thu bàn giao lịch bloc & túi giấy",
+        milestone_order: 2,
+        due_date: new Date(Date.now() + 30 * 24 * 3600000).toISOString().split("T")[0],
+        amount: 20000000,
+        status: "pending",
+        token_issue_amount: 0,
+        created_at: new Date(Date.now() - 5 * 24 * 3600000).toISOString()
+      }
+    ];
+    localStorage.setItem(MILESTONES_KEY, JSON.stringify(defaultMilestones));
+    return defaultMilestones;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
 }
 
 function saveLocalMilestones(milestones: ContractMilestone[]) {
@@ -69,7 +191,7 @@ function saveLocalMilestones(milestones: ContractMilestone[]) {
 }
 
 function createLocalOrderFromContract(companyId: string, contract: any) {
-  const localOrdersRaw = localStorage.getItem("erp-mini-local-demo") || "[]";
+  const localOrdersRaw = localStorage.getItem("erp-mini-local-demo-orders") || "[]";
   const localOrders = JSON.parse(localOrdersRaw);
 
   const productsRaw = localStorage.getItem("erp-mini-local-demo-products") || "[]";
@@ -80,7 +202,7 @@ function createLocalOrderFromContract(companyId: string, contract: any) {
   const partners = JSON.parse(partnersRaw);
   const distPartner = partners.find((p: any) => p.name.includes("Nhà phân phối miền Nam")) || partners.find((p: any) => p.id === contract.partner_id) || partners[0];
 
-  const channelsRaw = localStorage.getItem("erp-mini-local-demo-channels") || "[]";
+  const channelsRaw = localStorage.getItem("erp-mini-local-demo-sales-channels") || "[]";
   const channels = JSON.parse(channelsRaw);
   const retailChannel = channels.find((c: any) => c.platform_type === "vieterp") || channels[0];
 
@@ -128,7 +250,7 @@ function createLocalOrderFromContract(companyId: string, contract: any) {
     order_items: orderItems,
   };
 
-  localStorage.setItem("erp-mini-local-demo", JSON.stringify([newOrder, ...localOrders]));
+  localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...localOrders]));
 }
 
 export function useContracts() {
@@ -141,7 +263,7 @@ export function useContracts() {
     queryKey: ["smart-contracts", companyId],
     queryFn: async () => {
       if (isLocalDemoAuthEnabled()) {
-        return getLocalContracts().filter(c => c.company_id === companyId);
+        return getLocalContracts(companyId).filter(c => c.company_id === companyId);
       }
       const { data, error } = await supabase
         .from("smart_contracts")
@@ -160,7 +282,7 @@ export function useContracts() {
         `HD-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
       
       if (isLocalDemoAuthEnabled()) {
-        const local = getLocalContracts();
+        const local = getLocalContracts(companyId);
         const newContract: SmartContract = {
           ...contract,
           id: `contract-${Date.now()}`,
@@ -206,7 +328,7 @@ export function useContracts() {
   const updateContract = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<SmartContract> & { id: string }) => {
       if (isLocalDemoAuthEnabled()) {
-        const local = getLocalContracts();
+        const local = getLocalContracts(companyId);
         const idx = local.findIndex(c => c.id === id);
         if (idx >= 0) {
           const prevStatus = local[idx].status;
@@ -218,7 +340,7 @@ export function useContracts() {
           saveLocalContracts(local);
           
           if (updates.status === "active" && prevStatus !== "active") {
-            createLocalOrderFromContract(companyId || "", local[idx]);
+            erpEventBus.publish("CONTRACT_SIGNED", { contract: local[idx], companyId: companyId || "" });
           }
           return local[idx];
         }
@@ -235,7 +357,7 @@ export function useContracts() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["smart-contracts"] });
+      invalidateContractRelated(qc);
       toast({ title: "Cập nhật hợp đồng thành công" });
     },
     onError: (e: any) => toast({ title: "Lỗi", description: e.message, variant: "destructive" }),
@@ -260,7 +382,7 @@ export function useContracts() {
   const signContract = useMutation({
     mutationFn: async (params: { contract_id: string; vneid_hash?: string; offline_hash?: string }) => {
       if (isLocalDemoAuthEnabled()) {
-        const local = getLocalContracts();
+        const local = getLocalContracts(companyId);
         const idx = local.findIndex(c => c.id === params.contract_id);
         if (idx >= 0) {
           local[idx] = {
@@ -273,7 +395,7 @@ export function useContracts() {
             updated_at: new Date().toISOString(),
           };
           saveLocalContracts(local);
-          createLocalOrderFromContract(companyId || "", local[idx]);
+          erpEventBus.publish("CONTRACT_SIGNED", { contract: local[idx], companyId: companyId || "" });
           return { contract: local[idx] };
         }
         throw new Error("Không tìm thấy hợp đồng local để ký");

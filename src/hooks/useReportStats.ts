@@ -2,6 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, subDays } from "date-fns";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { getLocalProductBom } from "@/lib/localInventoryStore";
+
+const getProductCostPrice = (productId: string, directCost?: number | null) => {
+  const bomItems = getLocalProductBom(productId);
+  if (bomItems && bomItems.length > 0) {
+    return bomItems.reduce((sum, item) => sum + ((item.material?.cost_price || 0) * item.quantity), 0);
+  }
+  return directCost || 0;
+};
 
 export interface DateRange {
   from: Date;
@@ -56,7 +65,7 @@ export function useRevenueReport(dateRange: DateRange) {
       const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
       const totalCOGS = orders.reduce((sum, o) => {
         return sum + (o.order_items?.reduce((itemSum: number, item: any) => {
-          return itemSum + ((item.products?.cost_price || 0) * item.quantity);
+          return itemSum + (getProductCostPrice(item.product_id, item.products?.cost_price) * item.quantity);
         }, 0) || 0);
       }, 0);
       const grossProfit = totalRevenue - totalCOGS;
@@ -73,7 +82,7 @@ export function useRevenueReport(dateRange: DateRange) {
         dailyData[date].revenue += order.total || 0;
         dailyData[date].orders += 1;
         const orderCOGS = order.order_items?.reduce((sum: number, item: any) => {
-          return sum + ((item.products?.cost_price || 0) * item.quantity);
+          return sum + (getProductCostPrice(item.product_id, item.products?.cost_price) * item.quantity);
         }, 0) || 0;
         dailyData[date].profit += (order.total || 0) - orderCOGS;
       });
@@ -185,7 +194,7 @@ export function useProductReport(dateRange: DateRange) {
         productStats[productId].quantity += item.quantity || 0;
         const itemTotal = item.total ?? ((item.quantity || 0) * (item.unit_price || 0) - (item.discount || 0));
         productStats[productId].revenue += itemTotal;
-        const itemCost = (item.products?.cost_price || 0) * (item.quantity || 0);
+        const itemCost = getProductCostPrice(item.product_id, item.products?.cost_price) * (item.quantity || 0);
         productStats[productId].cost += itemCost;
         productStats[productId].profit += itemTotal - itemCost;
       });
@@ -259,7 +268,7 @@ export function useInventoryReport() {
       }
 
       const totalStock = products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0);
-      const totalValue = products.reduce((sum, p) => sum + ((p.stock_quantity || 0) * (p.cost_price || 0)), 0);
+      const totalValue = products.reduce((sum, p) => sum + ((p.stock_quantity || 0) * getProductCostPrice(p.id, p.cost_price)), 0);
       const lowStock = products.filter((p) => (p.stock_quantity || 0) <= (p.min_stock || 0));
       const outOfStock = products.filter((p) => (p.stock_quantity || 0) === 0);
 

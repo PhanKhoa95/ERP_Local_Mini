@@ -419,32 +419,35 @@ serve(async (req) => {
     }
     const companyId = membership.company_id;
 
-    // Load company-specific AI settings
-    let openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY");
-    let openRouterModel = Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.5-flash";
-    let openRouterBaseUrl = Deno.env.get("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1";
+    const requestBody = await req.json();
+    const { messages, aiProviderConfig } = requestBody;
 
-    const { data: shopSettings } = await supabase
-      .from("shop_settings")
-      .select("value")
-      .eq("company_id", companyId)
-      .eq("key", "ai_provider_config")
-      .maybeSingle();
+    // Load company-specific AI settings (prioritize frontend rotated config)
+    let openRouterApiKey = aiProviderConfig?.apiKey || Deno.env.get("OPENROUTER_API_KEY");
+    let openRouterModel = aiProviderConfig?.model || Deno.env.get("OPENROUTER_MODEL") || "google/gemini-2.5-flash";
+    let openRouterBaseUrl = aiProviderConfig?.baseUrl || Deno.env.get("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1";
 
-    if (shopSettings?.value) {
-      const config = shopSettings.value as any;
-      if ((config.provider === "openrouter" || !config.provider) && config.openRouterApiKey) {
-        openRouterApiKey = config.openRouterApiKey;
-        if (config.openRouterModel) openRouterModel = config.openRouterModel;
-        if (config.openRouterBaseUrl) openRouterBaseUrl = config.openRouterBaseUrl;
+    if (!aiProviderConfig?.apiKey) {
+      const { data: shopSettings } = await supabase
+        .from("shop_settings")
+        .select("value")
+        .eq("company_id", companyId)
+        .eq("key", "ai_provider_config")
+        .maybeSingle();
+
+      if (shopSettings?.value) {
+        const config = shopSettings.value as any;
+        if (config.openRouterApiKey) {
+          openRouterApiKey = config.openRouterApiKey;
+          if (config.openRouterModel) openRouterModel = config.openRouterModel;
+          if (config.openRouterBaseUrl) openRouterBaseUrl = config.openRouterBaseUrl;
+        }
       }
     }
 
     if (!openRouterApiKey && !LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY/OPENROUTER_API_KEY is not configured");
     }
-
-    const { messages } = await req.json();
 
     const systemPrompt = `Báº¡n lÃ  trá»£ lÃ½ AI thÃ´ng minh cho há»‡ thá»‘ng ERP quáº£n lÃ½ bÃ¡n hÃ ng Ä‘a kÃªnh & nhÃ¢n sá»±. Báº¡n cÃ³ thá»ƒ:
 - Tra cá»©u tá»“n kho sáº£n pháº©m
@@ -522,7 +525,7 @@ Náº¿u user chÃ o há» i hoáº·c há» i vá»  kháº£ nÄƒng, hÃ£y 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: Deno.env.get("OPENROUTER_MODEL") || "google/gemini-3-flash-preview",
+          model: openRouterModel || "google/gemini-2.5-flash",
           messages: [...allMessages, assistantMessage, ...toolMessages],
           tools,
           stream: false,

@@ -26,7 +26,11 @@ if not exist ".env" (
     )
 )
 
+:: Khởi chạy Vite
 echo [INFO] Khởi động máy chủ Vite (pnpm dev)...
 echo.
-pnpm dev --host 0.0.0.0 --port 8080
+echo [INFO] Khởi động Cloudflare Tunnel ở cửa sổ mới...
+start "Cloudflare Tunnel" cmd /c npx cloudflared tunnel --url http://localhost:8017
+
+pnpm dev --host 0.0.0.0 --port 8017
 pause

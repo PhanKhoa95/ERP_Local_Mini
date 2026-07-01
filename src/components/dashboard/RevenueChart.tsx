@@ -14,10 +14,58 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { startOfMonth, subMonths, format } from "date-fns";
 
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+
 export function RevenueChart() {
   const { data: chartData = [], isLoading } = useQuery({
     queryKey: ["revenue-by-channel-chart"],
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const rawChannels = localStorage.getItem("erp-mini-local-demo-sales-channels");
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        const channels = rawChannels ? JSON.parse(rawChannels) : [];
+        const orders = rawOrders ? JSON.parse(rawOrders) : [];
+
+        const sixMonthsAgo = subMonths(new Date(), 5);
+        const startOfPeriod = startOfMonth(sixMonthsAgo);
+
+        const validOrders = orders.filter((o: any) => {
+          const date = new Date(o.order_date || o.created_at);
+          return date >= startOfPeriod && ["delivered", "confirmed", "processing", "shipping"].includes(o.status);
+        });
+
+        // Create monthly data structure
+        const monthlyData: Record<string, Record<string, number>> = {};
+
+        for (let i = 5; i >= 0; i--) {
+          const monthStart = startOfMonth(subMonths(new Date(), i));
+          const monthKey = format(monthStart, "yyyy-MM");
+          monthlyData[monthKey] = {};
+          channels.forEach((ch: any) => {
+            monthlyData[monthKey][ch.code] = 0;
+          });
+        }
+
+        // Aggregate orders by month and channel
+        validOrders.forEach((order: any) => {
+          const monthKey = format(new Date(order.order_date || order.created_at), "yyyy-MM");
+          const channel = channels.find((ch: any) => ch.id === order.channel_id);
+          if (monthlyData[monthKey] && channel) {
+            monthlyData[monthKey][channel.code] =
+              (monthlyData[monthKey][channel.code] || 0) +
+              (Number(order.total) || 0) / 1000000; // Convert to millions
+          }
+        });
+
+        // Convert to chart format
+        const data = Object.entries(monthlyData).map(([key, values]) => ({
+          name: `T${new Date(key).getMonth() + 1}`,
+          ...values,
+        }));
+
+        return { data, channels };
+      }
+
       const sixMonthsAgo = subMonths(new Date(), 5);
       
       const [channelsRes, ordersRes] = await Promise.all([
@@ -67,6 +115,7 @@ export function RevenueChart() {
       return { data, channels };
     },
   });
+
 
   if (isLoading) {
     return (

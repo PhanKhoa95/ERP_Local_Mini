@@ -10,6 +10,7 @@ import {
   deleteLocalProduct,
   getLocalProducts,
   updateLocalProduct,
+  logLocalAction,
 } from "@/lib/localInventoryStore";
 
 type Product = Tables<"products">;
@@ -86,7 +87,9 @@ export function useProducts() {
     mutationFn: async (product: ProductInsert) => {
       if (isLocalDemoAuthEnabled()) {
         if (!companyId) throw new Error("Missing local company context");
-        return createLocalProduct(product, companyId);
+        const result = createLocalProduct(product, companyId);
+        logLocalAction("Tạo sản phẩm mới", "products", result.id, null, { name: result.name, sku: result.sku, selling_price: result.selling_price });
+        return result;
       }
 
       const { data, error } = await supabase
@@ -132,7 +135,9 @@ export function useProducts() {
   const updateProduct = useMutation({
     mutationFn: async ({ id, ...updates }: ProductUpdate & { id: string }) => {
       if (isLocalDemoAuthEnabled()) {
-        return updateLocalProduct({ id, ...updates });
+        const result = updateLocalProduct({ id, ...updates });
+        logLocalAction("Cập nhật sản phẩm", "products", id, null, updates);
+        return result;
       }
 
       const { data, error } = await supabase
@@ -168,6 +173,7 @@ export function useProducts() {
   const deleteProduct = useMutation({
     mutationFn: async (id: string) => {
       if (isLocalDemoAuthEnabled()) {
+        logLocalAction("Xóa sản phẩm", "products", id, null, null);
         deleteLocalProduct(id);
         return;
       }

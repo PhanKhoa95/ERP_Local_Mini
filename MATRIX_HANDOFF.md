@@ -1,6 +1,6 @@
 # MATRIX Handoff
 
-Last refreshed: 2026-06-17 (Asia/Saigon)
+Last refreshed: 2026-06-30 (Asia/Saigon)
 
 ## Current State
 
@@ -9,7 +9,7 @@ This workspace is a Vite React TypeScript ERP Mini webapp backed by Supabase.
 Local development is expected at:
 
 ```txt
-http://127.0.0.1:8080/
+http://127.0.0.1:8017/
 ```
 
 For local UI testing, the demo shortcut account is:
@@ -35,6 +35,10 @@ The demo shortcut is local-only and enabled for local Vite development. Real aut
 - **E2E Playwright test coverage**: 
   - `tests/e2e/casso_test.spec.ts` verifying the bank transfer webhook matching flow.
   - `tests/e2e/role_verification/role_verification.spec.ts` verifying sidebar visibility and URL security redirects.
+  - `tests/e2e/core_erp_flows.spec.ts` verifying critical E2E business scenarios (Sales, Purchasing, Warehouse/Inventory, and Finance).
+  - `tests/e2e/responsive_test.spec.ts` verifying responsive design on desktop (1280x960) and mobile (375x812) viewports.
+  - `tests/e2e/health_test.spec.ts` verifying general system accessibility and response state.
+  - **Dynamic Screenshots**: Screens are automatically saved under the active conversation brain folder with no hardcoded local paths.
 - Order management has normalized control fields for source, customer, payment, warehouse, shipping zone, priority and lifecycle timestamps.
 - Tracking routes are public and available at `/tracking` and `/order-tracking`.
 - Data Hub foundation has been added with `data_sources`, `raw_events`, `entity_resolution_links` and `data_quality_issues`.
@@ -100,10 +104,11 @@ npm run test:local
 Latest local verification in this workspace:
 
 ```txt
-2026-06-17: npm run typecheck passed.
-2026-06-17: npm run lint passed with 0 errors, 14 warnings.
-2026-06-17: npx playwright test tests/e2e/casso_test.spec.ts passed.
-2026-06-17: npx playwright test tests/e2e/role_verification/role_verification.spec.ts passed.
+2026-06-30: npm run typecheck passed.
+2026-06-30: npm run lint passed with 0 errors, 12 warnings.
+2026-06-30: vitest unit/integration tests passed (249/249 tests passed).
+2026-06-30: playwright E2E tests passed (12/12 tests passed).
+2026-06-30: npm run test:local completed successfully without errors.
 ```
 
 `npm run test:local` covers TypeScript, ESLint, Vitest and production build.
@@ -156,6 +161,9 @@ Note: that script rewrites `docs/EDGE_FUNCTIONS_AUDIT.md`.
 18. ~~Add BigData analytics and governance database layer.~~ Done: migration `20260522000000_add_bigdata_analytics_and_governance.sql` adds attribution/CLV/cohort views, scheduled data quality checks and PII minimization function.
 19. ~~Integrate Casso bank transfer reconciliation and webhook simulation.~~ Done: auto bank reconciliation on `/finance` matching order codes (regex `/[A-Z0-9]*-?ORD-[A-Z0-9-]+/i`), updating debt and orders, and generating auto journal entries (Nợ TK 112 / Có TK 131).
 20. ~~Verify deep multi-role access control rules.~~ Done: E2E Playwright verification script tests Admin, Manager and Staff sidebar and route permission blocks.
+21. ~~Refactor Playwright screenshots paths to dynamically load active brain path.~~ Done: screenshots paths updated to write to conversation directories dynamically, clearing hardcoded older directories.
+22. ~~Implement E2E test coverage for core business workflows (Sales, Purchasing, Warehouse/Inventory, and Finance).~~ Done: `core_erp_flows.spec.ts` verify full checkout, supplier data seeding, stock-in/out and casso dashboard.
+23. ~~Implement Vitest Unit/Integration coverage for order number auto-generation, BOM calculation, and role-based routing access controls.~~ Done: `useOrderLogic.test.ts` and `useRoleAccess.test.ts` added and passed.
 
 ## Next Coding / Operational Tasks
 

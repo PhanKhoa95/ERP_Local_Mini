@@ -4,12 +4,42 @@ import { ArrowDownLeft, ArrowUpRight, TrendingUp, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { startOfMonth } from "date-fns";
 
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+
 export function CashFlowCard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["cashflow-stats"],
     queryFn: async () => {
       const monthStart = startOfMonth(new Date());
-      
+
+      if (isLocalDemoAuthEnabled()) {
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+        const orders = rawOrders ? JSON.parse(rawOrders) : [];
+        const products = rawProducts ? JSON.parse(rawProducts) : [];
+
+        const startStr = monthStart.toISOString();
+
+        const currentMonthOrders = orders.filter((o: any) => {
+          const date = o.order_date || o.created_at;
+          return date >= startStr && ["delivered", "confirmed", "processing", "shipping"].includes(o.status);
+        });
+
+        const revenue = currentMonthOrders.reduce((sum: number, o: any) => sum + (Number(o.total) || 0), 0);
+
+        let cogs = 0;
+        currentMonthOrders.forEach((order: any) => {
+          order.order_items?.forEach((item: any) => {
+            const product = products.find((p: any) => p.id === item.product_id);
+            if (product) {
+              cogs += (Number(product.cost_price) || 0) * item.quantity;
+            }
+          });
+        });
+
+        return { revenue, cogs, profit: revenue - cogs };
+      }
+
       const [ordersRes, productsRes] = await Promise.all([
         supabase
           .from("orders")
@@ -40,6 +70,7 @@ export function CashFlowCard() {
       return { revenue, cogs, profit: revenue - cogs };
     },
   });
+
 
   if (isLoading) {
     return (

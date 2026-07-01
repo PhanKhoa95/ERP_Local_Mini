@@ -12,7 +12,16 @@ export function isLocalDemoCredentials(email: string, password: string) {
 }
 
 export function isLocalDemoAuthEnabled() {
-  return import.meta.env.DEV && localStorage.getItem(LOCAL_DEMO_AUTH_KEY) === "true";
+  const isEnabled = import.meta.env.DEV && localStorage.getItem(LOCAL_DEMO_AUTH_KEY) === "true";
+  if (isEnabled && typeof window !== "undefined") {
+    const currentVersion = "v9";
+    if (localStorage.getItem("erp-mini-local-demo-version") !== currentVersion) {
+      resetLocalDemoData();
+      localStorage.setItem("erp-mini-local-demo-version", currentVersion);
+      window.location.reload();
+    }
+  }
+  return isEnabled;
 }
 
 export function enableLocalDemoAuth() {
@@ -55,4 +64,21 @@ export function createLocalDemoSession(): Session {
     token_type: "bearer",
     user: createLocalDemoUser(),
   };
+}
+
+/** Clear all demo data keys (preserves auth state) so fresh seed data will load. */
+export function resetLocalDemoData() {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (
+      key &&
+      key.startsWith("erp-mini-local-demo-") &&
+      key !== LOCAL_DEMO_AUTH_KEY &&
+      key !== "erp-mini-local-demo-role"
+    ) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((k) => localStorage.removeItem(k));
 }

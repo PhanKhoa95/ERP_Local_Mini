@@ -18,7 +18,7 @@ function getLocalChannels(companyId: string): SalesChannel[] {
     const defaultChannels = [
       {
         id: "channel-retail",
-        name: "Cửa hàng bán lẻ",
+        name: "Cửa hàng bán lẻ (POS)",
         code: "RETAIL",
         is_active: true,
         company_id: companyId,
@@ -27,28 +27,49 @@ function getLocalChannels(companyId: string): SalesChannel[] {
         description: "Kênh bán lẻ trực tiếp tại cửa hàng",
       },
       {
+        id: "channel-zalo",
+        name: "Zalo Chat / Zalo OA",
+        code: "ZALO",
+        is_active: true,
+        company_id: companyId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        description: "Kênh chốt đơn chính qua chat và Zalo Official Account",
+      },
+      {
+        id: "channel-facebook",
+        name: "Facebook Page / Messenger",
+        code: "FACEBOOK",
+        is_active: true,
+        company_id: companyId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        description: "Kênh thu hút khách hàng và quảng cáo địa phương",
+      },
+      {
         id: "channel-shopee",
-        name: "Shopee",
+        name: "Shopee Shop",
         code: "SHOPEE",
         is_active: true,
         company_id: companyId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        description: "Kênh thương mại điện tử Shopee",
+        description: "Kênh thương mại điện tử Shopee (giá riêng)",
       },
       {
-        id: "channel-lazada",
-        name: "Lazada",
-        code: "LAZADA",
+        id: "channel-b2b",
+        name: "Khách hàng doanh nghiệp (B2B)",
+        code: "B2B",
         is_active: true,
         company_id: companyId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        description: "Kênh thương mại điện tử Lazada",
+        description: "Hợp đồng và dự án doanh nghiệp lớn",
       },
     ] as any as SalesChannel[];
     localStorage.setItem(CHANNELS_KEY, JSON.stringify(defaultChannels));
     return defaultChannels;
+
   }
   try {
     return JSON.parse(raw) as SalesChannel[];

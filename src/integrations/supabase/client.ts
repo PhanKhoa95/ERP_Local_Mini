@@ -23,6 +23,35 @@ import { handleLocalFunctionInvoke } from '@/lib/localAIService';
 const functionsProto = Object.getPrototypeOf(supabase.functions);
 const originalInvoke = functionsProto.invoke;
 functionsProto.invoke = async function (functionName: string, options?: any) {
+  // Read active rotated configuration from localStorage
+  const rawRotationSettings = localStorage.getItem("erp-mini-ai-rotator-settings-v1");
+  const activeId = localStorage.getItem("erp-mini-ai-rotator-settings-v1-active-id") || "gemini";
+  let activeConfig = null;
+  
+  if (rawRotationSettings) {
+    try {
+      const parsedProviders = JSON.parse(rawRotationSettings);
+      const currentP = parsedProviders.find((p: any) => p.id === activeId) || parsedProviders[0];
+      if (currentP && currentP.keys[currentP.activeKeyIndex]) {
+        activeConfig = {
+          provider: currentP.id,
+          model: currentP.selectedModel,
+          apiKey: currentP.keys[currentP.activeKeyIndex] || "",
+          baseUrl: currentP.baseUrl
+        };
+      }
+    } catch (e) {
+      console.error("Failed to parse rotator configuration in client.ts:", e);
+    }
+  }
+
+  // Inject activeConfig into options.body if custom keys are configured
+  if (activeConfig) {
+    if (!options) options = {};
+    if (!options.body) options.body = {};
+    options.body.aiProviderConfig = activeConfig;
+  }
+
   if (isLocalDemoAuthEnabled()) {
     try {
       const result = await handleLocalFunctionInvoke(functionName, options);

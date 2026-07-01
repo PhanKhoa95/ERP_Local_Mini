@@ -1,14 +1,12 @@
-# Progress — 2026-06-21T12:41:58+07:00
+# Progress — 2026-06-30T11:27:58+07:00
 
 ## Current Status
-Last visited: 2026-06-21T16:21:00+07:00
-- [x] Decompose milestones and create PROJECT.md [done]
-- [x] Milestone 1: Initial exploration and project mapping [done]
-- [ ] Milestone 2: Clean install of dependencies [in-progress]
-- [ ] Milestone 3: TypeScript check compliance [pending]
-- [ ] Milestone 4: ESLint check compliance [pending]
-- [ ] Milestone 5: Unit & integration test execution [pending]
-- [ ] Milestone 6: Start local Vite development server on port 8017 and verify homepage and login [pending]
+Last visited: 2026-06-30T11:55:00+07:00
+- [x] Milestone 1: Exploration & Codebase Analysis [done]
+- [x] Milestone 2: Centralized Event Bus (`src/lib/erpEventBus.ts`) & Hook Integration [done]
+- [x] Milestone 3: Subscribers & Operations Handlers (Inventory, Accounting, Partner Debt) [done]
+- [x] Milestone 4: UI State Synchronization & Query Invalidation [done]
+- [x] Milestone 5: Verification & Passing Tests [done]
 
 ## Iteration Status
 Current iteration: 1 / 32

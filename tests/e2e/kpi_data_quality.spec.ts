@@ -1,22 +1,15 @@
 import { test, expect } from "@playwright/test";
+import { loginLocalDemo, getBrainPath, ensureDir } from "./helpers";
+import * as path from "path";
 
 test("verify KPI data quality check detects 10 issues and can resolve them", async ({ page }) => {
   // Set viewport size
   await page.setViewportSize({ width: 1280, height: 960 });
 
-  // 1. Navigate to auth page and login
-  await page.goto("http://127.0.0.1:8080/auth", { waitUntil: "domcontentloaded" });
-  
-  // Fill credentials
-  await page.fill("#login-email", "admin");
-  await page.fill("#login-password", "admin");
-  await page.click('button[type="submit"]');
-
-  // Wait for login redirection
-  await page.waitForURL("**/");
+  await loginLocalDemo(page);
 
   // 2. Navigate to Data Hub page
-  await page.goto("http://127.0.0.1:8080/data-hub", { waitUntil: "domcontentloaded" });
+  await page.goto("/data-hub", { waitUntil: "domcontentloaded" });
   await page.waitForSelector("text=Data Hub & BigData");
 
   // 3. Navigate to BigData & Analytics tab
@@ -50,7 +43,9 @@ test("verify KPI data quality check detects 10 issues and can resolve them", asy
   expect(openCount).toBeGreaterThanOrEqual(10); // Since it seeds at least 10 issues
 
   // Take a screenshot of the detected issues list
-  await page.screenshot({ path: "C:/Users/KHOA MEDIA/.gemini/antigravity/brain/81091271-6a4a-4083-9787-ff9d6e09437c/kpi_issues_detected.png" });
+  const screenshotPath1 = path.join(getBrainPath(), "kpi_issues_detected.png");
+  ensureDir(screenshotPath1);
+  await page.screenshot({ path: screenshotPath1 });
   console.log("Screenshot kpi_issues_detected.png saved.");
 
   // 8. Click "Đóng" (Resolve) on the first issue
@@ -69,6 +64,8 @@ test("verify KPI data quality check detects 10 issues and can resolve them", asy
   console.log("Verified issue status transitioned to 'resolved'.");
 
   // Take a screenshot of resolved status
-  await page.screenshot({ path: "C:/Users/KHOA MEDIA/.gemini/antigravity/brain/81091271-6a4a-4083-9787-ff9d6e09437c/kpi_issue_resolved.png" });
+  const screenshotPath2 = path.join(getBrainPath(), "kpi_issue_resolved.png");
+  ensureDir(screenshotPath2);
+  await page.screenshot({ path: screenshotPath2 });
   console.log("Screenshot kpi_issue_resolved.png saved.");
 });

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+
 export function LowStockAlert() {
   const { companyId } = useCompanyContext();
 
@@ -12,6 +14,15 @@ export function LowStockAlert() {
     queryKey: ["low-stock-products", companyId],
     enabled: !!companyId,
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+        const products = rawProducts ? JSON.parse(rawProducts) : [];
+        return products
+          .filter((p: any) => p.company_id === companyId && !p.is_service && (p.stock_quantity || 0) <= (p.min_stock || 0))
+          .sort((a: any, b: any) => (a.stock_quantity || 0) - (b.stock_quantity || 0))
+          .slice(0, 10);
+      }
+
       const { data, error } = await supabase
         .from("products")
         .select("*")
@@ -22,6 +33,7 @@ export function LowStockAlert() {
       return data.filter(p => (p.stock_quantity || 0) <= (p.min_stock || 0));
     },
   });
+
 
   if (isLoading) {
     return (

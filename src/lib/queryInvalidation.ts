@@ -9,9 +9,8 @@ export function invalidateOrderRelated(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["warehouse-stock"] });
   queryClient.invalidateQueries({ queryKey: ["warehouse-stock-full"] });
   queryClient.invalidateQueries({ queryKey: ["inventory-transactions"] });
-  queryClient.invalidateQueries({ queryKey: ["journal_entries"] });
-  queryClient.invalidateQueries({ queryKey: ["journal_lines"] });
-  queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+  queryClient.invalidateQueries({ queryKey: ["journal-entries-and-lines"] });
+  queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
   queryClient.invalidateQueries({ queryKey: ["today-completed-tasks"] });
   queryClient.invalidateQueries({ queryKey: ["payment-transactions"] });
   queryClient.invalidateQueries({ queryKey: ["debt-summary"] });
@@ -31,9 +30,8 @@ export function invalidateProductRelated(queryClient: QueryClient) {
 
 /** Invalidate all query keys affected when accounting entries change */
 export function invalidateAccountingRelated(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: ["journal_entries"] });
-  queryClient.invalidateQueries({ queryKey: ["journal_lines"] });
-  queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+  queryClient.invalidateQueries({ queryKey: ["journal-entries-and-lines"] });
+  queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
 }
 
 /** Invalidate all query keys affected when warehouse/stock changes */
@@ -54,8 +52,8 @@ export function invalidatePaymentRelated(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
   queryClient.invalidateQueries({ queryKey: ["orders"] });
   queryClient.invalidateQueries({ queryKey: ["partners"] });
-  queryClient.invalidateQueries({ queryKey: ["journal_entries"] });
-  queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+  queryClient.invalidateQueries({ queryKey: ["journal-entries-and-lines"] });
+  queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
 }
 
 /** Invalidate keys affected when contracts change (sign, milestone payment) */
@@ -63,10 +61,11 @@ export function invalidateContractRelated(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["smart-contracts"] });
   queryClient.invalidateQueries({ queryKey: ["contract-milestones"] });
   queryClient.invalidateQueries({ queryKey: ["finance-stats"] });
-  queryClient.invalidateQueries({ queryKey: ["journal_entries"] });
-  queryClient.invalidateQueries({ queryKey: ["chart_of_accounts"] });
+  queryClient.invalidateQueries({ queryKey: ["journal-entries-and-lines"] });
+  queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
   queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
   queryClient.invalidateQueries({ queryKey: ["payment-transactions"] });
+  queryClient.invalidateQueries({ queryKey: ["orders"] });
 }
 
 /** Invalidate keys affected when bookings change (service revenue) */

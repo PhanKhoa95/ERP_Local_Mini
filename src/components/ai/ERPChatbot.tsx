@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAIRotator } from "@/hooks/useAIRotator";
 import { Bot, Send, Loader2, X, Minimize2, Sparkles, BarChart3, Package, ShoppingCart, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,8 @@ export function ERPChatbot() {
     return () => clearTimeout(timer);
   }, [messages, isLoading]);
 
+  const { activeConfig, rotateActiveKey, rotateToNextProvider, activeProviderId } = useAIRotator();
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading || !companyId) return;
 
@@ -51,32 +54,88 @@ export function ERPChatbot() {
     setMessages(newMessages);
     setIsLoading(true);
 
-    try {
-      const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
-        body: {
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          companyId,
-        },
-      });
+    let attempts = 0;
+    const maxAttempts = 3;
+    let success = false;
+    let currentConfig = { ...activeConfig };
+    let currentProviderId = activeProviderId;
 
-      if (error) throw error;
+    while (attempts < maxAttempts && !success) {
+      try {
+        attempts++;
+        const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
+          body: {
+            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            companyId,
+            aiProviderConfig: currentConfig
+          },
+        });
 
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: data.answer || "Xin lỗi, tôi không thể trả lời." },
-      ]);
-    } catch (error: any) {
-      console.error("ERP Assistant error:", error);
-      const errorMsg = error?.message?.includes("429") 
-        ? "Quá nhiều yêu cầu. Vui lòng thử lại sau."
-        : error?.message?.includes("402")
-        ? "Đã hết quota AI. Vui lòng nạp thêm credits."
-        : "Có lỗi xảy ra. Vui lòng thử lại.";
-      toast({ variant: "destructive", title: "Lỗi", description: errorMsg });
-      setMessages(prev => [...prev, { role: "assistant", content: errorMsg }]);
-    } finally {
-      setIsLoading(false);
+        if (error) throw error;
+
+        setMessages(prev => [
+          ...prev,
+          { role: "assistant", content: data.answer || "Xin lỗi, tôi không thể trả lời." },
+        ]);
+        success = true;
+      } catch (error: any) {
+        console.error(`AI Connection attempt ${attempts} failed:`, error);
+        
+        const isRotatableError = 
+          error?.message?.includes("429") || 
+          error?.message?.includes("402") || 
+          error?.message?.includes("401") ||
+          error?.message?.includes("Rate limit") ||
+          error?.message?.includes("quota") ||
+          error?.message?.includes("API key") ||
+          error?.message?.includes("unauthorized") ||
+          error?.message?.includes("token");
+
+        if (isRotatableError && attempts < maxAttempts) {
+          // Try to rotate keys for current provider
+          const rotatedKey = rotateActiveKey(currentProviderId);
+          if (!rotatedKey) {
+            // If all keys of current provider exhausted, rotate to next enabled provider
+            const rotatedProvider = rotateToNextProvider();
+            if (!rotatedProvider) {
+              break;
+            }
+          }
+
+          // Directly load the updated local storage state for the next loop run
+          const rawRotationSettings = localStorage.getItem("erp-mini-ai-rotator-settings-v1");
+          const activeId = localStorage.getItem("erp-mini-ai-rotator-settings-v1-active-id") || "gemini";
+          if (rawRotationSettings) {
+            const parsedProviders = JSON.parse(rawRotationSettings);
+            const currentP = parsedProviders.find((p: any) => p.id === activeId) || parsedProviders[0];
+            currentConfig = {
+              provider: currentP.id,
+              model: currentP.selectedModel,
+              apiKey: currentP.keys[currentP.activeKeyIndex] || "",
+              baseUrl: currentP.baseUrl
+            };
+            currentProviderId = currentP.id;
+          }
+
+          toast({
+            title: "Lỗi kết nối AI - Đang tự động xoay tua",
+            description: "Hệ thống đang định tuyến lại yêu cầu của bạn qua API Key dự phòng..."
+          });
+          continue;
+        } else {
+          const errorMsg = error?.message?.includes("429") 
+            ? "Quá nhiều yêu cầu. Vui lòng thử lại sau."
+            : error?.message?.includes("402")
+            ? "Đã hết quota AI. Vui lòng nạp thêm credits."
+            : "Lỗi kết nối đến dịch vụ AI. Vui lòng kiểm tra lại API Key.";
+          toast({ variant: "destructive", title: "Lỗi", description: errorMsg });
+          setMessages(prev => [...prev, { role: "assistant", content: errorMsg }]);
+          break;
+        }
+      }
     }
+    
+    setIsLoading(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

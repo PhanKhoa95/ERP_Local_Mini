@@ -366,7 +366,7 @@ export function usePayroll() {
           };
 
           // 2. Tạo journal lines
-          const rawAccs = localStorage.getItem("erp-mini-local-demo-chart-of-accounts");
+          const rawAccs = localStorage.getItem("erp-mini-local-demo-accounts");
           const accs = rawAccs ? JSON.parse(rawAccs) : [];
           const getAccId = (code: string) => accs.find((a: any) => a.code === code)?.id || `acc-${code}`;
 
@@ -487,9 +487,8 @@ export function usePayroll() {
     },
     onSuccess: () => { 
       qc.invalidateQueries({ queryKey: ["payroll-runs"] }); 
-      qc.invalidateQueries({ queryKey: ["chart_of_accounts"] });
-      qc.invalidateQueries({ queryKey: ["journal_entries"] });
-      qc.invalidateQueries({ queryKey: ["journal_lines"] });
+      qc.invalidateQueries({ queryKey: ["chart-of-accounts"] });
+      qc.invalidateQueries({ queryKey: ["journal-entries-and-lines"] });
       toast.success("Đã cập nhật trạng thái"); 
     },
     onError: (e: Error) => toast.error(e.message),

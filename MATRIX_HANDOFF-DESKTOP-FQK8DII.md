@@ -5,7 +5,7 @@
 This workspace is a Vite React TypeScript ERP Mini webapp backed by Supabase. The local development server is expected at:
 
 ```txt
-http://127.0.0.1:8080/
+http://127.0.0.1:8017/
 ```
 
 For local UI testing, the demo shortcut account is:

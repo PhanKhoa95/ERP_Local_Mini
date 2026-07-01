@@ -14,13 +14,11 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer 
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-
-interface IntegrityResult {
-  module: string;
-  status: "ok" | "warning" | "error";
-  message: string;
-}
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { runSystemDataAudit, type SystemDataAuditReport } from "@/lib/systemDataAudit";
+import { syncBomCostToProducts } from "@/lib/localInventoryStore";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MetricHistoryItem {
   time: string;
@@ -77,8 +75,22 @@ const featureDescriptions = {
   workflow_engine: "Duyệt tự động hóa tài liệu & phê duyệt"
 };
 
+const formatAuditValue = (value: number) =>
+  new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 4 }).format(value);
+
+const formatAuditTime = (value: string) =>
+  new Date(value).toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
 export function SystemHealthTab() {
   const { toast } = useToast();
+  const { companyId } = useCompanyContext();
   const [isInjecting, setIsInjecting] = useState(() => localStorage.getItem("system-integrity-injecting") === "true");
   const [dbStatus, setDbStatus] = useState<"up" | "down">(() => (localStorage.getItem("system-integrity-db-status") as "up" | "down") || "up");
   const [apiStatuses, setApiStatuses] = useState(() => ({
@@ -146,9 +158,12 @@ export function SystemHealthTab() {
   const updateMetricsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const consoleBottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Load audit logs data integrity check (original logic)
-  const [integrityResults, setIntegrityResults] = useState<IntegrityResult[] | null>(null);
+  const [auditReport, setAuditReport] = useState<SystemDataAuditReport | null>(null);
   const [checkingIntegrity, setCheckingIntegrity] = useState(false);
+  const [autoAuditEnabled, setAutoAuditEnabled] = useState(
+    () => localStorage.getItem("system-data-auto-audit-enabled") === "true"
+  );
+  const auditIssueCount = auditReport ? auditReport.warningCount + auditReport.errorCount : 0;
 
   // Initialize Metric History
   useEffect(() => {
@@ -235,7 +250,7 @@ export function SystemHealthTab() {
     };
     updateBackendState();
     generateTerminusJson();
-  }, [isInjecting, cpuPercentage, ramUsed, dbStatus, apiStatuses, featureStatuses]);
+  }, [isInjecting, cpuPercentage, ramUsed, dbStatus, apiStatuses, featureStatuses, auditReport]);
 
   const isInjectingRef = useRef(isInjecting);
   const dbStatusRef = useRef(dbStatus);
@@ -611,6 +626,30 @@ export function SystemHealthTab() {
       details[name] = data;
     });
 
+    if (auditReport) {
+      const dataAuditStatus = auditIssueCount > 0 ? "down" : "up";
+      const dataAuditPayload = {
+        status: dataAuditStatus,
+        score: auditReport.score,
+        totalChecks: auditReport.totalChecks,
+        issues: auditIssueCount,
+        errors: auditReport.errorCount,
+        warnings: auditReport.warningCount,
+        scannedAt: auditReport.scannedAt,
+        ...(auditIssueCount > 0
+          ? { message: "Phát hiện sai lệch dữ liệu trong tồn kho, giá, đơn hàng, thanh toán, kế toán hoặc BOM" }
+          : {}),
+      };
+
+      if (dataAuditStatus === "up") {
+        info["data_consistency"] = dataAuditPayload;
+      } else {
+        overallStatus = "error";
+        error["data_consistency"] = dataAuditPayload;
+      }
+      details["data_consistency"] = dataAuditPayload;
+    }
+
     const healthData = {
       status: overallStatus,
       info,
@@ -627,84 +666,47 @@ export function SystemHealthTab() {
     setTimeout(() => setCoping(false), 2000);
   };
 
-  // Updated Data Integrity Check to inspect feature statuses
-  const runDataIntegrityCheck = async () => {
+  const runDataIntegrityCheck = useCallback(async (mode: "manual" | "auto" = "manual") => {
     setCheckingIntegrity(true);
     try {
-      setTimeout(() => {
-        const mockResults: IntegrityResult[] = [
-          { 
-            module: "Tồn kho & SKU", 
-            status: featureStatuses.inventory_control === "down" ? "error" : "ok", 
-            message: featureStatuses.inventory_control === "down" 
-              ? "Lỗi: Phát hiện chênh lệch kiểm kho lớn tại Kho Q1." 
-              : "Tất cả SKU đều khớp. Không phát hiện tồn kho âm." 
-          },
-          { 
-            module: "Kế toán Sổ cái", 
-            status: featureStatuses.accounting_ledger === "down" ? "error" : "ok", 
-            message: featureStatuses.accounting_ledger === "down" 
-              ? "Lỗi: Bút toán sổ cái không cân đối (Nợ khác Có) trong kỳ hạch toán." 
-              : "Bút toán kép cân đối tổng phát sinh Nợ = Có." 
-          },
-          { 
-            module: "Bảng lương & Chấm công", 
-            status: featureStatuses.performance_kpi === "down" ? "error" : isInjecting ? "warning" : "ok", 
-            message: featureStatuses.performance_kpi === "down"
-              ? "Lỗi: Lộ trình thăng tiến nhân sự chưa cấu hình cấp bậc liên kết."
-              : isInjecting 
-                ? "Cảnh báo: Tải giao dịch cao phát sinh độ trễ ghi công." 
-                : "Tính toán lương chính xác cho 4 nhân sự." 
-          },
-          { 
-            module: "Kết nối Database ERP", 
-            status: dbStatus === "down" ? "error" : "ok", 
-            message: dbStatus === "down" 
-              ? "Lỗi: Không thể ping tới cơ sở dữ liệu." 
-              : "Độ trễ phản hồi DB ổn định (6ms)." 
-          }
-        ];
+      const report = await runSystemDataAudit(companyId);
+      setAuditReport(report);
+      setCheckingIntegrity(false);
 
-        // Add details for other failing features
-        Object.entries(featureStatuses).forEach(([key, value]) => {
-          const featureKey = key as keyof typeof featureStatuses;
-          if (value === "down") {
-            const displayName = featureDisplayNames[featureKey];
-            const message = {
-              pos_sales: "Lỗi in hóa đơn hoặc lỗi cổng thanh toán QR code.",
-              order_fulfillment: "Lỗi phân vùng đơn hàng tự động do thiếu dữ liệu địa chỉ.",
-              channel_sync: "Lỗi xác thực khóa API Shopee (Token expired).",
-              ai_chatbot: "AI phản hồi chậm (>10s) hoặc lỗi Vector Database connection.",
-              workflow_engine: "Lỗi vòng lặp vô hạn trong luồng tự động duyệt báo giá."
-            }[featureKey as string];
-            
-            if (message) {
-              mockResults.push({
-                module: `Tính năng ${displayName}`,
-                status: "error",
-                message
-              });
-            }
-          }
-        });
+      const issues = report.warningCount + report.errorCount;
+      addLog(
+        `[Audit] Đối soát ${report.totalChecks} phép kiểm: ${report.errorCount} lỗi, ${report.warningCount} cảnh báo, score ${report.score}%.`
+      );
 
-        setIntegrityResults(mockResults);
-        setCheckingIntegrity(false);
-        const issues = mockResults.filter(r => r.status !== "ok").length;
+      if (mode === "manual") {
         toast({
-          title: issues > 0 ? `Kiểm tra xong: Phát hiện ${issues} vấn đề` : "Hệ thống toàn vẹn",
-          description: "Đã hoàn thành quét chẩn đoán sức khỏe hệ thống.",
+          variant: report.errorCount > 0 ? "destructive" : "default",
+          title: issues > 0 ? `Audit xong: ${issues} sai lệch` : "Dữ liệu đồng bộ",
+          description: `Đã đối soát ${report.totalChecks} phép kiểm dữ liệu hệ thống.`,
         });
-      }, 1500);
+      }
     } catch (e: any) {
       setCheckingIntegrity(false);
+      addLog(`[Audit/Lỗi] ${e.message}`);
       toast({ variant: "destructive", title: "Lỗi", description: e.message });
     }
-  };
+  }, [addLog, companyId, toast]);
+
+  useEffect(() => {
+    localStorage.setItem("system-data-auto-audit-enabled", String(autoAuditEnabled));
+    if (!autoAuditEnabled) return;
+
+    runDataIntegrityCheck("auto");
+    const interval = window.setInterval(() => {
+      runDataIntegrityCheck("auto");
+    }, 60000);
+
+    return () => window.clearInterval(interval);
+  }, [autoAuditEnabled, runDataIntegrityCheck]);
 
   const isAnyApiDown = Object.values(apiStatuses).some(s => s === "down");
   const isAnyFeatureDown = Object.values(featureStatuses).some(s => s === "down");
-  const isOverallError = isAnyApiDown || isAnyFeatureDown;
+  const isOverallError = isAnyApiDown || isAnyFeatureDown || auditIssueCount > 0;
 
   return (
     <div className="space-y-6">
@@ -956,7 +958,7 @@ export function SystemHealthTab() {
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="status" className="text-xs">Bật/Tắt Lỗi</TabsTrigger>
                 <TabsTrigger value="stats" className="text-xs">Thống kê</TabsTrigger>
-                <TabsTrigger value="scan" className="text-xs">Quét dữ liệu</TabsTrigger>
+                <TabsTrigger value="scan" className="text-xs">Audit lệch</TabsTrigger>
               </TabsList>
             </div>
 
@@ -1062,41 +1064,139 @@ export function SystemHealthTab() {
               </TabsContent>
 
               <TabsContent value="scan" className="mt-0 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Chạy quét dữ liệu & chẩn đoán hệ thống trực tiếp</span>
-                  <Button size="sm" onClick={runDataIntegrityCheck} disabled={checkingIntegrity} className="h-7 text-xs px-2.5">
-                    {checkingIntegrity ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1.5" />}
-                    Quét nhanh
-                  </Button>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-semibold text-foreground">Audit bất đồng bộ dữ liệu</span>
+                      {auditReport && (
+                        <Badge
+                          variant={auditIssueCount > 0 ? "destructive" : "secondary"}
+                          className="text-[8px] px-1.5 py-0 font-medium"
+                        >
+                          {auditIssueCount > 0 ? `${auditIssueCount} sai lệch` : "Đồng bộ"}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-snug">
+                      Đối soát tồn kho, giá, đơn hàng, thanh toán, sổ cái và định mức BOM.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-800 px-2 py-1">
+                      <Switch
+                        checked={autoAuditEnabled}
+                        onCheckedChange={setAutoAuditEnabled}
+                        className="scale-75"
+                      />
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">Tự audit</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => runDataIntegrityCheck("manual")}
+                      disabled={checkingIntegrity}
+                      className="h-7 text-xs px-2.5"
+                    >
+                      {checkingIntegrity ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1.5" />}
+                      Audit ngay
+                    </Button>
+                    {isLocalDemoAuthEnabled() && auditReport && auditReport.issues.some((i: any) => i.title?.includes("BOM")) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const results = syncBomCostToProducts();
+                          if (results.length > 0) {
+                            toast({
+                              title: `BOM Sync: Đã cập nhật ${results.length} sản phẩm`,
+                              description: results.map(r => `${r.sku}: ${r.oldCost.toLocaleString()}đ → ${r.newCost.toLocaleString()}đ`).join(" | "),
+                            });
+                            // Re-run audit after sync
+                            setTimeout(() => runDataIntegrityCheck("manual"), 500);
+                          } else {
+                            toast({ title: "BOM Sync: Không có sản phẩm nào cần cập nhật" });
+                          }
+                        }}
+                        className="h-7 text-xs px-2.5 text-blue-600 border-blue-300 hover:bg-blue-50"
+                      >
+                        <Link2 className="h-3 w-3 mr-1.5" />
+                        BOM Sync
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
-                {integrityResults ? (
-                  <div className="space-y-2">
-                    {integrityResults.map((r, i) => (
-                      <div key={i} className="flex items-start gap-2.5 p-2 rounded-lg border bg-slate-50/50 dark:bg-slate-900/30 text-xs">
-                        {r.status === "ok" ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                        ) : r.status === "warning" ? (
-                          <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 mt-0.5 shrink-0" />
-                        ) : (
-                          <AlertOctagon className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-[11px] font-semibold text-foreground leading-none">{r.module}</p>
-                            <Badge variant={r.status === "ok" ? "secondary" : "destructive"} className="text-[8px] px-1 py-0 font-medium">
-                              {r.status === "ok" ? "OK" : r.status === "warning" ? "Cảnh báo" : "Lỗi"}
-                            </Badge>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{r.message}</p>
-                        </div>
+                {auditReport ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2">
+                        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Score</p>
+                        <p className={auditIssueCount > 0 ? "text-sm font-bold text-destructive" : "text-sm font-bold text-emerald-600"}>
+                          {auditReport.score}%
+                        </p>
                       </div>
-                    ))}
+                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2">
+                        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Phép kiểm</p>
+                        <p className="text-sm font-bold text-foreground">{auditReport.okChecks}/{auditReport.totalChecks}</p>
+                      </div>
+                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2">
+                        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Lỗi</p>
+                        <p className="text-sm font-bold text-destructive">{auditReport.errorCount}</p>
+                      </div>
+                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2">
+                        <p className="text-[9px] uppercase text-muted-foreground font-semibold">Cảnh báo</p>
+                        <p className="text-sm font-bold text-amber-600">{auditReport.warningCount}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Lần audit cuối: {formatAuditTime(auditReport.scannedAt)}</span>
+                      <span>{autoAuditEnabled ? "Tự audit mỗi 60 giây" : "Tự audit đang tắt"}</span>
+                    </div>
+
+                    {auditReport.issues.length > 0 ? (
+                      <div className="space-y-2">
+                        {auditReport.issues.map((issue) => (
+                          <div key={issue.id} className="flex items-start gap-2.5 p-2 rounded-lg border bg-slate-50/50 dark:bg-slate-900/30 text-xs">
+                            {issue.severity === "warning" ? (
+                              <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                            ) : (
+                              <AlertOctagon className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <p className="text-[11px] font-semibold text-foreground leading-snug">{issue.module} · {issue.title}</p>
+                                <Badge variant={issue.severity === "warning" ? "secondary" : "destructive"} className="text-[8px] px-1 py-0 font-medium">
+                                  {issue.severity === "warning" ? "Cảnh báo" : "Lỗi"}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground leading-snug">{issue.detail}</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px] font-mono text-slate-600 dark:text-slate-300">
+                                <span className="truncate">{issue.expectedLabel}: {formatAuditValue(issue.expectedValue)}</span>
+                                <span className="truncate">{issue.actualLabel}: {formatAuditValue(issue.actualValue)}</span>
+                                <span className={Math.abs(issue.delta) > 0 ? "text-destructive" : "text-emerald-600"}>
+                                  Delta: {formatAuditValue(issue.delta)}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground leading-snug">{issue.recommendation}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-28 flex flex-col items-center justify-center text-center text-emerald-600 gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                        <CheckCircle2 className="h-6 w-6" />
+                        <p className="text-xs font-semibold">0 sai lệch dữ liệu</p>
+                        <p className="text-[10px] text-emerald-700 dark:text-emerald-300">BOM, giá, tồn kho, đơn hàng và kế toán đang khớp.</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="h-32 flex flex-col items-center justify-center text-center text-muted-foreground gap-2 pt-4">
-                    <Activity className="h-6 w-6 text-muted-foreground/40 animate-pulse" />
-                    <p className="text-xs italic">Chưa chạy quét dữ liệu</p>
+                    <Database className="h-6 w-6 text-muted-foreground/40" />
+                    <p className="text-xs italic">Chưa chạy audit dữ liệu</p>
+                    <p className="text-[10px]">Bấm Audit ngay hoặc bật Tự audit để hệ thống tự đối soát sai lệch.</p>
                   </div>
                 )}
               </TabsContent>

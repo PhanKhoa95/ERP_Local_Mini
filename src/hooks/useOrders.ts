@@ -2,9 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "./useCompanyContext";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
-import { createLocalInventoryTransaction } from "@/lib/localInventoryStore";
+import { createLocalInventoryTransaction, logLocalAction } from "@/lib/localInventoryStore";
 import { invalidateOrderRelated } from "@/lib/queryInvalidation";
 import { toast } from "sonner";
+import { erpEventBus } from "@/lib/erpEventBus";
 
 export interface OrderItem {
   id: string;
@@ -70,15 +71,22 @@ function getLocalOrders(companyId: string): Order[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(LOCAL_ORDERS_KEY);
   if (!raw) {
+    const subMonthsDate = (months: number) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - months);
+      return d.toISOString();
+    };
+
     const defaultOrders: Order[] = [
       {
         id: "ord-1",
         company_id: companyId,
-        order_number: "DH001",
+        order_number: "POS-ORD-001",
         status: "delivered",
-        total: 250000,
+        total: 198000,
         discount: 0,
-        shipping_fee: 30000,
+        shipping_fee: 0,
+        paid_amount: 198000,
         customer_name: "Nguyễn Văn An",
         customer_phone: "0912345678",
         customer_email: "an.nguyen@gmail.com",
@@ -87,33 +95,34 @@ function getLocalOrders(companyId: string): Order[] {
         payment_method: "vietqr",
         payment_status: "paid",
         priority: "medium",
-        source_type: "shopee",
-        platform_order_id: "SHP9812739812",
-        channel_id: "shopee-channel",
+        source_type: "pos",
+        platform_order_id: null,
+        channel_id: "channel-retail",
         warehouse_id: "wh-1",
-        shipping_zone_id: "sz-1",
+        shipping_zone_id: null,
         created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
         updated_at: new Date(Date.now() - 3600000 * 2).toISOString(),
         order_items: [
           {
             id: "oi-1",
             order_id: "ord-1",
-            product_id: "prod-1",
-            quantity: 1,
-            unit_price: 220000,
-            total_price: 220000,
-            products: { id: "prod-1", name: "Sản phẩm A", sku: "SKU-A" }
+            product_id: "local-prod-sticker",
+            quantity: 2,
+            unit_price: 99000,
+            total_price: 198000,
+            products: { id: "local-prod-sticker", name: "Sticker logo decal giấy", sku: "PRD-STICKER" }
           }
         ]
       },
       {
         id: "ord-2",
         company_id: companyId,
-        order_number: "DH002",
+        order_number: "ORD-WS-002",
         status: "processing",
-        total: 1200000,
-        discount: 50000,
-        shipping_fee: 45000,
+        total: 349000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 0,
         customer_name: "Phan Văn Khoa",
         customer_phone: "0987654321",
         customer_email: "khoa.phan@gmail.com",
@@ -122,33 +131,34 @@ function getLocalOrders(companyId: string): Order[] {
         payment_method: "cod",
         payment_status: "unpaid",
         priority: "high",
-        source_type: "lazada",
-        platform_order_id: "LZD8823719823",
-        channel_id: "lazada-channel",
+        source_type: "facebook",
+        platform_order_id: null,
+        channel_id: "channel-facebook",
         warehouse_id: "wh-1",
-        shipping_zone_id: "sz-1",
+        shipping_zone_id: null,
         created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
         updated_at: new Date(Date.now() - 3600000 * 5).toISOString(),
         order_items: [
           {
             id: "oi-2",
             order_id: "ord-2",
-            product_id: "prod-2",
-            quantity: 2,
-            unit_price: 600000,
-            total_price: 1200000,
-            products: { id: "prod-2", name: "Sản phẩm B", sku: "SKU-B" }
+            product_id: "local-prod-combo-new",
+            quantity: 1,
+            unit_price: 349000,
+            total_price: 349000,
+            products: { id: "local-prod-combo-new", name: "Combo Shop Mới Khởi Nghiệp", sku: "PRD-COMBO-NEW" }
           }
         ]
       },
       {
         id: "ord-3",
         company_id: companyId,
-        order_number: "DH003",
+        order_number: "ORD-WS-003",
         status: "pending",
         total: 540000,
         discount: 0,
-        shipping_fee: 20000,
+        shipping_fee: 0,
+        paid_amount: 0,
         customer_name: "Trần Thị Bé",
         customer_phone: "0905123456",
         customer_email: "be.tran@gmail.com",
@@ -157,22 +167,455 @@ function getLocalOrders(companyId: string): Order[] {
         payment_method: "vietqr",
         payment_status: "unpaid",
         priority: "medium",
-        source_type: "tiktok",
-        platform_order_id: "TKT7732894729",
-        channel_id: "tiktok-channel",
+        source_type: "shopee",
+        platform_order_id: "SHP7732894729",
+        channel_id: "channel-shopee",
         warehouse_id: "wh-1",
-        shipping_zone_id: "sz-1",
+        shipping_zone_id: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         order_items: [
           {
             id: "oi-3",
             order_id: "ord-3",
-            product_id: "prod-3",
+            product_id: "local-prod-card",
+            quantity: 4,
+            unit_price: 135000,
+            total_price: 540000,
+            products: { id: "local-prod-card", name: "Card cảm ơn / Thank you card", sku: "PRD-CARD" }
+          }
+        ]
+      },
+      // Historical Orders
+      {
+        id: "ord-h1",
+        company_id: companyId,
+        order_number: "HIST-001",
+        status: "delivered",
+        total: 198000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 198000,
+        customer_name: "Nguyễn Văn Hùng",
+        customer_phone: "0911222333",
+        customer_email: "hung@gmail.com",
+        customer_address: "Q1, TP.HCM",
+        shipping_address: "Q1, TP.HCM",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "pos",
+        platform_order_id: null,
+        channel_id: "channel-retail",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(5),
+        updated_at: subMonthsDate(5),
+        order_items: [
+          {
+            id: "oi-h1",
+            order_id: "ord-h1",
+            product_id: "local-prod-sticker",
+            quantity: 2,
+            unit_price: 99000,
+            total_price: 198000,
+            products: { id: "local-prod-sticker", name: "Sticker logo decal giấy", sku: "PRD-STICKER" }
+          }
+        ]
+      },
+      {
+        id: "ord-h2",
+        company_id: companyId,
+        order_number: "HIST-002",
+        status: "delivered",
+        total: 349000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 349000,
+        customer_name: "Trần Thị Lan",
+        customer_phone: "0922333444",
+        customer_email: "lan@gmail.com",
+        customer_address: "Q3, TP.HCM",
+        shipping_address: "Q3, TP.HCM",
+        payment_method: "cod",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "zalo",
+        platform_order_id: null,
+        channel_id: "channel-zalo",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(5),
+        updated_at: subMonthsDate(5),
+        order_items: [
+          {
+            id: "oi-h2",
+            order_id: "ord-h2",
+            product_id: "local-prod-combo-new",
             quantity: 1,
-            unit_price: 520000,
-            total_price: 520000,
-            products: { id: "prod-3", name: "Sản phẩm C", sku: "SKU-C" }
+            unit_price: 349000,
+            total_price: 349000,
+            products: { id: "local-prod-combo-new", name: "Combo Shop Mới Khởi Nghiệp", sku: "PRD-COMBO-NEW" }
+          }
+        ]
+      },
+      {
+        id: "ord-h3",
+        company_id: companyId,
+        order_number: "HIST-003",
+        status: "delivered",
+        total: 540000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 540000,
+        customer_name: "Phan Văn Minh",
+        customer_phone: "0933444555",
+        customer_email: "minh@gmail.com",
+        customer_address: "Cầu Giấy, Hà Nội",
+        shipping_address: "Cầu Giấy, Hà Nội",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "shopee",
+        platform_order_id: "SHP001",
+        channel_id: "channel-shopee",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(4),
+        updated_at: subMonthsDate(4),
+        order_items: [
+          {
+            id: "oi-h3",
+            order_id: "ord-h3",
+            product_id: "local-prod-card",
+            quantity: 4,
+            unit_price: 135000,
+            total_price: 540000,
+            products: { id: "local-prod-card", name: "Card cảm ơn / Thank you card", sku: "PRD-CARD" }
+          }
+        ]
+      },
+      {
+        id: "ord-h4",
+        company_id: companyId,
+        order_number: "HIST-004",
+        status: "delivered",
+        total: 109000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 109000,
+        customer_name: "Lê Thị Thảo",
+        customer_phone: "0944555666",
+        customer_email: "thao@gmail.com",
+        customer_address: "Đống Đa, Hà Nội",
+        shipping_address: "Đống Đa, Hà Nội",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "low",
+        source_type: "facebook",
+        platform_order_id: null,
+        channel_id: "channel-facebook",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(4),
+        updated_at: subMonthsDate(4),
+        order_items: [
+          {
+            id: "oi-h4",
+            order_id: "ord-h4",
+            product_id: "local-prod-qr-board",
+            quantity: 1,
+            unit_price: 109000,
+            total_price: 109000,
+            products: { id: "local-prod-qr-board", name: "Bảng QR để bàn mica", sku: "PRD-QR-BOARD" }
+          }
+        ]
+      },
+      {
+        id: "ord-h5",
+        company_id: companyId,
+        order_number: "HIST-005",
+        status: "delivered",
+        total: 396000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 396000,
+        customer_name: "Hoàng Văn Tuấn",
+        customer_phone: "0955666777",
+        customer_email: "tuan@gmail.com",
+        customer_address: "Q10, TP.HCM",
+        shipping_address: "Q10, TP.HCM",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "pos",
+        platform_order_id: null,
+        channel_id: "channel-retail",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(3),
+        updated_at: subMonthsDate(3),
+        order_items: [
+          {
+            id: "oi-h5",
+            order_id: "ord-h5",
+            product_id: "local-prod-sticker",
+            quantity: 4,
+            unit_price: 99000,
+            total_price: 396000,
+            products: { id: "local-prod-sticker", name: "Sticker logo decal giấy", sku: "PRD-STICKER" }
+          }
+        ]
+      },
+      {
+        id: "ord-h6",
+        company_id: companyId,
+        order_number: "HIST-006",
+        status: "delivered",
+        total: 698000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 698000,
+        customer_name: "Ngô Thị Vân",
+        customer_phone: "0966777888",
+        customer_email: "van@gmail.com",
+        customer_address: "Q5, TP.HCM",
+        shipping_address: "Q5, TP.HCM",
+        payment_method: "cod",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "zalo",
+        platform_order_id: null,
+        channel_id: "channel-zalo",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(3),
+        updated_at: subMonthsDate(3),
+        order_items: [
+          {
+            id: "oi-h6",
+            order_id: "ord-h6",
+            product_id: "local-prod-combo-new",
+            quantity: 2,
+            unit_price: 349000,
+            total_price: 698000,
+            products: { id: "local-prod-combo-new", name: "Combo Shop Mới Khởi Nghiệp", sku: "PRD-COMBO-NEW" }
+          }
+        ]
+      },
+      {
+        id: "ord-h7",
+        company_id: companyId,
+        order_number: "HIST-007",
+        status: "delivered",
+        total: 1080000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 1080000,
+        customer_name: "Vũ Văn Hải",
+        customer_phone: "0977888999",
+        customer_email: "hai@gmail.com",
+        customer_address: "Thanh Xuân, Hà Nội",
+        shipping_address: "Thanh Xuân, Hà Nội",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "shopee",
+        platform_order_id: "SHP002",
+        channel_id: "channel-shopee",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(2),
+        updated_at: subMonthsDate(2),
+        order_items: [
+          {
+            id: "oi-h7",
+            order_id: "ord-h7",
+            product_id: "local-prod-card",
+            quantity: 8,
+            unit_price: 135000,
+            total_price: 1080000,
+            products: { id: "local-prod-card", name: "Card cảm ơn / Thank you card", sku: "PRD-CARD" }
+          }
+        ]
+      },
+      {
+        id: "ord-h8",
+        company_id: companyId,
+        order_number: "HIST-008",
+        status: "delivered",
+        total: 218000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 218000,
+        customer_name: "Đỗ Thị Quỳnh",
+        customer_phone: "0988999000",
+        customer_email: "quynh@gmail.com",
+        customer_address: "Hai Bà Trưng, Hà Nội",
+        shipping_address: "Hai Bà Trưng, Hà Nội",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "low",
+        source_type: "facebook",
+        platform_order_id: null,
+        channel_id: "channel-facebook",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(2),
+        updated_at: subMonthsDate(2),
+        order_items: [
+          {
+            id: "oi-h8",
+            order_id: "ord-h8",
+            product_id: "local-prod-qr-board",
+            quantity: 2,
+            unit_price: 109000,
+            total_price: 218000,
+            products: { id: "local-prod-qr-board", name: "Bảng QR để bàn mica", sku: "PRD-QR-BOARD" }
+          }
+        ]
+      },
+      {
+        id: "ord-h9",
+        company_id: companyId,
+        order_number: "HIST-009",
+        status: "delivered",
+        total: 792000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 792000,
+        customer_name: "Bùi Văn Nam",
+        customer_phone: "0999000111",
+        customer_email: "nam@gmail.com",
+        customer_address: "Q7, TP.HCM",
+        shipping_address: "Q7, TP.HCM",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "pos",
+        platform_order_id: null,
+        channel_id: "channel-retail",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(1),
+        updated_at: subMonthsDate(1),
+        order_items: [
+          {
+            id: "oi-h9",
+            order_id: "ord-h9",
+            product_id: "local-prod-sticker",
+            quantity: 8,
+            unit_price: 99000,
+            total_price: 792000,
+            products: { id: "local-prod-sticker", name: "Sticker logo decal giấy", sku: "PRD-STICKER" }
+          }
+        ]
+      },
+      {
+        id: "ord-h10",
+        company_id: companyId,
+        order_number: "HIST-010",
+        status: "delivered",
+        total: 1047000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 1047000,
+        customer_name: "Đặng Thị Hoa",
+        customer_phone: "0911333555",
+        customer_email: "hoa@gmail.com",
+        customer_address: "Q2, TP.HCM",
+        shipping_address: "Q2, TP.HCM",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "high",
+        source_type: "zalo",
+        platform_order_id: null,
+        channel_id: "channel-zalo",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(1),
+        updated_at: subMonthsDate(1),
+        order_items: [
+          {
+            id: "oi-h10",
+            order_id: "ord-h10",
+            product_id: "local-prod-combo-new",
+            quantity: 3,
+            unit_price: 349000,
+            total_price: 1047000,
+            products: { id: "local-prod-combo-new", name: "Combo Shop Mới Khởi Nghiệp", sku: "PRD-COMBO-NEW" }
+          }
+        ]
+      },
+      {
+        id: "ord-h11",
+        company_id: companyId,
+        order_number: "HIST-011",
+        status: "delivered",
+        total: 540000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 540000,
+        customer_name: "Lâm Văn Tuấn",
+        customer_phone: "0922444666",
+        customer_email: "lamtuan@gmail.com",
+        customer_address: "Tây Hồ, Hà Nội",
+        shipping_address: "Tây Hồ, Hà Nội",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "medium",
+        source_type: "shopee",
+        platform_order_id: "SHP003",
+        channel_id: "channel-shopee",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(1),
+        updated_at: subMonthsDate(1),
+        order_items: [
+          {
+            id: "oi-h11",
+            order_id: "ord-h11",
+            product_id: "local-prod-card",
+            quantity: 4,
+            unit_price: 135000,
+            total_price: 540000,
+            products: { id: "local-prod-card", name: "Card cảm ơn / Thank you card", sku: "PRD-CARD" }
+          }
+        ]
+      },
+      {
+        id: "ord-h12",
+        company_id: companyId,
+        order_number: "HIST-012",
+        status: "delivered",
+        total: 149000,
+        discount: 0,
+        shipping_fee: 0,
+        paid_amount: 149000,
+        customer_name: "Nguyễn Thị Hương",
+        customer_phone: "0933555777",
+        customer_email: "huong@gmail.com",
+        customer_address: "Q Bình Thạnh, TP.HCM",
+        shipping_address: "Q Bình Thạnh, TP.HCM",
+        payment_method: "vietqr",
+        payment_status: "paid",
+        priority: "low",
+        source_type: "zalo",
+        platform_order_id: null,
+        channel_id: "channel-zalo",
+        warehouse_id: "wh-1",
+        shipping_zone_id: null,
+        created_at: subMonthsDate(1),
+        updated_at: subMonthsDate(1),
+        order_items: [
+          {
+            id: "oi-h12",
+            order_id: "ord-h12",
+            product_id: "local-prod-design-qr",
+            quantity: 1,
+            unit_price: 149000,
+            total_price: 149000,
+            products: { id: "local-prod-design-qr", name: "Dịch vụ thiết kế Avatar & QR", sku: "PRD-DESIGN-QR" }
           }
         ]
       }
@@ -180,6 +623,7 @@ function getLocalOrders(companyId: string): Order[] {
     localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(defaultOrders));
     return defaultOrders;
   }
+
   try {
     return JSON.parse(raw);
   } catch {
@@ -337,10 +781,16 @@ export function useOrders() {
         all.unshift(newOrder);
         saveLocalOrders(all);
 
-        // Deduct stock for local demo
-        if (items && items.length > 0) {
-          deductLocalStock(items, orderNumber);
-        }
+        // Audit log
+        logLocalAction("Tạo đơn hàng mới", "orders", orderId, null, {
+          order_number: newOrder.order_number,
+          total: newOrder.total,
+          items_count: (items || []).length,
+          customer: newOrder.customer_name,
+        });
+
+        // Publish event instead of direct local deduction
+        erpEventBus.publish("ORDER_CREATED", { order: newOrder, items: items });
 
         return newOrder;
       }
@@ -397,6 +847,21 @@ export function useOrders() {
           const order = all[idx];
           const prevStatus = order.status;
 
+          // Status transition guard
+          const allowedTransitions: Record<string, string[]> = {
+            pending: ["confirmed", "cancelled"],
+            confirmed: ["processing", "cancelled"],
+            processing: ["shipping", "cancelled"],
+            shipping: ["delivered", "returned"],
+            delivered: ["returned"],
+            cancelled: [],
+            returned: [],
+          };
+          const allowed = allowedTransitions[prevStatus] || [];
+          if (!allowed.includes(status)) {
+            throw new Error(`Không thể chuyển trạng thái từ "${prevStatus}" sang "${status}"`);
+          }
+
           // Restore stock when cancelling or returning (if previously deducted)
           if ((status === "cancelled" || status === "returned") && prevStatus !== "cancelled" && prevStatus !== "returned") {
             if (order.order_items && order.order_items.length > 0) {
@@ -407,6 +872,26 @@ export function useOrders() {
           all[idx].status = status;
           all[idx].updated_at = new Date().toISOString();
           saveLocalOrders(all);
+
+          // Log all order status changes
+          logLocalAction(
+            `Chuyển trạng thái đơn hàng: ${prevStatus} → ${status}`,
+            "orders",
+            id,
+            { status: prevStatus },
+            { status }
+          );
+
+          // Log order cancellation or return
+          if (status === "cancelled" || status === "returned") {
+            logLocalAction(
+              status === "cancelled" ? "Hủy đơn hàng" : "Trả hàng",
+              "orders",
+              id,
+              { status: prevStatus },
+              { status }
+            );
+          }
         }
         return;
       }

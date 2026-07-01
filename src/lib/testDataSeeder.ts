@@ -11,7 +11,7 @@ export async function seedTestDataFlow(companyId: string): Promise<void> {
       {
         id: "ds-shopee",
         company_id: companyId,
-        name: "Shopee Store API Integration",
+        name: "Shopee Shop API Integration",
         code: "SHOPEE_MAIN",
         source_type: "marketplace",
         connection_config: {},
@@ -128,7 +128,7 @@ export async function seedComplexTestDataFlow(companyId: string): Promise<void> 
       {
         id: "ds-shopee",
         company_id: companyId,
-        name: "Shopee Store API Integration",
+        name: "Shopee Shop API Integration",
         code: "SHOPEE_MAIN",
         source_type: "marketplace",
         connection_config: {},
@@ -154,8 +154,8 @@ export async function seedComplexTestDataFlow(companyId: string): Promise<void> 
       {
         id: "ds-tiktok",
         company_id: companyId,
-        name: "TikTok Shop Integration",
-        code: "TIKTOK_MAIN",
+        name: "Zalo OA Integration",
+        code: "ZALO_OA",
         source_type: "social",
         connection_config: {},
         status: "error",
@@ -190,8 +190,8 @@ export async function seedComplexTestDataFlow(companyId: string): Promise<void> 
         data_source_id: "ds-tiktok",
         event_type: "order_created",
         source_type: "social",
-        source_code: "TIKTOK_MAIN",
-        external_id: "TT991283",
+        source_code: "ZALO_OA",
+        external_id: "ZL991283",
         payload: { customer: "Trần Thị B", phone: "invalid-phone-format" },
         validation_status: "failed",
         validation_errors: { phone: "Số điện thoại không đúng định dạng" },
@@ -241,11 +241,12 @@ export async function seedGrowthTestDataFlow(companyId: string): Promise<void> {
     const ANALYTICS_COHORTS_KEY = "erp-mini-local-demo-customer-cohorts";
 
     const attribution = [
-      { channel_name: "Shopee Store", order_count: 120, total_revenue: 35000000, conversion_rate: 3.2 },
-      { channel_name: "Lazada Store", order_count: 85, total_revenue: 28000000, conversion_rate: 2.8 },
-      { channel_name: "TikTok Shop", order_count: 150, total_revenue: 42000000, conversion_rate: 4.5 },
-      { channel_name: "Cửa hàng POS", order_count: 210, total_revenue: 85000000, conversion_rate: 15.0 },
+      { channel_name: "Shopee Shop", order_count: 110, total_revenue: 19000000, conversion_rate: 3.0 },
+      { channel_name: "Zalo Chat / Zalo OA", order_count: 220, total_revenue: 35000000, conversion_rate: 8.5 },
+      { channel_name: "Facebook Page", order_count: 180, total_revenue: 28000000, conversion_rate: 4.2 },
+      { channel_name: "Cửa hàng POS", order_count: 90, total_revenue: 14000000, conversion_rate: 12.0 },
     ];
+
 
     const clv = [
       { customer_name: "Nguyễn Văn An", order_count: 12, total_spent: 8500000, first_order_date: "2026-01-10", last_order_date: "2026-06-20" },

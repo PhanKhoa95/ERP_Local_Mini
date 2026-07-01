@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "./useCompanyContext";
 import { useAuth } from "./useAuth";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { getLocalProductBom } from "@/lib/localInventoryStore";
 import { toast } from "sonner";
 
 export interface ChartOfAccount {
@@ -53,8 +54,9 @@ const DEFAULT_ACCOUNTS = (companyId: string): ChartOfAccount[] => [
   { id: "acc-1121", company_id: companyId, code: "1121", name: "Tiền gửi ngân hàng", account_type: "asset", balance: 150000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-131", company_id: companyId, code: "131", name: "Phải thu khách hàng", account_type: "asset", balance: 12000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-156", company_id: companyId, code: "156", name: "Hàng hóa", account_type: "asset", balance: 45000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-211", company_id: companyId, code: "211", name: "Tài sản cố định (CAPEX)", account_type: "asset", balance: 38500000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-331", company_id: companyId, code: "331", name: "Phải trả người bán", account_type: "liability", balance: 25000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
-  { id: "acc-4111", company_id: companyId, code: "4111", name: "Vốn góp chủ sở hữu", account_type: "equity", balance: 200000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-4111", company_id: companyId, code: "4111", name: "Vốn góp chủ sở hữu", account_type: "equity", balance: 252500000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-511", company_id: companyId, code: "511", name: "Doanh thu bán hàng", account_type: "revenue", balance: 75000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-632", company_id: companyId, code: "632", name: "Giá vốn bán hàng", account_type: "expense", balance: 42000000, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-642", company_id: companyId, code: "642", name: "Chi phí quản lý doanh nghiệp", account_type: "expense", balance: 15000000, parent_id: null, is_active: true, created_at: new Date().toISOString() }
@@ -75,36 +77,242 @@ function getLocalAccounts(companyId: string): ChartOfAccount[] {
   }
 }
 
+function seedJournalEntriesFromData(companyId: string): { entries: JournalEntry[], lines: JournalLine[] } {
+  const entries: JournalEntry[] = [];
+  const lines: JournalLine[] = [];
+
+  // Read orders from localStorage
+  const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+  let ordersList: any[] = [];
+  if (rawOrders) {
+    try { ordersList = JSON.parse(rawOrders); } catch { ordersList = []; }
+  }
+
+  // Read payments from localStorage
+  const rawPayments = localStorage.getItem("erp-mini-local-demo-payment-transactions");
+  let paymentsList: any[] = [];
+  if (rawPayments) {
+    try { paymentsList = JSON.parse(rawPayments); } catch { paymentsList = []; }
+  }
+
+  // 1. Generate journal entries for each order (Sales & COGS)
+  ordersList.forEach((order) => {
+    const entryDate = (order.created_at || new Date().toISOString()).split("T")[0];
+    const orderNum = order.order_number || order.id;
+
+    // --- A. Sales Entry ---
+    const salesEntryId = `ent-sales-${order.id}`;
+    entries.push({
+      id: salesEntryId,
+      company_id: companyId,
+      entry_date: entryDate,
+      description: `Doanh thu đơn hàng ${orderNum}`,
+      status: "posted",
+      source_type: "order",
+      source_id: order.id,
+      created_by: "system",
+      posted_by: "system",
+      created_at: order.created_at,
+      updated_at: order.updated_at
+    });
+
+    lines.push(
+      {
+        id: `line-sales-dr-${order.id}`,
+        entry_id: salesEntryId,
+        account_id: "acc-131", // Phải thu khách hàng
+        debit: Number(order.total || 0),
+        credit: 0,
+        memo: `Ghi nhận phải thu đơn ${orderNum}`,
+        created_at: order.created_at
+      },
+      {
+        id: `line-sales-cr-${order.id}`,
+        entry_id: salesEntryId,
+        account_id: "acc-511", // Doanh thu bán hàng
+        debit: 0,
+        credit: Number(order.total || 0),
+        memo: `Doanh thu bán hàng đơn ${orderNum}`,
+        created_at: order.created_at
+      }
+    );
+
+    // --- B. COGS Entry (Giá vốn bán hàng) --- BOM-based calculation
+    const orderItems = order.order_items || [];
+    let costAmount = 0;
+    if (orderItems.length > 0) {
+      const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+      const products = rawProducts ? JSON.parse(rawProducts) : [];
+      costAmount = Math.round(orderItems.reduce((sum: number, item: any) => {
+        const bomItems = getLocalProductBom(item.product_id);
+        if (bomItems && bomItems.length > 0) {
+          const bomCost = bomItems.reduce((bSum: number, b: any) => bSum + ((b.material?.cost_price || 0) * b.quantity), 0);
+          return sum + bomCost * (item.quantity || 1);
+        }
+        const prod = products.find((p: any) => p.id === item.product_id);
+        return sum + ((prod?.cost_price || 0) * (item.quantity || 1));
+      }, 0));
+    } else {
+      // Fallback for orders without items — estimate 47%
+      costAmount = Math.round(Number(order.total || 0) * 0.47);
+    }
+    if (costAmount > 0) {
+      const cogsEntryId = `ent-cogs-${order.id}`;
+      entries.push({
+        id: cogsEntryId,
+        company_id: companyId,
+        entry_date: entryDate,
+        description: `Giá vốn đơn hàng ${orderNum}`,
+        status: "posted",
+        source_type: "order",
+        source_id: order.id,
+        created_by: "system",
+        posted_by: "system",
+        created_at: order.created_at,
+        updated_at: order.updated_at
+      });
+
+      lines.push(
+        {
+          id: `line-cogs-dr-${order.id}`,
+          entry_id: cogsEntryId,
+          account_id: "acc-632", // Giá vốn bán hàng
+          debit: costAmount,
+          credit: 0,
+          memo: `Ghi nhận giá vốn đơn ${orderNum}`,
+          created_at: order.created_at
+        },
+        {
+          id: `line-cogs-cr-${order.id}`,
+          entry_id: cogsEntryId,
+          account_id: "acc-156", // Hàng hóa
+          debit: 0,
+          credit: costAmount,
+          memo: `Xuất kho hàng hóa đơn ${orderNum}`,
+          created_at: order.created_at
+        }
+      );
+    }
+  });
+
+  // 2. Generate journal entries for each payment transaction
+  paymentsList.forEach((pay) => {
+    const entryDate = (pay.transaction_date || new Date().toISOString()).split("T")[0];
+    const entryId = `ent-pay-${pay.id}`;
+    const payMethodName = pay.payment_method === "vietqr" || pay.payment_method === "bank_transfer" ? "tiền gửi ngân hàng" : "tiền mặt";
+    const payAccId = pay.payment_method === "vietqr" || pay.payment_method === "bank_transfer" ? "acc-1121" : "acc-1111";
+
+    if (pay.transaction_type === "payment_in") {
+      entries.push({
+        id: entryId,
+        company_id: companyId,
+        entry_date: entryDate,
+        description: pay.notes || `Thu tiền khách hàng (giao dịch ${pay.id})`,
+        status: "posted",
+        source_type: "payment",
+        source_id: pay.id,
+        created_by: "system",
+        posted_by: "system",
+        created_at: pay.created_at,
+        updated_at: pay.created_at
+      });
+
+      lines.push(
+        {
+          id: `line-payin-dr-${pay.id}`,
+          entry_id: entryId,
+          account_id: payAccId,
+          debit: Number(pay.amount || 0),
+          credit: 0,
+          memo: pay.notes || `Thu tiền bằng ${payMethodName}`,
+          created_at: pay.created_at
+        },
+        {
+          id: `line-payin-cr-${pay.id}`,
+          entry_id: entryId,
+          account_id: "acc-131", // Phải thu khách hàng
+          debit: 0,
+          credit: Number(pay.amount || 0),
+          memo: `Giảm phải thu từ giao dịch thu tiền`,
+          created_at: pay.created_at
+        }
+      );
+    } else if (pay.transaction_type === "payment_out") {
+      const isSupplier = pay.partner_id && pay.partner_id.includes("supplier");
+      const isCapex = pay.notes && pay.notes.toLowerCase().includes("capex");
+      const drAccId = isCapex ? "acc-211" : (isSupplier ? "acc-331" : "acc-642");
+      
+      entries.push({
+        id: entryId,
+        company_id: companyId,
+        entry_date: entryDate,
+        description: pay.notes || `Chi tiền thanh toán (giao dịch ${pay.id})`,
+        status: "posted",
+        source_type: "payment",
+        source_id: pay.id,
+        created_by: "system",
+        posted_by: "system",
+        created_at: pay.created_at,
+        updated_at: pay.created_at
+      });
+
+      lines.push(
+        {
+          id: `line-payout-dr-${pay.id}`,
+          entry_id: entryId,
+          account_id: drAccId,
+          debit: Number(pay.amount || 0),
+          credit: 0,
+          memo: pay.notes || `Chi phí hạch toán`,
+          created_at: pay.created_at
+        },
+        {
+          id: `line-payout-cr-${pay.id}`,
+          entry_id: entryId,
+          account_id: payAccId,
+          debit: 0,
+          credit: Number(pay.amount || 0),
+          memo: `Chi tiền bằng ${payMethodName}`,
+          created_at: pay.created_at
+        }
+      );
+    }
+  });
+
+  if (entries.length === 0) {
+    const manualEntryId = "ent-manual-init";
+    entries.push({
+      id: manualEntryId,
+      company_id: companyId,
+      entry_date: new Date(Date.now() - 3600000 * 24).toISOString().split("T")[0],
+      description: "Thu tiền bán hàng trực tiếp",
+      status: "posted",
+      source_type: "manual",
+      source_id: null,
+      created_by: "demo-user",
+      posted_by: "demo-user",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    lines.push(
+      { id: `line-minit-dr`, entry_id: manualEntryId, account_id: "acc-1111", debit: 5000000, credit: 0, memo: "Thu tiền mặt", created_at: new Date().toISOString() },
+      { id: `line-minit-cr`, entry_id: manualEntryId, account_id: "acc-511", debit: 0, credit: 5000000, memo: "Doanh thu bán hàng", created_at: new Date().toISOString() }
+    );
+  }
+
+  return { entries, lines };
+}
+
 function getLocalEntries(companyId: string, accounts: ChartOfAccount[]): { entries: JournalEntry[], lines: JournalLine[] } {
   if (typeof window === "undefined") return { entries: [], lines: [] };
   const rawEntries = localStorage.getItem(LOCAL_ENTRIES_KEY);
   const rawLines = localStorage.getItem(LOCAL_LINES_KEY);
   
   if (!rawEntries || !rawLines) {
-    const sampleEntries: JournalEntry[] = [
-      {
-        id: "ent-1",
-        company_id: companyId,
-        entry_date: new Date(Date.now() - 3600000 * 24).toISOString().split("T")[0],
-        description: "Thu tiền bán hàng trực tiếp",
-        status: "posted",
-        source_type: "manual",
-        source_id: null,
-        created_by: "demo-user",
-        posted_by: "demo-user",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-
-    const sampleLines: JournalLine[] = [
-      { id: "line-1-1", entry_id: "ent-1", account_id: "acc-1111", debit: 5000000, credit: 0, memo: "Thu tiền mặt", created_at: new Date().toISOString() },
-      { id: "line-1-2", entry_id: "ent-1", account_id: "acc-511", debit: 0, credit: 5000000, memo: "Doanh thu bán hàng", created_at: new Date().toISOString() }
-    ];
-
-    localStorage.setItem(LOCAL_ENTRIES_KEY, JSON.stringify(sampleEntries));
-    localStorage.setItem(LOCAL_LINES_KEY, JSON.stringify(sampleLines));
-    return { entries: sampleEntries, lines: sampleLines };
+    const { entries: seededEntries, lines: seededLines } = seedJournalEntriesFromData(companyId);
+    localStorage.setItem(LOCAL_ENTRIES_KEY, JSON.stringify(seededEntries));
+    localStorage.setItem(LOCAL_LINES_KEY, JSON.stringify(seededLines));
+    return { entries: seededEntries, lines: seededLines };
   }
 
   try {
@@ -273,6 +481,13 @@ export function useAccounting() {
   const createManualEntry = useMutation({
     mutationFn: async (payload: { description: string; lines: Array<{ account_id: string; debit: number; credit: number; memo: string }> }) => {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+
+      // Validate double-entry: total debits must equal total credits
+      const totalDebit = payload.lines.reduce((s, l) => s + (l.debit || 0), 0);
+      const totalCredit = payload.lines.reduce((s, l) => s + (l.credit || 0), 0);
+      if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        throw new Error(`Bút toán không cân: Tổng Nợ (${totalDebit.toLocaleString()}) ≠ Tổng Có (${totalCredit.toLocaleString()})`);
+      }
 
       if (isLocalDemoAuthEnabled()) {
         const localAccounts = getLocalAccounts(companyId);

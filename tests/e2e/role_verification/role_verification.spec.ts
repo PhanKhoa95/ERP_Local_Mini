@@ -1,23 +1,16 @@
 import { test, expect } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
-
-async function ensureDir(filePath: string) {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+import { loginLocalDemo, getBrainPath, ensureDir } from "../helpers";
 
 async function takeScreenshots(page, role: string) {
+  const brainDir = getBrainPath();
   const paths = [
-    `C:/Users/KHOA MEDIA/.gemini/antigravity/brain/81091271-6a4a-4083-9787-ff9d6e09437c/${role}_role_verified.png`,
-    `c:/Users/KHOA MEDIA/OneDrive/Documents/multi-sale-organizer-main/artifacts/${role}_role_verified.png`,
-    `c:/Users/KHOA MEDIA/OneDrive/Documents/multi-sale-organizer-main/multi-sale-organizer-main/artifacts/${role}_role_verified.png`
+    path.join(brainDir, `${role}_role_verified.png`)
   ];
 
   for (const p of paths) {
-    await ensureDir(p);
+    ensureDir(p);
     await page.screenshot({ path: p });
     console.log(`Screenshot saved to ${p}`);
   }
@@ -43,21 +36,7 @@ test.describe("ERP Mini E2E Role-based Verification", () => {
   });
 
   test("Admin role permissions verification", async ({ page }) => {
-    // Navigate to auth
-    await page.goto("http://127.0.0.1:8080/auth", { waitUntil: "domcontentloaded" });
-    
-    // Set localStorage for Admin role
-    await page.evaluate(() => {
-      localStorage.setItem("erp-mini-local-demo-role", "admin");
-    });
-    
-    // Log in
-    await page.fill("#login-email", "admin");
-    await page.fill("#login-password", "admin");
-    await page.click('button[type="submit"]');
-    
-    // Wait for redirection
-    await page.waitForURL("**/");
+    await loginLocalDemo(page, "admin");
     
     // Expand sidebar to ensure all elements are visible
     await expandSidebar(page);
@@ -76,7 +55,7 @@ test.describe("ERP Mini E2E Role-based Verification", () => {
     await expect(page.locator('aside a[href="/performance/setup"]')).toBeVisible();
     
     // Verify Direct URL Access: Admin has access to /performance/setup
-    await page.goto("http://127.0.0.1:8080/performance/setup", { waitUntil: "domcontentloaded" });
+    await page.goto("/performance/setup", { waitUntil: "domcontentloaded" });
     await expect(page.locator('h1:has-text("Không có quyền truy cập")')).toBeHidden();
     
     // Capture screenshots
@@ -84,21 +63,7 @@ test.describe("ERP Mini E2E Role-based Verification", () => {
   });
 
   test("Manager role permissions verification", async ({ page }) => {
-    // Navigate to auth
-    await page.goto("http://127.0.0.1:8080/auth", { waitUntil: "domcontentloaded" });
-    
-    // Set localStorage for Manager role
-    await page.evaluate(() => {
-      localStorage.setItem("erp-mini-local-demo-role", "manager");
-    });
-    
-    // Log in
-    await page.fill("#login-email", "admin");
-    await page.fill("#login-password", "admin");
-    await page.click('button[type="submit"]');
-    
-    // Wait for redirection
-    await page.waitForURL("**/");
+    await loginLocalDemo(page, "manager");
     
     // Expand sidebar
     await expandSidebar(page);
@@ -119,7 +84,7 @@ test.describe("ERP Mini E2E Role-based Verification", () => {
     
     // Verify Direct URL Access Blocking for Manager
     // /performance/setup shows "Không có quyền truy cập"
-    await page.goto("http://127.0.0.1:8080/performance/setup", { waitUntil: "domcontentloaded" });
+    await page.goto("/performance/setup", { waitUntil: "domcontentloaded" });
     await expect(page.locator('h1:has-text("Không có quyền truy cập")')).toBeVisible();
     
     // Capture screenshots
@@ -127,21 +92,7 @@ test.describe("ERP Mini E2E Role-based Verification", () => {
   });
 
   test("Staff role permissions verification", async ({ page }) => {
-    // Navigate to auth
-    await page.goto("http://127.0.0.1:8080/auth", { waitUntil: "domcontentloaded" });
-    
-    // Set localStorage for Staff role
-    await page.evaluate(() => {
-      localStorage.setItem("erp-mini-local-demo-role", "staff");
-    });
-    
-    // Log in
-    await page.fill("#login-email", "admin");
-    await page.fill("#login-password", "admin");
-    await page.click('button[type="submit"]');
-    
-    // Wait for redirection
-    await page.waitForURL("**/");
+    await loginLocalDemo(page, "staff");
     
     // Expand sidebar
     await expandSidebar(page);
@@ -161,11 +112,11 @@ test.describe("ERP Mini E2E Role-based Verification", () => {
     
     // Verify Direct URL Access Blocking for Staff
     // /performance/setup shows "Không có quyền truy cập"
-    await page.goto("http://127.0.0.1:8080/performance/setup", { waitUntil: "domcontentloaded" });
+    await page.goto("/performance/setup", { waitUntil: "domcontentloaded" });
     await expect(page.locator('h1:has-text("Không có quyền truy cập")')).toBeVisible();
     
     // /accounting shows "Không có quyền truy cập"
-    await page.goto("http://127.0.0.1:8080/accounting", { waitUntil: "domcontentloaded" });
+    await page.goto("/accounting", { waitUntil: "domcontentloaded" });
     await expect(page.locator('h1:has-text("Không có quyền truy cập")')).toBeVisible();
     
     // Capture screenshots

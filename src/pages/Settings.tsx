@@ -32,6 +32,7 @@ import { AgentPermissionsTab } from "@/components/settings/AgentPermissionsTab";
 import { SystemHealthTab } from "@/components/settings/SystemHealthTab";
 import { PriceListsTab } from "@/components/settings/PriceListsTab";
 import { SubscriptionsTab } from "@/components/settings/SubscriptionsTab";
+import { EventBusMonitorTab } from "@/components/settings/EventBusMonitorTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { z } from "zod";
 
@@ -273,6 +274,12 @@ const Settings = () => {
               <TabsTrigger value="health" className="gap-2">
                 <Activity className="h-4 w-4" />
                 <span className="hidden sm:inline">Sức khỏe</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="event_bus" className="gap-2">
+                <Zap className="h-4 w-4 text-warning" />
+                <span className="hidden sm:inline">Event Bus</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -526,6 +533,12 @@ const Settings = () => {
           {isAdmin && (
             <TabsContent value="health">
               <SystemHealthTab />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="event_bus">
+              <EventBusMonitorTab />
             </TabsContent>
           )}
 

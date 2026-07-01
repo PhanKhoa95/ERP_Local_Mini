@@ -41,9 +41,9 @@ const BOM_KEY = "erp-mini-local-demo-product-bom";
 
 const DEFAULT_CATEGORIES: LocalProductCategory[] = [
   createCategorySeed("local-cat-finished-goods", "Thanh pham", "#2563EB", 1),
-  createCategorySeed("local-cat-materials", "Nguyen vat lieu", "#16A34A", 2),
+  createCategorySeed("local-cat-materials", "Vat tu & Muc in", "#16A34A", 2),
   createCategorySeed("local-cat-services", "Dich vu", "#9333EA", 3),
-  createCategorySeed("local-cat-consumables", "Vat tu tieu hao", "#F59E0B", 4),
+  createCategorySeed("local-cat-combos", "Combo & Bo san pham", "#F59E0B", 4),
 ];
 
 function createCategorySeed(id: string, name: string, color: string, sortOrder: number): LocalProductCategory {
@@ -111,11 +111,455 @@ function assertUniqueSku(products: Product[], companyId: string, sku: string, ig
   }
 }
 
+const DEFAULT_PRODUCTS: Product[] = [
+  {
+    id: "local-prod-sticker",
+    name: "Sticker logo decal giấy",
+    sku: "PRD-STICKER",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 44275,
+    selling_price: 99000,
+    stock_quantity: 450,
+    min_stock: 50,
+    unit: "tem",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 2,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "100 tem tròn/vuông decal giấy, cán màng bóng/mờ",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-card",
+    name: "Card cảm ơn / Thank you card",
+    sku: "PRD-CARD",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 56875,
+    selling_price: 119000,
+    stock_quantity: 600,
+    min_stock: 100,
+    unit: "cái",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 2,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "100 card C250/C300 cắt sẵn",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-qr-board",
+    name: "Bảng QR để bàn mica",
+    sku: "PRD-QR-BOARD",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 50575,
+    selling_price: 109000,
+    stock_quantity: 80,
+    min_stock: 10,
+    unit: "cái",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 3,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "01 bảng QR mica/formex để bàn",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-qr-sticker",
+    name: "Tem QR thanh toán decal",
+    sku: "PRD-QR-STICKER",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 25900,
+    selling_price: 69000,
+    stock_quantity: 200,
+    min_stock: 20,
+    unit: "tem",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 1,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "50 tem QR decal siêu nét",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-qr-card",
+    name: "Thẻ QR cá nhân thông minh",
+    sku: "PRD-QR-CARD",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 27388,
+    selling_price: 69000,
+    stock_quantity: 150,
+    min_stock: 15,
+    unit: "thẻ",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 2,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "01 thẻ QR cá nhân/cửa hàng bỏ ví",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-combo-new",
+    name: "Combo Shop Mới Khởi Nghiệp",
+    sku: "PRD-COMBO-NEW",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 173513,
+    selling_price: 349000,
+    stock_quantity: 40,
+    min_stock: 5,
+    unit: "bộ",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 4,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "100 tem + 100 card + 01 bảng QR + avatar số",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-design-qr",
+    name: "Dịch vụ thiết kế Avatar & QR",
+    sku: "PRD-DESIGN-QR",
+    category: "Dich vu",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 40000,
+    selling_price: 149000,
+    stock_quantity: 0,
+    min_stock: 0,
+    unit: "gói",
+    is_active: true,
+    is_service: true,
+    lead_time_days: 0,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "01 gói file số dùng Zalo/Facebook/Shopee",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-prod-box",
+    name: "Bao bì / Hộp gia công nhỏ",
+    sku: "PRD-BOX",
+    category: "Thanh pham",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 119438,
+    selling_price: 179000,
+    stock_quantity: 200,
+    min_stock: 30,
+    unit: "cái",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 5,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "01 đơn nhỏ gia công hộp/túi/nhãn",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-mat-decal",
+    name: "Giấy decal bóng (A4)",
+    sku: "MAT-DECAL",
+    category: "Vat tu & Muc in",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 1500,
+    selling_price: 3000,
+    stock_quantity: 1000,
+    min_stock: 100,
+    unit: "tờ",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 1,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "Decal giấy để vàng in tem nhãn",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-mat-couche",
+    name: "Giấy Couche 300gsm (A4)",
+    sku: "MAT-COUCHE",
+    category: "Vat tu & Muc in",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 2000,
+    selling_price: 4000,
+    stock_quantity: 1500,
+    min_stock: 200,
+    unit: "tờ",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 1,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "Giấy Couche bóng in card/tờ rơi",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-mat-ink",
+    name: "Mực in Pigment (ml)",
+    sku: "MAT-INK",
+    category: "Vat tu & Muc in",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 500,
+    selling_price: 1000,
+    stock_quantity: 2000,
+    min_stock: 500,
+    unit: "ml",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 1,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "Mực in dầu Pigment bền màu",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-mat-mica",
+    name: "Tấm mica trong 2mm (A4 size)",
+    sku: "MAT-MICA",
+    category: "Vat tu & Muc in",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 15000,
+    selling_price: 30000,
+    stock_quantity: 200,
+    min_stock: 20,
+    unit: "tấm",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 2,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "Tấm Mica Đài Loan trong suốt 2mm",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-mat-formex",
+    name: "Tấm Formex 3mm (A4 size)",
+    sku: "MAT-FORMEX",
+    category: "Vat tu & Muc in",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 8000,
+    selling_price: 16000,
+    stock_quantity: 300,
+    min_stock: 30,
+    unit: "tấm",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 1,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "Tấm Formex trắng 3mm làm chân dựng",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    id: "local-mat-box",
+    name: "Hộp carton & băng keo",
+    sku: "MAT-BOX",
+    category: "Vat tu & Muc in",
+    company_id: LOCAL_DEMO_COMPANY_ID,
+    cost_price: 3000,
+    selling_price: 6000,
+    stock_quantity: 500,
+    min_stock: 50,
+    unit: "bộ",
+    is_active: true,
+    is_service: false,
+    lead_time_days: 1,
+    has_variants: false,
+    avg_daily_sales: null,
+    reorder_point: null,
+    image_url: null,
+    description: "Hộp đóng hàng và vật tư đóng gói",
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z",
+  }
+];
+
+const DEFAULT_BOM_ITEMS: ProductBom[] = [
+  // BOM for local-prod-sticker (100 stickers)
+  {
+    id: "local-bom-1",
+    product_id: "local-prod-sticker",
+    material_id: "local-mat-decal",
+    quantity: 1.5,
+    unit: "tờ",
+    notes: "Decal giấy đế vàng",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-2",
+    product_id: "local-prod-sticker",
+    material_id: "local-mat-ink",
+    quantity: 10,
+    unit: "ml",
+    notes: "Mực in dầu Pigment",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-3",
+    product_id: "local-prod-sticker",
+    material_id: "local-mat-box",
+    quantity: 1,
+    unit: "bộ",
+    notes: "Hộp giấy & băng keo đóng gói",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  // BOM for local-prod-card (100 cards)
+  {
+    id: "local-bom-4",
+    product_id: "local-prod-card",
+    material_id: "local-mat-couche",
+    quantity: 2,
+    unit: "tờ",
+    notes: "Giấy Couche 300gsm A3",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-5",
+    product_id: "local-prod-card",
+    material_id: "local-mat-ink",
+    quantity: 5,
+    unit: "ml",
+    notes: "Mực in dầu Pigment",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-6",
+    product_id: "local-prod-card",
+    material_id: "local-mat-box",
+    quantity: 1,
+    unit: "bộ",
+    notes: "Hộp giấy & băng keo đóng gói",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  // BOM for local-prod-qr-board (1 board)
+  {
+    id: "local-bom-7",
+    product_id: "local-prod-qr-board",
+    material_id: "local-mat-mica",
+    quantity: 1,
+    unit: "tấm",
+    notes: "Tấm Mica trong 2mm A4",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-8",
+    product_id: "local-prod-qr-board",
+    material_id: "local-mat-formex",
+    quantity: 1,
+    unit: "tấm",
+    notes: "Tấm Formex 3mm A4",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-9",
+    product_id: "local-prod-qr-board",
+    material_id: "local-mat-decal",
+    quantity: 1,
+    unit: "tờ",
+    notes: "Decal nhựa siêu dính",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-10",
+    product_id: "local-prod-qr-board",
+    material_id: "local-mat-ink",
+    quantity: 5,
+    unit: "ml",
+    notes: "Mực in dầu Pigment",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  },
+  {
+    id: "local-bom-11",
+    product_id: "local-prod-qr-board",
+    material_id: "local-mat-box",
+    quantity: 1,
+    unit: "bộ",
+    notes: "Hộp giấy & băng keo đóng gói",
+    is_active: true,
+    created_at: "2026-06-01T00:00:00.000Z",
+    updated_at: "2026-06-01T00:00:00.000Z"
+  }
+];
+
 export function getLocalProducts(companyId = LOCAL_DEMO_COMPANY_ID): Product[] {
-  return readJson<Product[]>(PRODUCTS_KEY, [])
+  const products = readJson<Product[]>(PRODUCTS_KEY, []);
+  if (products.length === 0) {
+    writeJson(PRODUCTS_KEY, DEFAULT_PRODUCTS);
+    return DEFAULT_PRODUCTS.filter((product) => product.company_id === companyId);
+  }
+  return products
     .filter((product) => product.company_id === companyId)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
+
 
 export function createLocalProduct(input: ProductInsert, companyId = LOCAL_DEMO_COMPANY_ID): Product {
   const products = readJson<Product[]>(PRODUCTS_KEY, []);
@@ -157,6 +601,26 @@ export function updateLocalProduct(input: ProductUpdate & { id: string }): Produ
   const current = products[index];
   if (input.sku) {
     assertUniqueSku(products, current.company_id ?? LOCAL_DEMO_COMPANY_ID, input.sku, input.id);
+  }
+
+  // Log price or cost changes
+  if (input.selling_price !== undefined && Number(input.selling_price) !== Number(current.selling_price)) {
+    logLocalAction(
+      "Sửa giá bán",
+      "products",
+      current.id,
+      { selling_price: current.selling_price },
+      { selling_price: input.selling_price }
+    );
+  }
+  if (input.cost_price !== undefined && Number(input.cost_price) !== Number(current.cost_price)) {
+    logLocalAction(
+      "Sửa giá vốn",
+      "products",
+      current.id,
+      { cost_price: current.cost_price },
+      { cost_price: input.cost_price }
+    );
   }
 
   const updated: Product = {
@@ -279,6 +743,33 @@ export function getLocalInventoryTransactions(companyId = LOCAL_DEMO_COMPANY_ID)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
+export function logLocalAction(
+  action: string,
+  tableName: string,
+  recordId: string,
+  oldData?: any,
+  newData?: any
+) {
+  try {
+    const raw = localStorage.getItem("erp-mini-local-demo-audit-logs");
+    const logs = raw ? JSON.parse(raw) : [];
+    const newLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      action,
+      table_name: tableName,
+      record_id: recordId,
+      old_data: oldData || null,
+      new_data: newData || null,
+      created_at: new Date().toISOString(),
+      user_email: "manager@erplocal.vn",
+    };
+    logs.unshift(newLog);
+    localStorage.setItem("erp-mini-local-demo-audit-logs", JSON.stringify(logs));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 export function createLocalInventoryTransaction(input: {
   product_id: string;
   transaction_type: "in" | "out";
@@ -321,6 +812,21 @@ export function createLocalInventoryTransaction(input: {
 
   const transactions = readJson<InventoryTransaction[]>(TRANSACTIONS_KEY, []);
   writeJson(TRANSACTIONS_KEY, [transaction, ...transactions]);
+
+  // Log stock transaction
+  logLocalAction(
+    input.transaction_type === "in" ? "Nhập kho vật tư" : "Xuất kho vật tư",
+    "inventory_transactions",
+    transaction.id,
+    null,
+    {
+      product_name: product.name,
+      sku: product.sku,
+      quantity: input.quantity,
+      notes: input.notes
+    }
+  );
+
   return transaction;
 }
 
@@ -328,16 +834,26 @@ export function getLocalProductBom(productId?: string): LocalProductBomItem[] {
   if (!productId) return [];
   const products = readJson<Product[]>(PRODUCTS_KEY, []);
   const productMap = new Map(products.map((product) => [product.id, product]));
-  return readJson<ProductBom[]>(BOM_KEY, [])
+  let bomItems = readJson<ProductBom[]>(BOM_KEY, []);
+  if (bomItems.length === 0) {
+    bomItems = DEFAULT_BOM_ITEMS;
+    writeJson(BOM_KEY, bomItems);
+  }
+  return bomItems
     .filter((item) => item.product_id === productId)
     .map((item) => ({ ...item, material: productMap.get(item.material_id) }))
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
 
 export function getLocalProductsWithBom() {
+  let bomItems = readJson<ProductBom[]>(BOM_KEY, []);
+  if (bomItems.length === 0) {
+    bomItems = DEFAULT_BOM_ITEMS;
+    writeJson(BOM_KEY, bomItems);
+  }
   return [
     ...new Set(
-      readJson<ProductBom[]>(BOM_KEY, [])
+      bomItems
         .filter((item) => item.is_active !== false)
         .map((item) => item.product_id)
     ),
@@ -379,6 +895,20 @@ export function addLocalBomItem(input: {
   };
 
   writeJson(BOM_KEY, [...items, item]);
+
+  // Log BOM addition
+  logLocalAction(
+    "Thêm định mức BOM",
+    "product_bom",
+    item.id,
+    null,
+    {
+      product_id: input.product_id,
+      material_id: input.material_id,
+      quantity: input.quantity
+    }
+  );
+
   return item;
 }
 
@@ -390,15 +920,38 @@ export function updateLocalBomItem(id: string, updates: Partial<ProductBom>) {
     throw new Error("Dinh muc BOM phai lon hon 0.");
   }
 
-  const updated = { ...items[index], ...updates, updated_at: now() };
+  const current = items[index];
+  const updated = { ...current, ...updates, updated_at: now() };
   items[index] = updated;
   writeJson(BOM_KEY, items);
+
+  // Log BOM update
+  logLocalAction(
+    "Cập nhật định mức BOM",
+    "product_bom",
+    id,
+    { quantity: current.quantity, notes: current.notes },
+    { quantity: updated.quantity, notes: updated.notes }
+  );
+
   return updated;
 }
 
 export function deleteLocalBomItem(id: string) {
   const items = readJson<ProductBom[]>(BOM_KEY, []);
+  const current = items.find((item) => item.id === id);
   writeJson(BOM_KEY, items.filter((item) => item.id !== id));
+
+  if (current) {
+    // Log BOM deletion
+    logLocalAction(
+      "Xóa định mức BOM",
+      "product_bom",
+      id,
+      { product_id: current.product_id, material_id: current.material_id },
+      null
+    );
+  }
 }
 
 export function applyLocalProductionCompletion(input: {
@@ -479,4 +1032,67 @@ export function applyLocalProductionCompletion(input: {
 
   writeJson(TRANSACTIONS_KEY, [...productionTransactions, ...transactions]);
   return plan;
+}
+
+/**
+ * BOM Sync: Cập nhật cost_price của thành phẩm theo tổng giá vốn NVL trong BOM.
+ * Trả về danh sách sản phẩm đã được cập nhật.
+ */
+export function syncBomCostToProducts(): Array<{ id: string; sku: string; name: string; oldCost: number; newCost: number }> {
+  const products = readJson<Product[]>(PRODUCTS_KEY, []);
+  const bomItems = readJson<LocalProductBomItem[]>(BOM_KEY, []);
+  const updated: Array<{ id: string; sku: string; name: string; oldCost: number; newCost: number }> = [];
+
+  // Group BOM items by product_id
+  const bomByProduct = new Map<string, LocalProductBomItem[]>();
+  for (const item of bomItems) {
+    if (item.is_active === false) continue;
+    const list = bomByProduct.get(item.product_id) || [];
+    list.push(item);
+    bomByProduct.set(item.product_id, list);
+  }
+
+  // For each product that has BOM, recalculate cost_price
+  for (const product of products) {
+    const bom = bomByProduct.get(product.id);
+    if (!bom || bom.length === 0) continue;
+    if (product.is_service) continue;
+
+    let expectedCost = 0;
+    for (const item of bom) {
+      const material = products.find((p) => p.id === item.material_id) || item.material;
+      if (!material) continue;
+      const qty = Number(item.quantity) || 0;
+      const matCost = Number(material.cost_price) || 0;
+      expectedCost += qty * matCost;
+    }
+
+    const roundedCost = Math.round(expectedCost);
+    const currentCost = Number(product.cost_price) || 0;
+    const delta = Math.abs(currentCost - roundedCost);
+
+    if (delta > 1 && roundedCost > 0) {
+      updated.push({
+        id: product.id,
+        sku: product.sku || "",
+        name: product.name || "",
+        oldCost: currentCost,
+        newCost: roundedCost,
+      });
+
+      product.cost_price = roundedCost;
+      product.updated_at = new Date().toISOString();
+
+      logLocalAction("BOM Sync: Cập nhật giá vốn thành phẩm", "products", product.id,
+        { cost_price: currentCost },
+        { cost_price: roundedCost, source: "BOM sync" }
+      );
+    }
+  }
+
+  if (updated.length > 0) {
+    writeJson(PRODUCTS_KEY, products);
+  }
+
+  return updated;
 }

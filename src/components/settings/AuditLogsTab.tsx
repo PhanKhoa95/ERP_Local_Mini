@@ -40,6 +40,10 @@ const tableLabels: Record<string, string> = {
   warehouses: "Kho",
   customer_groups: "Nhóm KH",
   shipping_zones: "Vận chuyển",
+  product_bom: "Định mức BOM",
+  journal_entries: "Bút toán",
+  journal_lines: "Dòng bút toán",
+  accounts: "Tài khoản kế toán",
 };
 
 const PAGE_SIZE = 20;
@@ -149,6 +153,11 @@ export function AuditLogsTab() {
                   {log.record_id && (
                     <p className="text-xs text-muted-foreground font-mono truncate">
                       ID: {log.record_id}
+                    </p>
+                  )}
+                  {log.new_data && Object.keys(log.new_data).length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {Object.entries(log.new_data).map(([k, v]) => `${k}: ${v}`).join(", ")}
                     </p>
                   )}
                 </div>

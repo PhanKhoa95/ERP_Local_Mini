@@ -5,6 +5,7 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { invalidatePartnerRelated } from "@/lib/queryInvalidation";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { logLocalAction } from "@/lib/localInventoryStore";
 
 type Partner = Tables<"partners">;
 type PartnerInsert = TablesInsert<"partners">;
@@ -18,42 +19,61 @@ function getLocalPartners(companyId: string): Partner[] {
   if (!raw) {
     const defaultPartners: Partner[] = [
       {
-        id: "partner-customer-1",
-        name: "Nguyễn Văn A",
+        id: "partner-retail",
+        name: "Chuỗi Trà Sữa X (Khách hàng dự án)",
         phone: "0901234567",
-        email: "nguyenvana@gmail.com",
-        address: "Biên Hòa, Đồng Nai",
+        email: "contact@trasuax.vn",
+        address: "Quận 1, TP.HCM",
         partner_type: "customer",
-        code: "KH001",
+        code: "KH-TRASUAX",
         company_id: companyId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        tax_id: null,
-        notes: "Khách VIP",
+        tax_id: "0314982341",
+        notes: "Khách hàng dịch vụ in ấn decal trọn gói theo hợp đồng HD-2026-NIN-001",
         is_active: true,
-        debt_amount: 0,
+        debt_amount: 5000000, // Remaining milestone balance of 5,000,000đ
         group_id: null,
-        loyalty_points: 0,
-        total_spent: 0,
+        loyalty_points: 150,
+        total_spent: 15000000,
       },
       {
-        id: "partner-supplier-1",
-        name: "Công ty Cổ phần May Mặc",
-        phone: "0283800000",
-        email: "contact@maymac.vn",
-        address: "Tân Bình, TP.HCM",
+        id: "partner-supplier-a",
+        name: "NCC Thiết bị In ấn Hải Âu",
+        phone: "0283800001",
+        email: "sales@haiau-printer.vn",
+        address: "Quận 10, TP.HCM",
         partner_type: "supplier",
-        code: "NCC001",
+        code: "NCC-EQ",
         company_id: companyId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         tax_id: "0102030405",
-        notes: "Nhà cung cấp vải",
+        notes: "Nhà cung ứng máy in màu Epson L8050 và máy cán màng",
         is_active: true,
         debt_amount: 0,
         group_id: null,
         loyalty_points: 0,
-        total_spent: 0,
+        total_spent: 9500000,
+      },
+      {
+        id: "partner-supplier-b",
+        name: "NCC Vật tư In ấn Trường Thịnh",
+        phone: "0283800002",
+        email: "vat-tu@truongthinh-ink.vn",
+        address: "Bình Tân, TP.HCM",
+        partner_type: "supplier",
+        code: "NCC-MAT",
+        company_id: companyId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        tax_id: "0102030406",
+        notes: "Nhà cung cấp giấy decal A4 và mực in chai Epson chính hãng",
+        is_active: true,
+        debt_amount: 0,
+        group_id: null,
+        loyalty_points: 0,
+        total_spent: 10000000,
       }
     ];
     localStorage.setItem(PARTNERS_KEY, JSON.stringify(defaultPartners));
@@ -120,6 +140,7 @@ export function usePartners() {
           total_spent: 0,
         };
         saveLocalPartners([newPartner, ...local]);
+        logLocalAction("Tạo đối tác mới", "partners", newPartner.id, null, { name: newPartner.name, type: newPartner.partner_type, code: newPartner.code });
         return newPartner;
       }
 
@@ -152,6 +173,7 @@ export function usePartners() {
             updated_at: new Date().toISOString(),
           } as Partner;
           saveLocalPartners(local);
+          logLocalAction("Cập nhật đối tác", "partners", id, null, updates);
           return local[idx];
         }
         throw new Error("Không tìm thấy đối tác local");
@@ -178,6 +200,7 @@ export function usePartners() {
   const deletePartner = useMutation({
     mutationFn: async (id: string) => {
       if (isLocalDemoAuthEnabled()) {
+        logLocalAction("Xóa đối tác", "partners", id, null, null);
         const local = getLocalPartners(companyId || "");
         saveLocalPartners(local.filter(p => p.id !== id));
         return;

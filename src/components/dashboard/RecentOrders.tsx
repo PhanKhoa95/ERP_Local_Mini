@@ -23,10 +23,43 @@ const statusLabels: Record<string, string> = {
   cancelled: "Đã hủy",
 };
 
-export function RecentOrders() {
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+
+export function RecentOrders({ dateRange = null }: { dateRange?: { from?: Date; to?: Date } | null }) {
+  const fromStr = dateRange?.from?.toISOString() || "";
+  const toStr = dateRange?.to?.toISOString() || "";
+
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["recent-orders"],
+    queryKey: ["recent-orders", fromStr, toStr],
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        const rawChannels = localStorage.getItem("erp-mini-local-demo-sales-channels");
+        const allOrders = rawOrders ? JSON.parse(rawOrders) : [];
+        const channels = rawChannels ? JSON.parse(rawChannels) : [];
+
+        let filteredOrders = allOrders;
+        if (dateRange) {
+          filteredOrders = allOrders.filter((o: any) => {
+            const dateStr = o.order_date || o.created_at;
+            if (!dateStr) return false;
+            const orderDate = new Date(dateStr);
+            
+            if (dateRange.from && orderDate < dateRange.from) return false;
+            if (dateRange.to && orderDate > dateRange.to) return false;
+            return true;
+          });
+        }
+
+        return filteredOrders
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 5)
+          .map((o: any) => ({
+            ...o,
+            sales_channels: channels.find((c: any) => c.id === o.channel_id) || null,
+          }));
+      }
+
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -35,11 +68,26 @@ export function RecentOrders() {
           partners(*)
         `)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10); // fetch more to allow client-side filtering if needed
+      
       if (error) throw error;
-      return data;
+      
+      let filteredData = data || [];
+      if (dateRange) {
+        filteredData = filteredData.filter((o: any) => {
+          const dateStr = o.order_date || o.created_at;
+          if (!dateStr) return false;
+          const orderDate = new Date(dateStr);
+          if (dateRange.from && orderDate < dateRange.from) return false;
+          if (dateRange.to && orderDate > dateRange.to) return false;
+          return true;
+        });
+      }
+
+      return filteredData.slice(0, 5);
     },
   });
+
 
   if (isLoading) {
     return (

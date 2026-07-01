@@ -314,11 +314,12 @@ export default function Accounting() {
       const totalDebit = accLines.reduce((s, l) => s + Number(l.debit || 0), 0);
       const totalCredit = accLines.reduce((s, l) => s + Number(l.credit || 0), 0);
       
-      let bal = 0;
+      const startingBalance = Number(a.balance || 0);
+      let bal = startingBalance;
       if (a.account_type === "asset" || a.account_type === "expense") {
-        bal = totalDebit - totalCredit;
+        bal += totalDebit - totalCredit;
       } else {
-        bal = totalCredit - totalDebit;
+        bal += totalCredit - totalDebit;
       }
 
       return {
@@ -582,8 +583,12 @@ export default function Accounting() {
                       <span className="font-mono">{fmt(Math.abs(Number(a.balance || 0)))}</span>
                     </div>
                   ))}
+                  <div className="flex justify-between text-sm p-1.5 rounded hover:bg-muted/30 text-emerald-600 font-medium">
+                    <span>Lợi nhuận chưa phân phối (Lãi/Lỗ kỳ này)</span>
+                    <span className="font-mono">{fmt(profitLoss.netProfit)}</span>
+                  </div>
                   <div className="border-t pt-2 flex justify-between font-bold">
-                    <span>Tổng nguồn vốn</span><span className="font-mono">{fmt(balanceSheet.totalLiabilities + balanceSheet.totalEquity)}</span>
+                    <span>Tổng nguồn vốn</span><span className="font-mono">{fmt(balanceSheet.totalLiabilities + balanceSheet.totalEquity + profitLoss.netProfit)}</span>
                   </div>
                 </CardContent>
               </Card>

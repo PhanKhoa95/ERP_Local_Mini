@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 interface StatCardProps {
   title: string;
   value: string;
+  description?: string;
   change?: string;
   changeType?: "increase" | "decrease" | "neutral";
   icon: LucideIcon;
@@ -14,6 +15,7 @@ interface StatCardProps {
 export function StatCard({
   title,
   value,
+  description,
   change,
   changeType = "neutral",
   icon: Icon,
@@ -26,6 +28,9 @@ export function StatCard({
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className="text-2xl font-bold text-foreground">{value}</p>
+          {description && (
+            <p className="text-xs leading-snug text-muted-foreground">{description}</p>
+          )}
           {change && (
             <div className="flex items-center gap-1">
               <span

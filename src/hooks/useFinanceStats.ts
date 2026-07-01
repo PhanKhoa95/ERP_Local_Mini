@@ -95,14 +95,19 @@ export function useFinanceStats() {
           description: `Đơn hàng ${order.order_number}`,
           amount: Number(order.total) || 0,
           date: order.created_at,
+          channel: "Cửa hàng" as string,
+          status: order.status as string,
         }));
 
         return {
           totalRevenue,
           totalCOGS,
           grossProfit,
+          profitMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
           chartData,
           recentTransactions,
+          orderCount: localOrders.length,
+          deliveredCount: deliveredOrders.length,
         };
       }
 

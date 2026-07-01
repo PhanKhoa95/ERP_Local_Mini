@@ -1,19 +1,12 @@
 import { test, expect } from "@playwright/test";
+import { loginLocalDemo, getBrainPath, ensureDir } from "./helpers";
+import * as path from "path";
 
 test("verify system health dashboard and data injection", async ({ page }) => {
-  // 1. Navigate to auth page and login
-  await page.goto("http://127.0.0.1:8080/auth", { waitUntil: "domcontentloaded" });
-  
-  // Fill username and password
-  await page.fill("#login-email", "admin");
-  await page.fill("#login-password", "admin");
-  await page.click('button[type="submit"]');
-
-  // 2. Wait for navigation and verify dashboard is loaded
-  await page.waitForURL("**/");
+  await loginLocalDemo(page);
   
   // 3. Navigate to settings
-  await page.goto("http://127.0.0.1:8080/settings", { waitUntil: "domcontentloaded" });
+  await page.goto("/settings", { waitUntil: "domcontentloaded" });
 
   // 4. Click health tab trigger
   await page.locator('role=tab >> text=Sức khỏe').first().click();
@@ -60,7 +53,9 @@ test("verify system health dashboard and data injection", async ({ page }) => {
   await page.waitForSelector("text=Error 503");
 
   // 9. Take a screenshot and save it to the specified path
-  await page.screenshot({ path: "C:/Users/KHOA MEDIA/.gemini/antigravity/brain/81091271-6a4a-4083-9787-ff9d6e09437c/system_health_verified.png" });
+  const screenshotPath = path.join(getBrainPath(), "system_health_verified.png");
+  ensureDir(screenshotPath);
+  await page.screenshot({ path: screenshotPath });
   console.log("Screenshot saved.");
 
   // 10. Turn DB status back ON to leave system healthy
@@ -68,9 +63,11 @@ test("verify system health dashboard and data injection", async ({ page }) => {
   await page.waitForSelector("text=Online 200");
   await page.waitForTimeout(1000);
 
-  // 11. Navigate directly to /health and check the JSON content
-  const response = await page.goto("http://127.0.0.1:8080/health", { waitUntil: "domcontentloaded" });
-  const text = await response?.text();
+  // 11. Navigate directly to /health and check the rendered JSON content
+  await page.goto("/health", { waitUntil: "domcontentloaded" });
+  const renderedJson = page.locator("pre");
+  await expect(renderedJson).toContainText('"status": "ok"', { timeout: 10000 });
+  const text = await renderedJson.textContent();
   console.log("Terminus Health JSON response:", text);
 
   // Parse the JSON
