@@ -84,19 +84,23 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
     }
   }, [value]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localValue === "") return;
+      const num = parseInt(localValue, 10);
+      if (num >= 1 && num !== lastSentValue.current) {
+        if (isService || num <= maxStock) {
+          lastSentValue.current = num;
+          onChange(num);
+        }
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [localValue, onChange, maxStock, isService]);
+
   const handleInputChange = (valStr: string) => {
     const cleanVal = valStr.replace(/[^0-9]/g, "");
     setLocalValue(cleanVal);
-
-    if (cleanVal !== "") {
-      const num = parseInt(cleanVal, 10);
-      if (num >= 1) {
-        if (isService || num <= maxStock) {
-          onChange(num);
-          lastSentValue.current = num;
-        }
-      }
-    }
   };
 
   const handleBlur = () => {
@@ -121,7 +125,7 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
         title: "Vượt quá tồn kho",
         description: `Sản phẩm này chỉ còn tối đa ${maxStock} trong kho.`,
       });
-    } else {
+    } else if (num !== lastSentValue.current) {
       onChange(num);
       lastSentValue.current = num;
     }
