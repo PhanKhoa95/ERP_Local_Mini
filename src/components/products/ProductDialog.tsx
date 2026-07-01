@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Wrench, Plus, Barcode } from "lucide-react";
+import { Loader2, Wrench, Plus, Barcode, Scale } from "lucide-react";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
 import { ImageUpload } from "./ImageUpload";
@@ -41,6 +41,12 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
   const { activeCategories, createCategory } = useProductCategories();
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  
+  // Conversions temporary state for new products
+  const [conversions, setConversions] = useState<{ from_unit: string; factor: number }[]>([]);
+  const [tempFromUnit, setTempFromUnit] = useState("");
+  const [tempFactor, setTempFactor] = useState<number>(10);
+
   const [formData, setFormData] = useState({
     sku: "",
     barcode: "",
@@ -89,6 +95,9 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
         is_service: false,
       });
     }
+    setConversions([]);
+    setTempFromUnit("");
+    setTempFactor(10);
     setErrors({});
   }, [product, open]);
 
@@ -108,7 +117,9 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
       };
       const validated = productSchema.parse(dataToValidate);
       const payload = { ...validated, barcode: formData.barcode.trim() || undefined };
-      onSubmit(product ? { id: product.id, ...payload } : payload);
+      
+      // If creating new, include the temporary conversions list in submission
+      onSubmit(product ? { id: product.id, ...payload } : { ...payload, conversions });
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -127,13 +138,14 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
     setNewCategoryName("");
     setShowNewCategory(false);
   };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <form onSubmit={handleSubmit} className="space-y-4 pr-1">
           {/* Image Upload */}
           <ImageUpload
             value={formData.image_url}
@@ -328,6 +340,79 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
               rows={3}
             />
           </div>
+
+          {/* Unit conversions configuration section (Only for new non-service items) */}
+          {!product && !formData.is_service && (
+            <div className="space-y-3 p-3.5 border rounded-lg bg-secondary/20">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <Scale className="h-4 w-4" />
+                Quy cách quy đổi & Chia lẻ
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Thiết lập các đơn vị quy đổi lớn hơn đơn vị cơ bản (VD: 1 Thùng = 24 {formData.unit || "cái"}) để tự động chia khi xé lẻ hoặc nhập/xuất kho.
+              </p>
+
+              {/* List of temporary conversions */}
+              {conversions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pb-2">
+                  {conversions.map((c, i) => (
+                    <Badge key={i} variant="secondary" className="text-[10px] font-mono py-1 px-2 flex items-center gap-1">
+                      1 {c.from_unit} = {c.factor} {formData.unit || "cái"}
+                      <button
+                        type="button"
+                        onClick={() => setConversions(conversions.filter((_, idx) => idx !== i))}
+                        className="hover:text-destructive text-muted-foreground font-bold ml-1.5"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new conversion inputs */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-[10px] font-semibold text-muted-foreground">Đơn vị quy đổi</Label>
+                  <Input
+                    placeholder="Thùng, Hộp..."
+                    value={tempFromUnit}
+                    onChange={(e) => setTempFromUnit(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="w-24 space-y-1">
+                  <Label className="text-[10px] font-semibold text-muted-foreground">Tỉ lệ quy đổi</Label>
+                  <Input
+                    type="number"
+                    min="2"
+                    step="1"
+                    value={tempFactor}
+                    onChange={(e) => setTempFactor(Number(e.target.value))}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!tempFromUnit.trim()) return;
+                    if (tempFactor <= 1) return;
+                    if (conversions.some(c => c.from_unit.toLowerCase() === tempFromUnit.trim().toLowerCase())) {
+                      alert("Đơn vị này đã được cấu hình.");
+                      return;
+                    }
+                    setConversions([...conversions, { from_unit: tempFromUnit.trim(), factor: tempFactor }]);
+                    setTempFromUnit("");
+                    setTempFactor(10);
+                  }}
+                  className="h-8 text-xs"
+                >
+                  Thêm
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

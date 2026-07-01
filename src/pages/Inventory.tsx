@@ -187,10 +187,27 @@ const Inventory = () => {
   };
 
   const handleSubmit = async (data: any) => {
+    const { conversions, ...productData } = data;
     if (editingProduct) {
-      await updateProduct.mutateAsync(data);
+      await updateProduct.mutateAsync(productData);
     } else {
-      await createProduct.mutateAsync(data);
+      const newProd = await createProduct.mutateAsync(productData);
+      if (newProd && conversions && conversions.length > 0) {
+        const LOCAL_CONVERSIONS_KEY = "erp-mini-local-unit-conversions";
+        const allConversions = JSON.parse(localStorage.getItem(LOCAL_CONVERSIONS_KEY) || "[]");
+        conversions.forEach((c: any) => {
+          allConversions.push({
+            id: `conv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            product_id: newProd.id,
+            from_unit: c.from_unit,
+            to_unit: newProd.unit || "cái",
+            factor: Number(c.factor),
+            is_active: true
+          });
+        });
+        localStorage.setItem(LOCAL_CONVERSIONS_KEY, JSON.stringify(allConversions));
+        queryClient.invalidateQueries({ queryKey: ["unit-conversions"] });
+      }
     }
     setDialogOpen(false);
     setEditingProduct(null);
