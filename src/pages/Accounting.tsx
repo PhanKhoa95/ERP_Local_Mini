@@ -93,6 +93,13 @@ export default function Accounting() {
   const [newAccountName, setNewAccountName] = useState("");
   const [newAccountType, setNewAccountType] = useState("asset");
 
+  // Chart of accounts filter & edit states
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>("all");
+  const [editAccountOpen, setEditAccountOpen] = useState(false);
+  const [editAccount, setEditAccount] = useState<any | null>(null);
+  const [editAccountName, setEditAccountName] = useState("");
+  const [editAccountType, setEditAccountType] = useState("asset");
+
   // Reset manual entry states on open/close
   useEffect(() => {
     if (!createEntryOpen) {
