@@ -228,25 +228,40 @@ export function useVouchers() {
         const list = getLocalVouchers();
         const updatedList = list.map(item => {
           if (item.id === id) {
-            return { ...item, ...voucher } as Voucher;
+            const merged = { ...item, ...voucher };
+            const meta = {
+              is_auto_apply: merged.is_auto_apply ?? false,
+              target_customer_group: merged.target_customer_group ?? "all",
+              promo_type: merged.promo_type ?? "order_discount",
+              target_product_id: merged.target_product_id ?? "",
+              description: merged.description ?? "",
+            };
+            return {
+              ...merged,
+              description: JSON.stringify(meta)
+            } as Voucher;
           }
           return item;
         });
         saveLocalVouchers(updatedList);
         return updatedList.find(i => i.id === id);
       }
-      // Re-serialize metadata if fields exist in patch
+
+      // Fetch existing row to merge description JSON metadata
+      const { data: existing } = await supabase.from("vouchers").select("*").eq("id", id).single();
+      const existingParsed = existing ? parseVoucherMetadata(existing) : null;
+
       const patch: any = { ...voucher };
-      if (voucher.description !== undefined || voucher.is_auto_apply !== undefined || voucher.promo_type !== undefined || voucher.target_customer_group !== undefined || voucher.target_product_id !== undefined) {
-        const meta = {
-          is_auto_apply: voucher.is_auto_apply ?? false,
-          target_customer_group: voucher.target_customer_group ?? "all",
-          promo_type: voucher.promo_type ?? "order_discount",
-          target_product_id: voucher.target_product_id ?? "",
-          description: voucher.description ?? "",
-        };
-        patch.description = JSON.stringify(meta);
-      }
+      
+      const meta = {
+        is_auto_apply: voucher.is_auto_apply !== undefined ? voucher.is_auto_apply : (existingParsed?.is_auto_apply ?? false),
+        target_customer_group: voucher.target_customer_group !== undefined ? voucher.target_customer_group : (existingParsed?.target_customer_group ?? "all"),
+        promo_type: voucher.promo_type !== undefined ? voucher.promo_type : (existingParsed?.promo_type ?? "order_discount"),
+        target_product_id: voucher.target_product_id !== undefined ? voucher.target_product_id : (existingParsed?.target_product_id ?? ""),
+        description: voucher.description !== undefined ? voucher.description : (existingParsed?.description ?? ""),
+      };
+      patch.description = JSON.stringify(meta);
+
       const { data, error } = await supabase.from("vouchers").update(patch).eq("id", id).select().single();
       if (error) throw error;
       return parseVoucherMetadata(data);

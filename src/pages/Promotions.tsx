@@ -118,13 +118,31 @@ export default function Promotions() {
     setCreateOpen(false);
   };
 
+  // Usage history of selected voucher
+  const voucherUsageHistory = useMemo(() => {
+    if (!selectedVoucher) return [];
+    return orders.filter(o => o.voucher_id === selectedVoucher.id);
+  }, [orders, selectedVoucher]);
+
+  // Dynamically compute the usage count of each voucher from orders list to ensure perfect sync
+  const computedUsedCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(o => {
+      if (o.voucher_id) {
+        counts[o.voucher_id] = (counts[o.voucher_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [orders]);
+
   // Helper to determine status dynamically based on current time
   const getPromoStatus = (v: Voucher): "active" | "scheduled" | "expired" => {
     if (!v.is_active) return "expired";
     const now = new Date();
     if (v.start_date && new Date(v.start_date) > now) return "scheduled";
     if (v.end_date && new Date(v.end_date) < now) return "expired";
-    if (v.usage_limit && v.used_count >= v.usage_limit) return "expired";
+    const actualUsed = computedUsedCount[v.id] || 0;
+    if (v.usage_limit && actualUsed >= v.usage_limit) return "expired";
     return "active";
   };
 
@@ -142,13 +160,7 @@ export default function Promotions() {
 
       return true;
     });
-  }, [vouchers, search, activeTab]);
-
-  // Usage history of selected voucher
-  const voucherUsageHistory = useMemo(() => {
-    if (!selectedVoucher) return [];
-    return orders.filter(o => o.voucher_id === selectedVoucher.id);
-  }, [orders, selectedVoucher]);
+  }, [vouchers, search, activeTab, computedUsedCount]);
 
   // Statistics
   const stats = useMemo(() => {
