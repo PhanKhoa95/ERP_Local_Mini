@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
 interface CustomerNote {
   id: string;
@@ -25,6 +26,11 @@ export function usePartnerDetail(partnerId: string | null) {
     queryKey: ["partner-orders", partnerId, companyId],
     enabled,
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-orders");
+        const list = raw ? JSON.parse(raw) : [];
+        return list.filter((o: any) => o.partner_id === partnerId && o.company_id === companyId);
+      }
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -41,6 +47,11 @@ export function usePartnerDetail(partnerId: string | null) {
     queryKey: ["partner-transactions", partnerId, companyId],
     enabled,
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-payment-transactions");
+        const list = raw ? JSON.parse(raw) : [];
+        return list.filter((t: any) => t.partner_id === partnerId && t.company_id === companyId);
+      }
       const { data, error } = await (supabase
         .from("payment_transactions") as any)
         .select("*")
@@ -57,6 +68,35 @@ export function usePartnerDetail(partnerId: string | null) {
     queryKey: ["partner-top-products", partnerId, companyId],
     enabled,
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        const ordersList = rawOrders ? JSON.parse(rawOrders) : [];
+        const filteredOrders = ordersList.filter((o: any) => o.partner_id === partnerId && o.company_id === companyId);
+        
+        const productMap = new Map<string, { product: any; totalQty: number; totalAmount: number; orderCount: number }>();
+        for (const order of filteredOrders) {
+          const items = order.order_items || [];
+          for (const item of items) {
+            const pid = item.product_id;
+            if (!pid) continue;
+            const existing = productMap.get(pid);
+            if (existing) {
+              existing.totalQty += item.quantity || 0;
+              existing.totalAmount += (item.quantity || 0) * (item.unit_price || 0);
+              existing.orderCount += 1;
+            } else {
+              productMap.set(pid, {
+                product: item.products || { id: pid, name: item.product_name || "Sản phẩm", sku: item.sku },
+                totalQty: item.quantity || 0,
+                totalAmount: (item.quantity || 0) * (item.unit_price || 0),
+                orderCount: 1,
+              });
+            }
+          }
+        }
+        return Array.from(productMap.values()).sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 20);
+      }
+
       const { data, error } = await supabase
         .from("order_items")
         .select(`
@@ -96,6 +136,30 @@ export function usePartnerDetail(partnerId: string | null) {
     queryKey: ["partner-purchased-items", partnerId, companyId],
     enabled,
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        const ordersList = rawOrders ? JSON.parse(rawOrders) : [];
+        const filteredOrders = ordersList.filter((o: any) => o.partner_id === partnerId && o.company_id === companyId);
+        
+        const list: any[] = [];
+        for (const order of filteredOrders) {
+          const items = order.order_items || [];
+          for (const item of items) {
+            list.push({
+              id: item.id || `item-${Date.now()}-${Math.random()}`,
+              product_id: item.product_id,
+              name: item.products?.name || item.product_name || "Sản phẩm không tên",
+              sku: item.products?.sku || item.sku || "N/A",
+              quantity: item.quantity || 0,
+              unit_price: item.unit_price || 0,
+              total: (item.quantity || 0) * (item.unit_price || 0),
+              order_date: order.order_date || order.created_at || new Date().toISOString(),
+            });
+          }
+        }
+        return list;
+      }
+
       const { data, error } = await supabase
         .from("order_items")
         .select(`
@@ -128,6 +192,12 @@ export function usePartnerDetail(partnerId: string | null) {
     queryKey: ["customer-notes", partnerId, companyId],
     enabled,
     queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-customer-notes");
+        const list = raw ? JSON.parse(raw) : [];
+        return list.filter((n: any) => n.partner_id === partnerId);
+      }
+
       const { data, error } = await supabase
         .from("customer_notes")
         .select("*, partners!inner(company_id)")
@@ -141,6 +211,20 @@ export function usePartnerDetail(partnerId: string | null) {
 
   const createNote = useMutation({
     mutationFn: async (note: { partner_id: string; note_type: string; content: string; follow_up_date?: string | null }) => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-customer-notes");
+        const list = raw ? JSON.parse(raw) : [];
+        const newNote = {
+          ...note,
+          id: `note-${Date.now()}`,
+          is_resolved: false,
+          created_at: new Date().toISOString(),
+        };
+        list.unshift(newNote);
+        localStorage.setItem("erp-mini-local-demo-customer-notes", JSON.stringify(list));
+        return newNote;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Chưa đăng nhập");
       const { data, error } = await supabase
@@ -160,6 +244,18 @@ export function usePartnerDetail(partnerId: string | null) {
 
   const updateNote = useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; content?: string; note_type?: string; is_resolved?: boolean; follow_up_date?: string | null }) => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-customer-notes");
+        const list = raw ? JSON.parse(raw) : [];
+        const idx = list.findIndex((n: any) => n.id === id);
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...updates };
+          localStorage.setItem("erp-mini-local-demo-customer-notes", JSON.stringify(list));
+          return list[idx];
+        }
+        throw new Error("Không tìm thấy ghi chú");
+      }
+
       const { data, error } = await supabase
         .from("customer_notes")
         .update(updates)
@@ -178,6 +274,14 @@ export function usePartnerDetail(partnerId: string | null) {
 
   const deleteNote = useMutation({
     mutationFn: async (id: string) => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-customer-notes");
+        const list = raw ? JSON.parse(raw) : [];
+        const filtered = list.filter((n: any) => n.id !== id);
+        localStorage.setItem("erp-mini-local-demo-customer-notes", JSON.stringify(filtered));
+        return;
+      }
+
       const { error } = await supabase.from("customer_notes").delete().eq("id", id);
       if (error) throw error;
     },
