@@ -2,9 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { erpEventBus } from "../erpEventBus";
 
 // Mock isLocalDemoAuthEnabled to always return true for testing local demo handlers
-vi.mock("@/lib/localDemoAuth", () => ({
-  isLocalDemoAuthEnabled: () => true
-}));
+vi.mock("@/lib/localDemoAuth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/localDemoAuth")>();
+  return {
+    ...actual,
+    isLocalDemoAuthEnabled: () => true
+  };
+});
 
 describe("Memberships & Wallet Balance Empirical Tests", () => {
   beforeEach(() => {
