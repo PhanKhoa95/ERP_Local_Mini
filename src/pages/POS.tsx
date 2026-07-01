@@ -45,6 +45,7 @@ import { useOrders } from "@/hooks/useOrders";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useWarehouseStock } from "@/hooks/useWarehouseStock";
 import { useToast } from "@/hooks/use-toast";
+import { useVouchers } from "@/hooks/useVouchers";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/orderControl";
 import { supabase } from "@/integrations/supabase/client";
@@ -295,6 +296,9 @@ const POS = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
+  const { vouchers } = useVouchers();
+  const [isManualDiscount, setIsManualDiscount] = useState(false);
+  const [appliedPromoName, setAppliedPromoName] = useState<string | null>(null);
   const [discount, setDiscount] = useState(0);
   const [shippingFee, setShippingFee] = useState(0);
   const [notes, setNotes] = useState("");
