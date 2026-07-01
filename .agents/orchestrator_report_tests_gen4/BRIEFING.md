@@ -50,11 +50,12 @@ Coordinate static verification, unit/integration testing (Vitest), end-to-end te
 | worker_static_verification | teamwork_preview_worker | Static Verification | completed | 3e55fb4d-3482-4b03-8bb9-8ddae4ba1492 |
 | worker_unit_testing | teamwork_preview_worker | Unit and Integration Tests | completed | b6ec9f8b-82ce-40fa-86e5-79cc404ce673 |
 | worker_e2e_testing | teamwork_preview_worker | Playwright E2E Tests | completed | d347a20f-3aff-4ecb-ad6e-6cbfe6cc7a81 |
-| worker_production_build | teamwork_preview_worker | Production Build | in-progress | bacc47eb-5119-4433-9acf-e3b6c235bba8 |
+| worker_production_build | teamwork_preview_worker | Production Build | completed | bacc47eb-5119-4433-9acf-e3b6c235bba8 |
+| forensic_auditor | teamwork_preview_auditor | Forensic Integrity Audit | in-progress | c2fa1992-4aa9-43ab-a082-522edb8b28e6 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 4 / 16
+- Spawn count: 5 / 16
 - Pending subagents: none
 - Predecessor: 58c01fbe-bab5-42b8-9f0a-edeca380d8af
 - Successor: not yet spawned
