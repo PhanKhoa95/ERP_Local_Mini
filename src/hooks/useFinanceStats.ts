@@ -16,11 +16,11 @@ function getLocalOrders(companyId: string): any[] {
   }
 }
 
-export function useFinanceStats() {
+export function useFinanceStats(startDate?: string, endDate?: string) {
   const { companyId } = useCompanyContext();
 
   return useQuery({
-    queryKey: ["finance-stats", companyId],
+    queryKey: ["finance-stats", companyId, startDate, endDate],
     queryFn: async () => {
       if (!companyId) return null;
 
@@ -29,8 +29,15 @@ export function useFinanceStats() {
         const localProducts = getLocalProducts(companyId);
         const localOrders = getLocalOrders(companyId);
 
-        // Calculate total revenue (delivered orders only)
-        const deliveredOrders = localOrders.filter((o) => o.status === "delivered");
+        const dateFilteredOrders = localOrders.filter(o => {
+          if (!o.created_at) return true;
+          const oDateStr = o.created_at.split("T")[0];
+          if (startDate && oDateStr < startDate) return false;
+          if (endDate && oDateStr > endDate) return false;
+          return true;
+        });
+
+        const deliveredOrders = dateFilteredOrders.filter((o) => o.status === "delivered");
         const totalRevenue = deliveredOrders.reduce(
           (sum, o) => sum + (Number(o.total) || 0),
           0
@@ -89,7 +96,7 @@ export function useFinanceStats() {
         }));
 
         // Recent transactions from orders
-        const recentTransactions = localOrders.slice(0, 10).map((order) => ({
+        const recentTransactions = dateFilteredOrders.slice(0, 10).map((order) => ({
           id: order.id,
           type: "income" as const,
           description: `Đơn hàng ${order.order_number}`,
@@ -106,7 +113,7 @@ export function useFinanceStats() {
           profitMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
           chartData,
           recentTransactions,
-          orderCount: localOrders.length,
+          orderCount: dateFilteredOrders.length,
           deliveredCount: deliveredOrders.length,
         };
       }
@@ -134,8 +141,16 @@ export function useFinanceStats() {
       const orders = ordersRes.data || [];
       const products = productsRes.data || [];
 
+      const dateFilteredOrders = orders.filter(o => {
+        if (!o.created_at) return true;
+        const oDateStr = o.created_at.split("T")[0];
+        if (startDate && oDateStr < startDate) return false;
+        if (endDate && oDateStr > endDate) return false;
+        return true;
+      });
+
       // Calculate total revenue (delivered orders only)
-      const deliveredOrders = orders.filter((o) => o.status === "delivered");
+      const deliveredOrders = dateFilteredOrders.filter((o) => o.status === "delivered");
       const totalRevenue = deliveredOrders.reduce(
         (sum, o) => sum + (Number(o.total) || 0),
         0
@@ -194,7 +209,7 @@ export function useFinanceStats() {
       }));
 
       // Recent transactions from orders
-      const recentTransactions = orders.slice(0, 10).map((order) => ({
+      const recentTransactions = dateFilteredOrders.slice(0, 10).map((order) => ({
         id: order.id,
         type: "income" as const,
         description: `Đơn hàng ${order.order_number}`,
@@ -211,7 +226,7 @@ export function useFinanceStats() {
         profitMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
         chartData,
         recentTransactions,
-        orderCount: orders.length,
+        orderCount: dateFilteredOrders.length,
         deliveredCount: deliveredOrders.length,
       };
     },

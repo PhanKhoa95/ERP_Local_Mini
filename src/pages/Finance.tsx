@@ -27,6 +27,7 @@ import { useFinanceStats } from "@/hooks/useFinanceStats";
 import { ReconciliationPanel } from "@/components/finance/ReconciliationPanel";
 import { FinanceAnomalyAlert } from "@/components/finance/FinanceAnomalyAlert";
 import { CassoReconciliation } from "@/components/finance/CassoReconciliation";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 
 const statusLabels: Record<string, string> = {
   pending: "Chờ xử lý",
@@ -47,7 +48,8 @@ const statusColors: Record<string, string> = {
 };
 
 const Finance = () => {
-  const { data: stats, isLoading } = useFinanceStats();
+  const { startDate, endDate } = useGlobalDateFilter();
+  const { data: stats, isLoading } = useFinanceStats(startDate, endDate);
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
