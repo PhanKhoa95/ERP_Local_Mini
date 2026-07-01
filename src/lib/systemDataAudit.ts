@@ -73,8 +73,13 @@ interface OrderLike {
 interface PaymentLike {
   id?: string;
   order_id?: string | null;
+  partner_id?: string | null;
   transaction_type?: string | null;
   amount?: number | null;
+  payment_method?: string | null;
+  reference_number?: string | null;
+  transaction_date?: string | null;
+  created_at?: string | null;
 }
 
 interface JournalEntryLike {
@@ -480,6 +485,84 @@ export function buildSystemDataAuditReport(snapshot: SystemAuditSnapshot): Syste
           : 0;
     paymentsByOrder.set(payment.order_id, round((paymentsByOrder.get(payment.order_id) || 0) + signed));
   });
+
+  // 1. Phép kiểm giao dịch trùng lặp và giao dịch đột biến nâng cao
+  const duplicateTimeThreshold = 3 * 60 * 1000;
+  const largeSpikeThreshold = 100000000;
+
+  const validAmounts = snapshot.payments.map(p => toNumber(p.amount)).filter(a => a > 0);
+  const avgAmount = validAmounts.length > 0 
+    ? validAmounts.reduce((sum, val) => sum + val, 0) / validAmounts.length 
+    : 0;
+
+  for (let i = 0; i < snapshot.payments.length; i++) {
+    const p1 = snapshot.payments[i];
+    const amt1 = toNumber(p1.amount);
+    if (amt1 <= 0) continue;
+
+    totalChecks += 1;
+
+    for (let j = i + 1; j < snapshot.payments.length; j++) {
+      const p2 = snapshot.payments[j];
+      const amt2 = toNumber(p2.amount);
+      if (amt2 !== amt1) continue;
+      if (p1.transaction_type !== p2.transaction_type) continue;
+      if (p1.partner_id !== p2.partner_id || p1.order_id !== p2.order_id) continue;
+
+      const time1 = p1.transaction_date || p1.created_at;
+      const time2 = p2.transaction_date || p2.created_at;
+      if (time1 && time2) {
+        const diff = Math.abs(new Date(time1).getTime() - new Date(time2).getTime());
+        if (diff <= duplicateTimeThreshold) {
+          pushIssue(issues, {
+            module: "Thanh toán",
+            entityType: "payment_transaction",
+            entityId: p1.id || `dup-${i}-${j}`,
+            title: "Phát hiện giao dịch trùng lặp tiềm ẩn",
+            severity: "warning",
+            expectedLabel: "Số giao dịch duy nhất",
+            expectedValue: 1,
+            actualLabel: "Số giao dịch trùng",
+            actualValue: 2,
+            detail: `Giao dịch ${p1.id || ""} và ${p2.id || ""} có cùng số tiền ${amt1.toLocaleString("vi-VN")}đ phát sinh quá gần nhau (dưới 3 phút).`,
+            recommendation: "Kiểm tra xem nhân viên có bấm đúp hoặc Casso bị đồng bộ lặp giao dịch hay không.",
+          });
+          break;
+        }
+      } else if (p1.reference_number && p1.reference_number === p2.reference_number) {
+        pushIssue(issues, {
+          module: "Thanh toán",
+          entityType: "payment_transaction",
+          entityId: p1.id || `dup-ref-${i}-${j}`,
+          title: "Trùng mã tham chiếu giao dịch ngân hàng",
+          severity: "error",
+          expectedLabel: "Số tham chiếu duy nhất",
+          expectedValue: 1,
+          actualLabel: "Số tham chiếu trùng",
+          actualValue: 2,
+          detail: `Giao dịch ${p1.id || ""} và ${p2.id || ""} trùng mã tham chiếu Casso/Ngân hàng ${p1.reference_number}.`,
+          recommendation: "Xóa bớt 1 giao dịch bị lặp hoặc sửa lại số tham chiếu chính xác.",
+        });
+        break;
+      }
+    }
+
+    if (amt1 >= largeSpikeThreshold || (avgAmount > 0 && amt1 > avgAmount * 5 && amt1 > 50000000)) {
+      pushIssue(issues, {
+        module: "Thanh toán",
+        entityType: "payment_transaction",
+        entityId: p1.id || `spike-${i}`,
+        title: "Giao dịch có giá trị đột biến lớn bất thường",
+        severity: "warning",
+        expectedLabel: "Ngưỡng cảnh báo dòng tiền",
+        expectedValue: largeSpikeThreshold,
+        actualLabel: "Giá trị giao dịch",
+        actualValue: amt1,
+        detail: `Giao dịch ${p1.id || ""} ghi nhận số tiền ${amt1.toLocaleString("vi-VN")}đ vượt quá ngưỡng an toàn hoặc gấp nhiều lần trung bình quỹ.`,
+        recommendation: "Yêu cầu Kế toán trưởng kiểm tra lại tính xác thực của chứng từ/phiếu chi lớn này.",
+      });
+    }
+  }
 
   snapshot.orders.forEach((order) => {
     totalChecks += 2;
