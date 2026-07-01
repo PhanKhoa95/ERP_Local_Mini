@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
@@ -37,8 +37,9 @@ import {
   BarChart3,
   PieChartIcon,
 } from "lucide-react";
-import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, parseISO } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import { cn } from "@/lib/utils";
 import {
   useRevenueReport,
@@ -141,10 +142,14 @@ const salesByChannelColors = ["hsl(var(--primary))", "#3B82F6", "#10B981", "#F59
 
 const Reports = () => {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const { startDate, endDate, setCustomRange, selectPreset } = useGlobalDateFilter();
+
+  const dateRange = useMemo(() => {
+    return {
+      from: startDate ? startOfDay(parseISO(startDate)) : startOfMonth(new Date()),
+      to: endDate ? endOfDay(parseISO(endDate)) : endOfMonth(new Date()),
+    };
+  }, [startDate, endDate]);
 
   const [calendarRange, setCalendarRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: dateRange.from,
@@ -358,7 +363,7 @@ const Reports = () => {
                       : "outline"
                   }
                   size="sm"
-                  onClick={() => setDateRange({ from: preset.from, to: preset.to })}
+                  onClick={() => setCustomRange(format(preset.from, "yyyy-MM-dd"), format(preset.to, "yyyy-MM-dd"))}
                 >
                   {preset.label}
                 </Button>
@@ -377,10 +382,10 @@ const Reports = () => {
                     onSelect={(range) => {
                       setCalendarRange(range ? { from: range.from, to: range.to } : { from: undefined, to: undefined });
                       if (range?.from && range?.to) {
-                        setDateRange({
-                          from: startOfDay(range.from),
-                          to: endOfDay(range.to),
-                        });
+                        setCustomRange(
+                          format(range.from, "yyyy-MM-dd"),
+                          format(range.to, "yyyy-MM-dd")
+                        );
                       }
                     }}
                     locale={vi}
