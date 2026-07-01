@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
-import type { Tables } from "@/integrations/supabase/types";
+import { useWarehouses } from "@/hooks/useWarehouses";
+import type { Partner } from "@/hooks/usePartners";
 
 const partnerSchema = z.object({
   code: z.string().min(1, "Mã đối tác không được để trống").max(50),
@@ -20,9 +21,10 @@ const partnerSchema = z.object({
   tax_id: z.string().max(50).optional(),
   notes: z.string().max(1000).optional(),
   group_id: z.string().optional().nullable(),
+  branch_id: z.string().optional(),
+  warehouse_id: z.string().optional(),
+  promo_segment: z.enum(["all", "loyalty", "wholesale"]).optional(),
 });
-
-type Partner = Tables<"partners">;
 
 interface PartnerDialogProps {
   open: boolean;
@@ -35,6 +37,8 @@ interface PartnerDialogProps {
 
 export function PartnerDialog({ open, onOpenChange, partner, defaultType = "customer", onSubmit, isLoading }: PartnerDialogProps) {
   const { customerGroups } = useCustomerGroups();
+  const { warehouses } = useWarehouses();
+  
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -44,8 +48,12 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
     address: "",
     tax_id: "",
     notes: "",
-    group_id: "" as string | null,
+    group_id: null as string | null,
+    branch_id: "",
+    warehouse_id: "",
+    promo_segment: "all" as "all" | "loyalty" | "wholesale",
   });
+  
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -60,6 +68,9 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
         tax_id: partner.tax_id || "",
         notes: partner.notes || "",
         group_id: partner.group_id || null,
+        branch_id: partner.branch_id || "",
+        warehouse_id: partner.warehouse_id || "",
+        promo_segment: partner.promo_segment || "all",
       });
     } else {
       setFormData({
@@ -72,6 +83,9 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
         tax_id: "",
         notes: "",
         group_id: null,
+        branch_id: "",
+        warehouse_id: "",
+        promo_segment: "all",
       });
     }
     setErrors({});
@@ -101,16 +115,20 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg bg-popover text-popover-foreground z-50">
         <DialogHeader>
-          <DialogTitle>{partner ? "Sửa đối tác" : "Thêm đối tác mới"}</DialogTitle>
+          <DialogTitle>{partner ? "Cập nhật thông tin Đối tác" : "Thêm mới Đối tác kinh doanh"}</DialogTitle>
+          <DialogDescription>
+            Cấu hình phân loại chi nhánh, kho xuất hàng mặc định và tệp khuyến mãi để đồng bộ tự động.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto px-1 py-1">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Mã đối tác *</Label>
               <Input
                 id="code"
+                placeholder="Ví dụ: KH-001, NCC-TECH"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 disabled={!!partner}
@@ -118,7 +136,7 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
               {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="partner_type">Loại</Label>
+              <Label htmlFor="partner_type">Loại đối tác</Label>
               <Select
                 value={formData.partner_type}
                 onValueChange={(value: "customer" | "supplier" | "both") => 
@@ -131,7 +149,7 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
                 <SelectContent>
                   <SelectItem value="customer">Khách hàng</SelectItem>
                   <SelectItem value="supplier">Nhà cung cấp</SelectItem>
-                  <SelectItem value="both">Cả hai</SelectItem>
+                  <SelectItem value="both">Cả hai (KH + NCC)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -141,45 +159,101 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
             <Label htmlFor="name">Tên đối tác *</Label>
             <Input
               id="name"
+              placeholder="Nhập họ tên hoặc tên doanh nghiệp..."
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
             {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
           </div>
 
-          {showCustomerGroup && customerGroups.length > 0 && (
-            <div className="space-y-2">
-              <Label>Nhóm khách hàng</Label>
-              <Select
-                value={formData.group_id || "none"}
-                onValueChange={(value) => setFormData({ ...formData, group_id: value === "none" ? null : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn nhóm khách hàng" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Không có nhóm</SelectItem>
-                  {customerGroups.filter(g => g.is_active).map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: group.color }}
-                        />
-                        {group.name} ({group.discount_percent}% giảm giá)
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Classification Settings Section */}
+          <div className="border p-3 rounded-lg bg-muted/20 space-y-3">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+              <Sparkles className="h-4 w-4" /> Thiết lập phân loại đồng bộ
             </div>
-          )}
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Chi nhánh phụ trách</Label>
+                <Select
+                  value={formData.branch_id || "none"}
+                  onValueChange={(val) => setFormData({ ...formData, branch_id: val === "none" ? "" : val })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Toàn quốc (Mặc định)</SelectItem>
+                    <SelectItem value="Chi nhánh miền Bắc">Chi nhánh miền Bắc</SelectItem>
+                    <SelectItem value="Chi nhánh miền Nam">Chi nhánh miền Nam</SelectItem>
+                    <SelectItem value="Chi nhánh miền Trung">Chi nhánh miền Trung</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Kho xuất mặc định</Label>
+                <Select
+                  value={formData.warehouse_id || "none"}
+                  onValueChange={(val) => setFormData({ ...formData, warehouse_id: val === "none" ? "" : val })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Chọn kho mặc định" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tự động chọn (POS)</SelectItem>
+                    {warehouses.filter(w => w.is_active).map(w => (
+                      <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {showCustomerGroup && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Tệp khuyến mãi áp dụng</Label>
+                  <Select
+                    value={formData.promo_segment}
+                    onValueChange={(val: any) => setFormData({ ...formData, promo_segment: val })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Khách lẻ / Tất cả (retail)</SelectItem>
+                      <SelectItem value="loyalty">Thành viên VIP (loyalty)</SelectItem>
+                      <SelectItem value="wholesale">Khách mua sỉ (wholesale)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {customerGroups.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Nhóm khách hàng (Loyalty)</Label>
+                    <Select
+                      value={formData.group_id || "none"}
+                      onValueChange={(value) => setFormData({ ...formData, group_id: value === "none" ? null : value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn nhóm" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Không phân nhóm</SelectItem>
+                        {customerGroups.filter(g => g.is_active).map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name} (-{group.discount_percent}%)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="phone">Số điện thoại</Label>
               <Input
                 id="phone"
+                placeholder="Ví dụ: 0901234567"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
@@ -189,6 +263,7 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
               <Input
                 id="email"
                 type="email"
+                placeholder="name@company.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
@@ -200,6 +275,7 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
             <Label htmlFor="tax_id">Mã số thuế</Label>
             <Input
               id="tax_id"
+              placeholder="Nhập mã số thuế doanh nghiệp..."
               value={formData.tax_id}
               onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
             />
@@ -209,6 +285,7 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
             <Label htmlFor="address">Địa chỉ</Label>
             <Textarea
               id="address"
+              placeholder="Địa chỉ giao dịch, nhận hàng..."
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               rows={2}
@@ -216,9 +293,10 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Ghi chú</Label>
+            <Label htmlFor="notes">Ghi chú thêm</Label>
             <Textarea
               id="notes"
+              placeholder="Thông tin nội bộ..."
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={2}
@@ -231,7 +309,7 @@ export function PartnerDialog({ open, onOpenChange, partner, defaultType = "cust
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {partner ? "Cập nhật" : "Thêm mới"}
+              {partner ? "Cập nhật" : "Kích hoạt"}
             </Button>
           </div>
         </form>

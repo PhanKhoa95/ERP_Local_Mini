@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePartnerDetail } from "@/hooks/usePartnerDetail";
+import { useWarehouses } from "@/hooks/useWarehouses";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
@@ -41,6 +42,7 @@ const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondar
 };
 
 export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
+  const { warehouses } = useWarehouses();
   const { orders, transactions, topProducts, notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("general");
@@ -122,6 +124,20 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                   {partner.email && <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-muted-foreground" />{partner.email}</div>}
                   {partner.address && <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" />{partner.address}</div>}
                   {partner.tax_id && <div className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-muted-foreground" />MST: {partner.tax_id}</div>}
+                  {partner.branch_id && <div className="flex items-center gap-2 text-sm"><strong>Chi nhánh:</strong> {partner.branch_id}</div>}
+                  {partner.warehouse_id && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <strong>Kho mặc định:</strong> {warehouses.find(w => w.id === partner.warehouse_id)?.name || partner.warehouse_id}
+                    </div>
+                  )}
+                  {partner.promo_segment && (
+                    <div className="flex items-center gap-2 text-sm flex-wrap items-center gap-1">
+                      <strong>Tệp ưu đãi:</strong>
+                      <Badge variant="secondary" className="ml-1 text-xs">
+                        {partner.promo_segment === "all" ? "Khách lẻ / Tất cả (retail)" : partner.promo_segment === "loyalty" ? "Thành viên VIP (loyalty)" : "Khách mua sỉ (wholesale)"}
+                      </Badge>
+                    </div>
+                  )}
                   {partner.notes && <div className="text-sm text-muted-foreground mt-2 p-3 bg-muted rounded-md">{partner.notes}</div>}
                 </CardContent>
               </Card>

@@ -284,7 +284,7 @@ const POS = () => {
   const { products, isLoading: productsLoading } = useProducts();
   const { customers } = usePartners();
   const { channels } = useSalesChannels();
-  const { createOrder } = useOrders();
+  const { orders, createOrder } = useOrders();
   const { warehouses } = useWarehouses();
   const { autoSelectWarehouse, checkStockAvailability } = useWarehouseStock();
   const { toast } = useToast();
@@ -485,16 +485,39 @@ const POS = () => {
     }
   }, [cart]);
 
+  // Dynamically compute the usage count of each voucher from orders list to ensure perfect sync
+  const computedUsedCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(o => {
+      if (o.voucher_id) {
+        counts[o.voucher_id] = (counts[o.voucher_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [orders]);
+
   useEffect(() => {
     if (isManualDiscount) return;
+
+    const customerObj = selectedCustomer && selectedCustomer !== "walk-in"
+      ? customers.find((c) => c.id === selectedCustomer)
+      : null;
+    const activeCustomerSegment = customerObj?.promo_segment || "all";
 
     const now = new Date();
     const eligiblePromos = vouchers.filter(v => {
       if (!v.is_active || !v.is_auto_apply) return false;
       if (v.start_date && new Date(v.start_date) > now) return false;
       if (v.end_date && new Date(v.end_date) < now) return false;
-      if (v.usage_limit && v.used_count >= v.usage_limit) return false;
+      
+      const actualUsed = computedUsedCount[v.id] || 0;
+      if (v.usage_limit && actualUsed >= v.usage_limit) return false;
       if (v.min_order_value && subtotal < v.min_order_value) return false;
+      
+      // Synchronize with customer classification segment
+      if (v.target_customer_group && v.target_customer_group !== "all") {
+        if (v.target_customer_group !== activeCustomerSegment) return false;
+      }
       return true;
     });
 
@@ -528,7 +551,7 @@ const POS = () => {
     setDiscount(bestDiscount);
     setAppliedPromoName(bestPromoName);
     setAppliedVoucherId(bestPromoId);
-  }, [subtotal, vouchers, isManualDiscount]);
+  }, [subtotal, vouchers, isManualDiscount, selectedCustomer, customers, computedUsedCount]);
 
   // Submit order
   const handleCheckout = async () => {
