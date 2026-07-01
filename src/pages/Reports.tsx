@@ -407,7 +407,7 @@ const Reports = () => {
         </Card>
 
         <Tabs defaultValue="sales" className="space-y-6">
-          <TabsList className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 w-full max-w-4xl">
+          <TabsList className="flex flex-wrap h-auto w-full max-w-4xl justify-start gap-1 bg-muted p-1">
             <TabsTrigger value="sales">Bán hàng</TabsTrigger>
             <TabsTrigger value="revenue">Doanh thu</TabsTrigger>
             <TabsTrigger value="products">Sản phẩm</TabsTrigger>
