@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
@@ -84,9 +84,30 @@ const Orders = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(stateSearchTerm);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
+
+  const paramSearch = searchParams.get("search") || stateSearchTerm;
+  const paramStatus = searchParams.get("status") || "all";
+  const paramChannel = searchParams.get("channel") || "all";
+
+  const [searchTerm, setSearchTerm] = useState(paramSearch);
+  const [statusFilter, setStatusFilter] = useState<string>(paramStatus);
+  const [channelFilter, setChannelFilter] = useState<string>(paramChannel);
+
+  useEffect(() => {
+    const searchVal = searchParams.get("search");
+    if (searchVal !== null) setSearchTerm(searchVal);
+    
+    const statusVal = searchParams.get("status");
+    if (statusVal !== null) setStatusFilter(statusVal);
+    
+    const channelVal = searchParams.get("channel");
+    if (channelVal !== null) setChannelFilter(channelVal);
+
+    const viewVal = searchParams.get("view");
+    if (viewVal === "list") setViewMode("list");
+    else if (viewVal === "kanban") setViewMode("kanban");
+  }, [searchParams]);
+
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   const { orders, isLoading, createOrder, updateOrderStatus } = useOrders();

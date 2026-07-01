@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -68,10 +69,26 @@ const Inventory = () => {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("products");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [stockFilter, setStockFilter] = useState<string>("all");
+
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "products");
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get("category") || "all");
+  const [stockFilter, setStockFilter] = useState<string>(searchParams.get("stock") || "all");
+
+  useEffect(() => {
+    const searchVal = searchParams.get("search");
+    if (searchVal !== null) setSearchQuery(searchVal);
+    
+    const tabVal = searchParams.get("tab");
+    if (tabVal !== null) setActiveTab(tabVal);
+    
+    const catVal = searchParams.get("category");
+    if (catVal !== null) setSelectedCategory(catVal);
+    
+    const stockVal = searchParams.get("stock");
+    if (stockVal !== null) setStockFilter(stockVal);
+  }, [searchParams]);
 
   // Fetch inventory transactions (filtered by company products)
   const { data: transactions = [], isLoading: txLoading } = useQuery({
