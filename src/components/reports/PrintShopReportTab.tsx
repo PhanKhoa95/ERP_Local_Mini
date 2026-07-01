@@ -63,11 +63,13 @@ import {
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { startOfMonth } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 const COLORS = ["hsl(var(--primary))", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
 
 
 export function PrintShopReportTab() {
+  const navigate = useNavigate();
   const { products } = useProducts();
   const { orders } = useOrders();
 
@@ -679,7 +681,7 @@ export function PrintShopReportTab() {
       {subTab === "overview" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 cursor-pointer hover:border-primary/50 transition-all hover:bg-muted/5" onClick={() => navigate("/orders?view=list")}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground font-medium">AOV Bình Quân</span>
@@ -690,7 +692,7 @@ export function PrintShopReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 border-indigo-500/20">
+            <Card className="bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 border-indigo-500/20 cursor-pointer hover:border-indigo-500/50 transition-all hover:bg-muted/5" onClick={() => navigate("/inventory")}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground font-medium">Biên Lãi Gộp SX</span>
@@ -703,7 +705,7 @@ export function PrintShopReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20">
+            <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20 cursor-pointer hover:border-emerald-500/50 transition-all hover:bg-muted/5" onClick={() => navigate("/accounting")}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground font-medium">Hòa Vốn Đơn Hàng</span>
@@ -714,7 +716,7 @@ export function PrintShopReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 border-amber-500/20">
+            <Card className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 border-amber-500/20 cursor-pointer hover:border-amber-500/50 transition-all hover:bg-muted/5" onClick={() => navigate("/accounting")}>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground font-medium">Hoàn Vốn CAPEX</span>
@@ -750,7 +752,17 @@ export function PrintShopReportTab() {
                     </thead>
                     <tbody>
                       {riskThresholds.map((row) => (
-                        <tr key={row.domain} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                        <tr
+                          key={row.domain}
+                          className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
+                          onClick={() => {
+                            if (row.domain === "Shopee" || row.domain === "Hủy/Hoàn/COD" || row.domain === "CAC / Quay lại") {
+                              navigate("/orders?view=list");
+                            } else if (row.domain === "Công suất" || row.domain === "Giá cạnh tranh") {
+                              navigate("/inventory");
+                            }
+                          }}
+                        >
                           <td className="p-3 font-semibold text-foreground">{row.domain}</td>
                           <td className="p-3 text-xs text-muted-foreground">
                             <Badge variant={row.variant}>{row.safeLimit}</Badge>
@@ -1278,7 +1290,11 @@ export function PrintShopReportTab() {
                   </thead>
                   <tbody>
                     {liveProducts.map((row) => (
-                      <tr key={row.name} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                      <tr
+                        key={row.name}
+                        className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
+                        onClick={() => navigate("/inventory")}
+                      >
                         <td className="p-3 font-medium text-foreground">{row.name}</td>
                         <td className="p-3 text-xs text-muted-foreground">{row.spec}</td>
                         <td className="p-3 text-right text-xs">{(row.mix * 100).toFixed(0)}%</td>
@@ -1330,7 +1346,11 @@ export function PrintShopReportTab() {
                       {liveShopeeFees.map((row) => {
                         const shopeeFeePercent = (row.shopeePrice * 0.11 + 3000 + row.shopeePrice * 0.03);
                         return (
-                          <tr key={row.product} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                          <tr
+                            key={row.product}
+                            className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
+                            onClick={() => navigate("/inventory")}
+                          >
                             <td className="p-3 font-medium text-foreground">{row.product}</td>
                             <td className="p-3 text-right font-medium text-primary">{fmtVnd(row.shopeePrice)}</td>
                             <td className="p-3 text-right text-xs text-muted-foreground">+{(row.increaseRate * 100).toFixed(1)}%</td>
@@ -1877,7 +1897,11 @@ export function PrintShopReportTab() {
                     </thead>
                     <tbody>
                       {printShopCapex.map((row) => (
-                        <tr key={row.item} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                        <tr
+                          key={row.item}
+                          className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
+                          onClick={() => navigate("/accounting")}
+                        >
                           <td className="p-3 font-medium text-foreground">{row.item}</td>
                           <td className="p-3 text-muted-foreground">{row.purpose}</td>
                           <td className="p-3 text-right font-medium">{fmtVnd(row.baseCost)}</td>
@@ -1922,7 +1946,11 @@ export function PrintShopReportTab() {
                     </thead>
                     <tbody>
                       {printShopFixedCosts.map((row, idx) => (
-                        <tr key={idx} className="border-b border-border hover:bg-secondary/20 transition-colors">
+                        <tr
+                          key={idx}
+                          className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
+                          onClick={() => navigate("/accounting")}
+                        >
                           <td className="p-3 font-medium text-foreground">{row.group}</td>
                           <td className="p-3 text-muted-foreground">{row.item}</td>
                           <td className="p-3 text-right font-medium">{fmtVnd(row.monthlyCost)}</td>
