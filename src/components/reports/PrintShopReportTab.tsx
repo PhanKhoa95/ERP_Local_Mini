@@ -301,10 +301,10 @@ export function PrintShopReportTab() {
   }, [liveProducts]);
 
   const liveSummary = useMemo(() => {
-    const totalCapexBase = printShopCapex.reduce((sum, item) => sum + item.baseCost, 0);
-    const totalDepreciationPerMonth = printShopCapex.reduce((sum, item) => sum + item.depreciationPerMonth, 0);
-    const fixedCostWithOwnerSalary = printShopFixedCosts.reduce((sum, item) => sum + item.monthlyCost, 0);
-    const fixedCostWithoutOwnerSalary = printShopFixedCosts
+    const totalCapexBase = capexList.reduce((sum, item) => sum + item.baseCost, 0);
+    const totalDepreciationPerMonth = capexList.reduce((sum, item) => sum + item.depreciationPerMonth, 0);
+    const fixedCostWithOwnerSalary = fixedCostsList.reduce((sum, item) => sum + item.monthlyCost, 0);
+    const fixedCostWithoutOwnerSalary = fixedCostsList
       .filter((item) => item.item !== "Lương/chủ shop tự trả tối thiểu")
       .reduce((sum, item) => sum + item.monthlyCost, 0);
     
@@ -345,7 +345,7 @@ export function PrintShopReportTab() {
       fixedCostWithoutOwnerSalary,
       paybackMonth: printShopSummary.paybackMonth,
     };
-  }, [liveProducts]);
+  }, [liveProducts, capexList, fixedCostsList]);
 
   const liveKpis = useMemo(() => {
     return [
@@ -696,6 +696,15 @@ export function PrintShopReportTab() {
         >
           <Activity className="h-4 w-4" />
           Phân tích Công suất
+        </Button>
+        <Button
+          variant={subTab === "settings" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setSubTab("settings")}
+          className="gap-1.5"
+        >
+          <Settings className="h-4 w-4" />
+          Cấu hình & Thiết lập
         </Button>
       </div>
 
@@ -1924,7 +1933,7 @@ export function PrintShopReportTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {printShopCapex.map((row) => (
+                      {capexList.map((row) => (
                         <tr
                           key={row.item}
                           className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
@@ -1973,7 +1982,7 @@ export function PrintShopReportTab() {
                       </tr>
                     </thead>
                     <tbody>
-                      {printShopFixedCosts.map((row, idx) => (
+                      {fixedCostsList.map((row, idx) => (
                         <tr
                           key={idx}
                           className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
