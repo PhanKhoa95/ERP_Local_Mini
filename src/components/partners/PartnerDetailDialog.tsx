@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { usePartnerDetail } from "@/hooks/usePartnerDetail";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useProductCategories } from "@/hooks/useProductCategories";
+import { useSalesPolicies, SEGMENT_COLORS, type PolicySegment } from "@/hooks/useSalesPolicies";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
@@ -59,6 +60,7 @@ const renderSimulatedQRCode = (code: string) => {
 export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { warehouses } = useWarehouses();
   const { categories } = useProductCategories();
+  const { getPoliciesForSegment } = useSalesPolicies();
   const { orders, transactions, topProducts, purchasedItems = [], notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("general");
@@ -533,56 +535,34 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                       <div className="text-xs text-muted-foreground pb-1">
                         Áp dụng dựa trên phân khúc đối tác hiện tại:
                       </div>
-                      {partner.promo_segment === "loyalty" ? (
-                        <div className="space-y-2.5">
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                            <span><strong>Đổi trả 30 ngày:</strong> Miễn phí hoàn trả hàng đối với lỗi kỹ thuật hoặc không ưng ý.</span>
+                      {(() => {
+                        const segment: PolicySegment = partner.promo_segment === "loyalty" ? "loyalty" : partner.promo_segment === "wholesale" ? "wholesale" : "all";
+                        const activePolicies = getPoliciesForSegment(segment);
+                        const colorClass = SEGMENT_COLORS[segment];
+                        
+                        if (activePolicies.length === 0) {
+                          return (
+                            <div className="text-xs text-muted-foreground text-center py-4">
+                              Chưa có chính sách nào cho phân khúc này.
+                              <br />
+                              <span className="text-[10px]">Thiết lập tại Cài đặt → Chính sách</span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-2.5">
+                            {activePolicies.map((policy) => (
+                              <div key={policy.id} className="flex items-start gap-2 text-xs">
+                                <Check className={cn("h-4 w-4 shrink-0 mt-0.5", colorClass)} />
+                                <span>
+                                  <strong>{policy.title}:</strong> {policy.description}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                            <span><strong>Tích điểm VIP:</strong> Hoàn 2% tổng hóa đơn dưới dạng điểm tích lũy thành viên.</span>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                            <span><strong>Hotline 24/7:</strong> Kênh chăm sóc kỹ thuật đặc biệt dành riêng cho VIP.</span>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                            <span><strong>Tri ân VIP:</strong> Quà tặng ngày sinh nhật và ưu đãi trước các sự kiện lớn.</span>
-                          </div>
-                        </div>
-                      ) : partner.promo_segment === "wholesale" ? (
-                        <div className="space-y-2.5">
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                            <span><strong>Hạn mức Công nợ:</strong> Hỗ trợ thanh toán trả chậm gối đầu trong vòng 30 ngày.</span>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                            <span><strong>Giao hàng miễn phí:</strong> Áp dụng cho các đơn hàng phân phối có giá trị từ 5,000,000đ.</span>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                            <span><strong>Đổi trả phân phối:</strong> 15 ngày đối với các sản phẩm lỗi do nhà sản xuất.</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2.5">
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <span><strong>Đổi trả 7 ngày:</strong> Đổi mới sản phẩm đối với các lỗi kỹ thuật phát sinh.</span>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <span><strong>Tích điểm Loyalty:</strong> Hoàn 1% giá trị hóa đơn quy đổi sang điểm thưởng.</span>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <Check className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <span><strong>Giao hàng:</strong> Miễn phí ship cho đơn từ 200,000đ khi đặt mua online.</span>
-                          </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                 </div>
