@@ -120,3 +120,36 @@ Ensure the project's local smoke test script or standard verification pipeline (
 ### Coverage of Core ERP Workflows
 - [ ] E2E testcases exists and passes for Sales (Bán hàng), Purchasing (Mua hàng), Inventory (Kho), and Finance (Tài chính).
 - [ ] Unit tests cover order number auto-generation, BOM backflush calculation, and role-based route access controls.
+
+## Follow-up — 2026-07-01T05:00:52Z
+
+Rà soát toàn diện hệ thống cấu hình, danh mục, chính sách và trải nghiệm người dùng (UX) trên ERP Local Mini để loại bỏ hoàn toàn các trường thông tin trùng lặp, đồng bộ hóa dữ liệu và tối ưu hóa giao diện.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Rà soát & Loại bỏ Trùng lặp Cấu hình (Configuration Clean-up)
+- Đảm bảo trường cấu hình "Thời gian bảo hành" đã được gỡ bỏ hoàn toàn khỏi Form thêm/sửa danh mục sản phẩm tại tab `CategoriesTab` để tránh nhập liệu trùng lặp.
+- Đảm bảo tab `SalesPoliciesTab` hoạt động như một trung tâm cấu hình chính sách duy nhất: bao gồm chính sách bán hàng theo phân khúc đối tác và bảng cấu hình thời gian bảo hành theo ngành hàng (danh mục).
+
+### R2. Đồng bộ hiển thị Hồ sơ Khách hàng & Bảo hành
+- Kiểm tra tab "Bảo hành & CS" trong `PartnerDetailDialog.tsx`. Đảm bảo:
+  - Cột chính sách mua hàng hiển thị các chính sách động được cấu hình từ tab Chính sách.
+  - Cột thời gian bảo hành sản phẩm tính toán chính xác số tháng bảo hành dựa trên danh mục của sản phẩm đã mua (tra cứu động từ danh sách danh mục).
+  - Giao diện thân thiện, có phân chia bố cục rõ ràng, không bị chồng chéo hay rối mắt trên cả màn hình Desktop và Mobile.
+
+### R3. Kiểm thử Toàn bộ Hệ thống (Verification Pipeline)
+- Chạy toàn bộ các quy trình kiểm tra chất lượng mã nguồn: typecheck, lint và bộ test E2E để đảm bảo không phát sinh bất kỳ lỗi logic hay đứt gãy luồng nghiệp vụ nào.
+
+## Acceptance Criteria
+
+### UX & Code Cleanliness
+- [ ] Form thêm/sửa danh mục tại `CategoriesTab` không còn trường nhập "Thời gian bảo hành".
+- [ ] Tab `SalesPoliciesTab` hiển thị đầy đủ 2 phần: chính sách theo phân khúc và thời gian bảo hành theo danh mục.
+- [ ] Hồ sơ khách hàng (`PartnerDetailDialog`) hiển thị chính sách động và tính toán bảo hành động một cách chính xác.
+
+### Test & Stability
+- [ ] Toàn bộ 18 kịch bản test Playwright E2E vượt qua 100% (`npx playwright test`).
+- [ ] Lệnh kiểm tra tổng thể `npm run typecheck` chạy hoàn tất không có lỗi biên dịch.
