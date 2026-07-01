@@ -56,8 +56,7 @@ export default function Accounting() {
   const [tab, setTab] = useState("ledger");
   const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const { startDate, endDate, setCustomRange, selectPreset } = useGlobalDateFilter();
   const navigate = useNavigate();
   
   // Sub-filters for account details
@@ -370,7 +369,7 @@ export default function Accounting() {
               <Input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => setCustomRange(e.target.value, endDate)}
                 className="w-36 h-9 text-sm"
               />
             </div>
@@ -379,7 +378,7 @@ export default function Accounting() {
               <Input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => setCustomRange(startDate, e.target.value)}
                 className="w-36 h-9 text-sm"
               />
             </div>
@@ -387,10 +386,7 @@ export default function Accounting() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setStartDate("");
-                  setEndDate("");
-                }}
+                onClick={() => selectPreset("all")}
                 className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
               >
                 Xóa lọc
