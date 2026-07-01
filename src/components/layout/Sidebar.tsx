@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, ShoppingCart, Receipt, Package, Users, Wallet, BarChart3,
+  LayoutDashboard, ShoppingCart, Ticket, Receipt, Package, Users, Wallet, BarChart3,
   Settings, LogOut, ChevronLeft, Menu, Warehouse, FileText, Search, Star,
   FolderOpen, TrendingUp, Trophy, Target, Gamepad2, UsersRound, Mic,
   ChevronDown, ClipboardList, FolderKanban, Stamp, Workflow, PackageSearch, Coins,
@@ -31,6 +31,7 @@ const menuSections: MenuSection[] = [
     items: [
       { title: "Dashboard", icon: LayoutDashboard, path: "/" },
       { title: "POS Bán hàng", icon: ShoppingCart, path: "/pos" },
+      { title: "Khuyến mãi", icon: Ticket, path: "/promotions" },
       { title: "Đơn hàng", icon: Receipt, path: "/orders" },
       { title: "Kho hàng", icon: Package, path: "/inventory" },
       { title: "Quản lý kho", icon: Warehouse, path: "/warehouses" },
