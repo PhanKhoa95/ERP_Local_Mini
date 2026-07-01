@@ -849,21 +849,32 @@ export function useOrders() {
         const all = getLocalOrders(companyId);
         const orderId = `ord-${Date.now()}`;
         const orderNumber = resolvedOrderData.order_number || orderId;
+        
+        const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+        const productsList = rawProducts ? JSON.parse(rawProducts) : [];
+
         const newOrder: Order = {
           ...resolvedOrderData,
           id: orderId,
           company_id: companyId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          order_items: (items || []).map((item, idx) => ({
-            id: `oi-${Date.now()}-${idx}`,
-            order_id: orderId,
-            product_id: item.product_id || null,
-            quantity: item.quantity || 1,
-            unit_price: item.unit_price || 0,
-            total_price: (item.quantity || 1) * (item.unit_price || 0),
-            products: item.product_name ? { id: item.product_id, name: item.product_name, sku: item.sku || null } : null
-          }))
+          order_items: (items || []).map((item, idx) => {
+            const prod = productsList.find((p: any) => p.id === item.product_id);
+            return {
+              id: `oi-${Date.now()}-${idx}`,
+              order_id: orderId,
+              product_id: item.product_id || null,
+              quantity: item.quantity || 1,
+              unit_price: item.unit_price || 0,
+              total_price: (item.quantity || 1) * (item.unit_price || 0),
+              products: prod 
+                ? { id: prod.id, name: prod.name, sku: prod.sku } 
+                : item.product_name 
+                ? { id: item.product_id, name: item.product_name, sku: item.sku || null } 
+                : null
+            };
+          })
         } as any;
         
         all.unshift(newOrder);
