@@ -75,6 +75,7 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
 }) => {
   const [localValue, setLocalValue] = useState<string>(value.toString());
   const lastSentValue = useRef<number>(value);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (value !== lastSentValue.current) {
@@ -90,11 +91,7 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
     if (cleanVal !== "") {
       const num = parseInt(cleanVal, 10);
       if (num >= 1) {
-        if (!isService && num > maxStock) {
-          onChange(maxStock);
-          setLocalValue(maxStock.toString());
-          lastSentValue.current = maxStock;
-        } else {
+        if (isService || num <= maxStock) {
           onChange(num);
           lastSentValue.current = num;
         }
@@ -103,10 +100,30 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
   };
 
   const handleBlur = () => {
-    if (localValue === "" || parseInt(localValue, 10) < 1) {
+    if (localValue === "") {
       onChange(1);
       setLocalValue("1");
       lastSentValue.current = 1;
+      return;
+    }
+
+    const num = parseInt(localValue, 10);
+    if (num < 1) {
+      onChange(1);
+      setLocalValue("1");
+      lastSentValue.current = 1;
+    } else if (!isService && num > maxStock) {
+      onChange(maxStock);
+      setLocalValue(maxStock.toString());
+      lastSentValue.current = maxStock;
+      toast({
+        variant: "destructive",
+        title: "Vượt quá tồn kho",
+        description: `Sản phẩm này chỉ còn tối đa ${maxStock} trong kho.`,
+      });
+    } else {
+      onChange(num);
+      lastSentValue.current = num;
     }
   };
 
