@@ -34,7 +34,7 @@ test("verify membership card issuance, prepaid wallet deposit, and dynamic POS i
 
   // Pick Gold tier
   await dialog.locator("button:has-text('Đồng (Bronze)')").click();
-  await page.locator("role=option:has-text('Vàng (Gold)')").click();
+  await page.getByRole("option", { name: "Vàng (Gold)", exact: false }).first().click();
 
   // Type issue note
   await dialog.locator("input#card_notes").fill("E2E Test Issued Member Card");
