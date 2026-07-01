@@ -28,7 +28,13 @@ import {
   type TransactionType,
 } from "@/hooks/useMemberships";
 import { usePartners } from "@/hooks/usePartners";
+import { useAccounting } from "@/hooks/useAccounting";
+import { useAuditLogs } from "@/hooks/useAuditLogs";
+import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 export default function Memberships() {
   const {
@@ -42,6 +48,17 @@ export default function Memberships() {
   } = useMemberships();
 
   const { customers } = usePartners();
+  const { role } = useCompanyContext();
+  const { logAction } = useAuditLogs();
+  const { accounts: accountingAccounts = [] } = useAccounting();
+  const isManagerOrAdmin = role === "admin" || role === "manager" || isLocalDemoAuthEnabled();
+
+  const [newCardImage, setNewCardImage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const [offsetAccountCode, setOffsetAccountCode] = useState(() => {
+    return localStorage.getItem("erp-mini-membership-offset-account") || "3387";
+  });
 
   // Selected state
   const [selectedMembershipId, setSelectedMembershipId] = useState<string | null>(null);
