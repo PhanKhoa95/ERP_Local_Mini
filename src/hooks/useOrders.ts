@@ -868,6 +868,7 @@ export function useOrders() {
               quantity: item.quantity || 1,
               unit_price: item.unit_price || 0,
               total_price: (item.quantity || 1) * (item.unit_price || 0),
+              category: prod?.category || null,
               products: prod 
                 ? { id: prod.id, name: prod.name, sku: prod.sku } 
                 : item.product_name 
