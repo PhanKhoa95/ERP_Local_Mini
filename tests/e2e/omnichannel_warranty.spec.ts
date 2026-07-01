@@ -10,7 +10,7 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await loginLocalDemo(page);
   });
 
-  test("should support background auto-profiling, omni-channel matching, and warranty tracking", async ({ page }) => {
+  test("should support background auto-profiling, omnichannel matching, and warranty tracking", async ({ page }) => {
     test.setTimeout(60000);
 
     // Step 1: Place an order in POS for a completely new customer who left only Name and Phone
@@ -21,12 +21,7 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await page.click("text=Thẻ QR cá nhân thông minh");
     await page.waitForTimeout(500);
 
-    // Locate customer search combobox and select/input a new customer profile name
-    // Since this is a guest checkout, we enter customer details manually
-    // In our POS, the cashier can enter name and phone in custom fields. Let's see:
-    // To check if custom fields exist, we check if we can fill the search box.
-    // Wait! Let's search for "0988777666". Since no partner matches, we can click "+" to add them.
-    // That triggers the simplified PartnerDialog!
+    // Click "+" button next to customer search input to quick add customer
     const plusBtn = page.locator('button[title="Thêm khách hàng mới"]');
     await expect(plusBtn).toBeVisible({ timeout: 5000 });
     await plusBtn.click();
@@ -39,7 +34,8 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
 
     // Verify success toast and auto-selection
     await expect(page.locator("text=Thêm đối tác thành công").first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('div.space-y-2 button[role="combobox"]').first()).toContainText("Khách Hàng Ẩn Danh", { timeout: 10000 });
+    const selectedCustomerCombo = page.locator('div.space-y-2 button[role="combobox"]').first();
+    await expect(selectedCustomerCombo).toContainText("Khách Hàng Ẩn Danh", { timeout: 10000 });
 
     // Checkout order
     await page.click('button:has-text("Tiền mặt")');
@@ -47,19 +43,18 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
 
     // Step 2: Navigate to Partner management to see if customer profile exists
     await page.goto("/partners");
-    await page.waitForSelector("text=Thêm Đối Tác");
+    await page.waitForSelector("text=Thêm mới");
 
     // Search for the newly auto-profiled customer
     const searchInput = page.locator('input[placeholder="Tìm theo tên, mã, SĐT, email..."]');
     await searchInput.fill("0988777666");
     await page.waitForTimeout(500);
 
-    // Verify profile is listed in table
-    const tableBody = page.locator("table tbody");
-    await expect(tableBody).toContainText("Khách Hàng Ẩn Danh");
+    // Verify profile is listed in table/cards
+    const card = page.locator('.hover\\:shadow-md', { hasText: 'Khách Hàng Ẩn Danh' });
+    await expect(card).toBeVisible({ timeout: 5000 });
 
-    // Step 3: Simulate omnichannel matching. Place another order in POS.
-    // This time, the cashier adds another order. The customer gives the same phone number "0988777666".
+    // Step 3: Place another order in POS searching for the existing customer "0988777666"
     await page.goto("/pos");
     await page.waitForSelector(".grid >> text=Thẻ QR");
 
@@ -82,12 +77,13 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
 
     // Step 4: Open profile details to inspect behavioral insights and active warranties!
     await page.goto("/partners");
-    await page.waitForSelector("text=Thêm Đối Tác");
+    await page.waitForSelector("text=Thêm mới");
     await searchInput.fill("0988777666");
     await page.waitForTimeout(500);
 
-    // Click "Xem chi tiết" row action or click on the name
-    await page.click('text=Khách Hàng Ẩn Danh');
+    // Open detail dialog
+    const targetCard = page.locator('.hover\\:shadow-md', { hasText: 'Khách Hàng Ẩn Danh' });
+    await targetCard.locator('button:has-text("Chi tiết")').click();
 
     const detailDialog = page.locator('div[role="dialog"]');
     await expect(detailDialog).toBeVisible({ timeout: 5000 });
