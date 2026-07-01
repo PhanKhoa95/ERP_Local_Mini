@@ -43,6 +43,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { usePartners } from "@/hooks/usePartners";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { useOrders } from "@/hooks/useOrders";
+import { useMemberships } from "@/hooks/useMemberships";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useWarehouseStock } from "@/hooks/useWarehouseStock";
 import { useToast } from "@/hooks/use-toast";
@@ -290,6 +291,12 @@ const POS = () => {
   const { warehouses } = useWarehouses();
   const { autoSelectWarehouse, checkStockAvailability } = useWarehouseStock();
   const { toast } = useToast();
+  const { memberships, performTransaction } = useMemberships();
+
+  const customerMembership = useMemo(() => {
+    if (!selectedCustomer || selectedCustomer === "walk-in") return null;
+    return memberships.find(m => m.partner_id === selectedCustomer);
+  }, [selectedCustomer, memberships]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -627,7 +634,7 @@ const POS = () => {
   }, [subtotal, cart, vouchers, isManualDiscount, selectedCustomer, customers, computedUsedCount]);
 
   // Submit order
-  const handleCheckout = async () => {
+  const handleCheckout = async (method: "cash" | "bank" | "membership_wallet" = "cash") => {
     if (!selectedChannel) {
       toast({
         variant: "destructive",
@@ -655,6 +662,34 @@ const POS = () => {
       return;
     }
 
+    // Check membership wallet payment validity
+    if (method === "membership_wallet") {
+      if (!customerMembership) {
+        toast({
+          variant: "destructive",
+          title: "Không tìm thấy thẻ",
+          description: "Khách hàng này chưa có hoặc chưa liên kết thẻ thành viên",
+        });
+        return;
+      }
+      if (customerMembership.status !== "active") {
+        toast({
+          variant: "destructive",
+          title: "Thẻ đã bị khóa hoặc hết hạn",
+          description: "Thẻ thành viên của khách hàng hiện tại không khả dụng",
+        });
+        return;
+      }
+      if (customerMembership.balance < total) {
+        toast({
+          variant: "destructive",
+          title: "Số dư ví không đủ",
+          description: `Tài khoản ví hiện có ${customerMembership.balance.toLocaleString("vi-VN")}đ, thiếu ${(total - customerMembership.balance).toLocaleString("vi-VN")}đ`,
+        });
+        return;
+      }
+    }
+
     setIsProcessing(true);
 
     try {
@@ -662,6 +697,17 @@ const POS = () => {
       const customer = selectedCustomer && selectedCustomer !== "walk-in"
         ? customers.find((c) => c.id === selectedCustomer)
         : null;
+
+      // Deduct balance from membership card prepaid wallet
+      if (method === "membership_wallet" && customerMembership) {
+        await performTransaction.mutateAsync({
+          membershipId: customerMembership.id,
+          type: "payment",
+          amount: total,
+          description: `Thanh toán mua hàng đơn POS: ${orderNumber}`,
+        });
+      }
+
       await createOrder.mutateAsync({
         order: {
           order_number: orderNumber,
@@ -673,7 +719,7 @@ const POS = () => {
           customer_phone: normalizePhone(customer?.phone) || null,
           customer_email: customer?.email || null,
           customer_address: customer?.address || null,
-          payment_method: "cash",
+          payment_method: method,
           warehouse_id: selectedWarehouse || null,
           priority: "normal",
           delivered_at: new Date().toISOString(),
@@ -1046,28 +1092,52 @@ const POS = () => {
         </div>
 
         {/* Checkout Buttons */}
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <Button
-            variant="outline"
-            className="h-12"
-            disabled={cart.length === 0 || isProcessing}
-            onClick={handleCheckout}
-          >
-            <Banknote className="h-4 w-4 mr-2" />
-            Tiền mặt
-          </Button>
-          <Button
-            className="h-12"
-            disabled={cart.length === 0 || isProcessing}
-            onClick={handleCheckout}
-          >
-            {isProcessing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <CreditCard className="h-4 w-4 mr-2" />
-            )}
-            Chuyển khoản
-          </Button>
+        <div className="space-y-2 pt-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="h-12 text-xs"
+              disabled={cart.length === 0 || isProcessing}
+              onClick={() => handleCheckout("cash")}
+            >
+              <Banknote className="h-4 w-4 mr-2" />
+              Tiền mặt
+            </Button>
+            <Button
+              className="h-12 text-xs"
+              disabled={cart.length === 0 || isProcessing}
+              onClick={() => handleCheckout("bank")}
+            >
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-2" />
+              )}
+              Chuyển khoản
+            </Button>
+          </div>
+          
+          {customerMembership && (
+            <Button
+              variant="secondary"
+              className={cn(
+                "w-full h-12 text-xs border flex items-center justify-between px-4 transition-all",
+                customerMembership.balance >= total
+                  ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border-amber-500/20"
+                  : "bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50"
+              )}
+              disabled={cart.length === 0 || isProcessing || customerMembership.balance < total}
+              onClick={() => handleCheckout("membership_wallet")}
+            >
+              <span className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-amber-600" />
+                <span>Thanh toán Ví thẻ ({customerMembership.card_number})</span>
+              </span>
+              <span className="font-bold">
+                Ví: {customerMembership.balance.toLocaleString("vi-VN")}đ
+              </span>
+            </Button>
+          )}
         </div>
       </div>
     </div>
