@@ -97,7 +97,7 @@ function SortableCategoryItem({ category, isChild, onEdit, onDelete, children }:
               {isChild && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
               <span className="font-medium">{category.name}</span>
               {category.warranty_months !== undefined && (
-                <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20" title="Quản lý tại Cài đặt → Chính sách">
                   BH: {category.warranty_months} tháng
                 </Badge>
               )}
@@ -398,19 +398,6 @@ export function CategoriesTab() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="warranty_months">Thời gian bảo hành (tháng) *</Label>
-              <Input
-                id="warranty_months"
-                type="number"
-                min={0}
-                max={120}
-                value={formData.warranty_months}
-                onChange={(e) => setFormData({ ...formData, warranty_months: parseInt(e.target.value) || 0 })}
-                placeholder="VD: 12, 6, 3..."
-              />
-              <p className="text-xs text-muted-foreground">Thời gian bảo hành mặc định cho tất cả sản phẩm thuộc danh mục này.</p>
-            </div>
 
             <div className="space-y-2">
               <Label>Màu sắc</Label>
