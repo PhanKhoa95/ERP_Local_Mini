@@ -75,15 +75,18 @@ function seedDefaultMemberships(): { memberships: Membership[]; transactions: Me
   const tiers: MembershipTier[] = ["bronze", "silver", "gold", "diamond"];
 
   customers.forEach((c: any, index: number) => {
+    // Only seed cards for even index customers so there are cardless customers left for test issuance
+    if (index % 2 !== 0) return;
+
     // Determine tier based on customer promotion segment
     let tier: MembershipTier = "bronze";
     let balance = 0;
     let points = 0;
 
     if (c.promo_segment === "loyalty") {
-      tier = index % 2 === 0 ? "diamond" : "gold";
-      balance = index % 2 === 0 ? 5000000 : 1500000;
-      points = index % 2 === 0 ? 1200 : 450;
+      tier = index % 4 === 0 ? "diamond" : "gold";
+      balance = index % 4 === 0 ? 5000000 : 1500000;
+      points = index % 4 === 0 ? 1200 : 450;
     } else if (c.promo_segment === "wholesale") {
       tier = "silver";
       balance = 2000000;
