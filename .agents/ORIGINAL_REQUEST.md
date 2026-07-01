@@ -19,7 +19,7 @@ Integrity mode: development
 - **Công nợ đối tác (Partner Debt Handler)**: Tự động tính toán và cập nhật lại trường số dư công nợ `debt_amount` của đối tác khách hàng hoặc nhà cung cấp tương ứng.
 
 ### R3. Đồng bộ hóa UI (State Synchronization & Query Invalidation)
-- Đảm bảo sau khi xử lý các thay đổi dữ liệu ngầm từ Event Bus, hệ thống sẽ thực hiện làm mới (invalidate queries) các React Query tương ứng (như `["products"]`, `["orders"]`, `["journal-entries"]`, `["partners"]`), đảm bảo toàn bộ biểu đồ, thẻ tóm tắt và bảng số liệu trên màn hình đồng bộ ngay làm tức.
+- Đảm bảo sau khi xử lý các thay đổi dữ liệu ngầm từ Event Bus, hệ thống sẽ thực hiện làm mới (invalidate queries) các React Query tương ứng (như `["products"]`, `["orders"]`, `["journal-entries"]`, `["partners"]`), đảm bảo toàn bộ biểu đồ, thẻ tóm tắt và bảng số liệu trên màn hình đồng bộ ngay lập tức.
 
 ## Verification Plan
 
@@ -153,3 +153,75 @@ Integrity mode: development
 ### Test & Stability
 - [ ] Toàn bộ 18 kịch bản test Playwright E2E vượt qua 100% (`npx playwright test`).
 - [ ] Lệnh kiểm tra tổng thể `npm run typecheck` chạy hoàn tất không có lỗi biên dịch.
+
+## Follow-up — 2026-07-01T07:23:17Z
+
+Kiểm thử toàn diện và đánh giá độ sẵn sàng vận hành của hệ thống ERP_Local_Mini, bao gồm kiểm tra tĩnh mã nguồn, chạy unit/integration tests và thực hiện e2e tests trên các luồng nghiệp vụ cốt lõi.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Kiểm tra tĩnh mã nguồn (Static Verification)
+Hệ thống phải vượt qua các bước kiểm tra kiểu tĩnh (TypeScript typecheck) và định dạng mã nguồn (Lint) mà không phát sinh bất kỳ lỗi cảnh báo hoặc lỗi biên dịch nào.
+
+### R2. Kiểm thử Unit và Integration (Vitest Tests)
+Chạy toàn bộ bộ kiểm thử Vitest hiện có trong dự án. Tất cả các ca kiểm thử unit và integration (đối soát Casso, định mức BOM, tính toán số liệu báo cáo...) phải vượt qua 100%.
+
+### R3. Kiểm thử đầu-cuối (Playwright E2E Tests)
+Kích hoạt môi trường thử nghiệm cục bộ và chạy toàn bộ các bài test E2E bằng Playwright để xác minh các luồng giao diện người dùng cốt lõi (Phân quyền vai trò, đối soát giao dịch, responsive layouts, quy trình bán hàng/kho/tài chính).
+
+### R4. Đóng gói sản phẩm (Production Build)
+Đảm bảo dự án có thể build thành công cho môi trường production bằng công cụ Vite mà không gặp bất kỳ lỗi đóng gói nào.
+
+## Acceptance Criteria
+
+### Static Quality
+- [ ] Lệnh `npm run typecheck` hoàn thành thành công (exit code = 0).
+- [ ] Lệnh `npm run lint` hoàn thành không phát sinh lỗi nghiêm trọng.
+
+### Test Automation
+- [ ] 100% các test suite trong Vitest vượt qua thành công (`npm run test` hoặc `npm run test:local` có exit code = 0).
+- [ ] 100% các ca kiểm thử Playwright E2E vượt qua thành công (`npx playwright test` có exit code = 0).
+
+### Build & Package
+- [ ] Lệnh `npm run build` hoàn thành thành công và tạo ra thư mục `dist` chứa đầy đủ tài nguyên tĩnh (exit code = 0).
+
+## Follow-up — 2026-07-01T07:45:47Z
+
+Nghiên cứu và khắc phục các điểm hạn chế về logic nghiệp vụ (10 lỗi logic) và sự không đồng nhất dữ liệu (10 lỗi mất đồng bộ) trên hệ thống ERP_Local_Mini nhằm đảm bảo an toàn tài chính và tính chính xác của số liệu báo cáo.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Khắc phục các lỗi logic nghiệp vụ (Logic Resolution)
+Sửa đổi các lỗi logic trong các module Tài chính, Kho hàng (BOM), Cài đặt và Báo cáo để ngăn chặn rủi ro thất thoát dòng tiền, bao gồm:
+- Ràng buộc trạng thái `paid` dựa trên số tiền thực thu `paid_amount` so với tổng tiền đơn hàng.
+- Bổ dung giao diện khớp thủ công (Manual Match) cho các giao dịch Casso `unmatched`.
+- Ngăn chặn/cảnh báo bán hàng thấp hơn giá vốn.
+- Chặn việc xoá sản phẩm đang tồn tại trong định mức BOM của thành phẩm khác.
+- Cho phép quản lý số lượng đối với các gói dịch vụ có giới hạn.
+- Tự động bỏ qua các kênh bán hàng ngưng hoạt động khi tính toán hạn ngạch gói cước.
+- Kiểm tra hạn mức ngân sách dự án khi tạo phiếu chi tiêu liên quan.
+- Chặn đệ quy vòng lặp nguyên vật liệu trong định mức BOM.
+
+### R2. Khắc phục các lỗi mất đồng bộ dữ liệu (Data Synchronization)
+Bảo đảm tính toàn vẹn dữ liệu thời gian thực giữa các phân hệ:
+- Tự động đồng bộ giá vốn thành phẩm khi thay đổi giá nguyên vật liệu BOM.
+- Đồng bộ số lượng tồn kho tổng sản phẩm (`products.stock_quantity`) khớp với tổng tồn vị trí (`warehouse_stock.quantity`).
+- Đồng bộ tự động bút toán Nợ/Có đối ứng khi có giao dịch xuất/nhập kho vật tư.
+- Đồng bộ múi giờ GMT+7 của giao dịch ngân hàng Casso khớp với giờ lưu trữ UTC của hệ thống.
+- Ghi nhận lịch sử thay đổi cấu hình dự án (Project Health) vào nhật ký hệ thống `audit_logs`.
+
+### R3. Xác minh chất lượng (Verification)
+Đảm bảo tất cả các thay đổi không phá vỡ các chức năng hiện có của dự án và vượt qua các bộ kiểm thử tĩnh và động.
+
+## Acceptance Criteria
+
+### Quality Assurance
+- [ ] Lệnh `npm run typecheck` hoàn thành thành công không lỗi (exit code = 0).
+- [ ] Lệnh `npm run build` hoàn thành thành công không lỗi (exit code = 0).
+- [ ] 100% các ca kiểm thử Vitest và Playwright E2E vượt qua thành công.
