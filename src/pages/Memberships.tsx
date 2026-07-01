@@ -41,11 +41,15 @@ export default function Memberships() {
   const {
     memberships,
     transactions,
+    tierConfigs,
     isLoading,
     createMembership,
     updateMembershipStatus,
     updateMembershipTier,
     performTransaction,
+    createMembershipTier,
+    updateMembershipTierConfig,
+    deleteMembershipTier,
   } = useMemberships();
 
   const { customers } = usePartners();
@@ -61,6 +65,75 @@ export default function Memberships() {
   const [offsetAccountCode, setOffsetAccountCode] = useState(() => {
     return localStorage.getItem("erp-mini-membership-offset-account") || "3387";
   });
+
+  // Dynamic Tiers Editor State
+  const [tierEditorOpen, setTierEditorOpen] = useState(false);
+  const [editingTier, setEditingTier] = useState<any>(null);
+  const [tierId, setTierId] = useState("");
+  const [tierName, setTierName] = useState("");
+  const [tierColor, setTierColor] = useState("");
+  const [tierBgGradient, setTierBgGradient] = useState("");
+  const [tierDiscountRate, setTierDiscountRate] = useState(0);
+  const [tierMinSpent, setTierMinSpent] = useState(0);
+  const [tierDesc, setTierDesc] = useState("");
+
+  const getTierName = (tId: string) => {
+    const config = tierConfigs.find(tc => tc.id === tId);
+    return config?.name || tId;
+  };
+
+  const getTierColor = (tId: string) => {
+    const config = tierConfigs.find(tc => tc.id === tId);
+    return config?.color || "bg-slate-100 text-slate-800 border-slate-200";
+  };
+
+  const getCardBg = (tId: string) => {
+    const config = tierConfigs.find(tc => tc.id === tId);
+    return config?.bg_gradient || "from-slate-700 to-slate-900 text-slate-50";
+  };
+
+  const handleOpenTierEditor = (config: any = null) => {
+    if (config) {
+      setEditingTier(config);
+      setTierId(config.id);
+      setTierName(config.name);
+      setTierColor(config.color);
+      setTierBgGradient(config.bg_gradient);
+      setTierDiscountRate(config.discount_rate);
+      setTierMinSpent(config.min_spent);
+      setTierDesc(config.description || "");
+    } else {
+      setEditingTier(null);
+      setTierId("");
+      setTierName("");
+      setTierColor("bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900");
+      setTierBgGradient("from-purple-600 via-pink-600 to-indigo-800 text-purple-50 shadow-purple-800/20");
+      setTierDiscountRate(0);
+      setTierMinSpent(0);
+      setTierDesc("");
+    }
+    setTierEditorOpen(true);
+  };
+
+  const handleSaveTier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tierId || !tierName) return;
+    const payload = {
+      id: tierId,
+      name: tierName,
+      color: tierColor,
+      bg_gradient: tierBgGradient,
+      discount_rate: tierDiscountRate,
+      min_spent: tierMinSpent,
+      description: tierDesc,
+    };
+    if (editingTier) {
+      await updateMembershipTierConfig.mutateAsync(payload);
+    } else {
+      await createMembershipTier.mutateAsync(payload);
+    }
+    setTierEditorOpen(false);
+  };
 
   // Selected state
   const [selectedMembershipId, setSelectedMembershipId] = useState<string | null>(null);
@@ -78,7 +151,7 @@ export default function Memberships() {
   // Create form state
   const [newPartnerId, setNewPartnerId] = useState<string>("");
   const [newCardNumber, setNewCardNumber] = useState<string>("");
-  const [newTier, setNewTier] = useState<MembershipTier>("bronze");
+  const [newTier, setNewTier] = useState<string>("bronze");
   const [newNotes, setNewNotes] = useState<string>("Phát hành thẻ thành viên");
 
   // Find active card list and current selected membership
