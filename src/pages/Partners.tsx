@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Download, Star, Award, Wallet, Eye, BarChart3 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Download, Star, Award, Wallet, Eye, BarChart3, Sparkles } from "lucide-react";
 import { CustomerInsights } from "@/components/partners/CustomerInsights";
 import { cn } from "@/lib/utils";
 import { usePartners } from "@/hooks/usePartners";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
+import { useWarehouses } from "@/hooks/useWarehouses";
+import { useToast } from "@/hooks/use-toast";
 import { PartnerDialog } from "@/components/partners/PartnerDialog";
 import { PartnerDetailDialog } from "@/components/partners/PartnerDetailDialog";
 import { PaymentDialog } from "@/components/partners/PaymentDialog";
@@ -29,6 +35,9 @@ import {
 const Partners = () => {
   const { partners, customers, suppliers, isLoading, createPartner, updatePartner, deletePartner } = usePartners();
   const { customerGroups } = useCustomerGroups();
+  const { warehouses } = useWarehouses();
+  const { toast } = useToast();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<any>(null);
   const [defaultType, setDefaultType] = useState<"customer" | "supplier">("customer");
@@ -40,6 +49,15 @@ const Partners = () => {
   const [detailPartner, setDetailPartner] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("customers");
+
+  // Bulk Dialog state
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
+  const [bulkBranch, setBulkBranch] = useState("none");
+  const [bulkWarehouse, setBulkWarehouse] = useState("none");
+  const [bulkSegment, setBulkSegment] = useState("none");
+  const [bulkSearch, setBulkSearch] = useState("");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const filteredCustomers = customers.filter(
     (p) =>
@@ -54,6 +72,19 @@ const Partners = () => {
       p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.phone?.includes(searchQuery)
   );
+
+  // Filter partners list inside bulk dialog
+  const selectablePartners = useMemo(() => {
+    const list = activeTab === "customers" ? customers : suppliers;
+    if (!bulkSearch.trim()) return list;
+    const s = bulkSearch.toLowerCase();
+    return list.filter(
+      p =>
+        p.name.toLowerCase().includes(s) ||
+        p.code.toLowerCase().includes(s) ||
+        p.phone?.includes(s)
+    );
+  }, [customers, suppliers, activeTab, bulkSearch]);
 
   const handleOpenDialog = (partner?: any, type?: "customer" | "supplier") => {
     setEditingPartner(partner || null);
@@ -81,6 +112,36 @@ const Partners = () => {
       await deletePartner.mutateAsync(deletingPartner.id);
       setDeleteDialogOpen(false);
       setDeletingPartner(null);
+    }
+  };
+
+  const handleBulkUpdateSubmit = async () => {
+    if (selectedPartnerIds.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      const updates: any = {};
+      if (bulkBranch !== "none") updates.branch_id = bulkBranch === "clear" ? "" : bulkBranch;
+      if (bulkWarehouse !== "none") updates.warehouse_id = bulkWarehouse === "clear" ? "" : bulkWarehouse;
+      if (bulkSegment !== "none") updates.promo_segment = bulkSegment;
+
+      await Promise.all(
+        selectedPartnerIds.map(id => updatePartner.mutateAsync({ id, ...updates }))
+      );
+
+      toast({
+        title: "Cập nhật hàng loạt thành công",
+        description: `Đã cập nhật phân loại cho ${selectedPartnerIds.length} đối tác.`,
+      });
+      setSelectedPartnerIds([]);
+      setBulkDialogOpen(false);
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi cập nhật hàng loạt",
+        description: e.message,
+      });
+    } finally {
+      setIsBulkUpdating(false);
     }
   };
 
@@ -154,8 +215,28 @@ const Partners = () => {
                 {partner.email}
               </div>
             )}
+            
+            {/* Display classification metadata tags */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {partner.branch_id && (
+                <Badge variant="outline" className="text-[10px] bg-secondary/30">
+                  {partner.branch_id}
+                </Badge>
+              )}
+              {partner.warehouse_id && (
+                <Badge variant="outline" className="text-[10px] bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
+                  Kho: {warehouses.find(w => w.id === partner.warehouse_id)?.name || partner.warehouse_id}
+                </Badge>
+              )}
+              {partner.promo_segment && partner.promo_segment !== "all" && (
+                <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
+                  Tệp: {partner.promo_segment === "loyalty" ? "Loyalty/VIP" : "Wholesale"}
+                </Badge>
+              )}
+            </div>
+
             {(partner.total_spent > 0 || partner.loyalty_points > 0 || partner.debt_amount) && (
-              <div className="flex items-center gap-4 text-sm flex-wrap">
+              <div className="flex items-center gap-4 text-sm flex-wrap pt-2">
                 {partner.debt_amount !== 0 && (
                   <span className={partner.debt_amount > 0 ? "text-destructive" : "text-success"}>
                     Công nợ: <strong>{Number(partner.debt_amount || 0).toLocaleString("vi-VN")}đ</strong>
@@ -241,6 +322,9 @@ const Partners = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="w-full sm:w-auto gap-1.5">
+                <Sparkles className="h-4 w-4 text-primary" /> Thiết lập hàng loạt
+              </Button>
               <Button variant="outline" onClick={() => exportPartnersToExcel(activeTab === "customers" ? filteredCustomers : filteredSuppliers)} className="w-full sm:w-auto">
                 <Download className="h-4 w-4 mr-2" />
                 Xuất Excel
@@ -284,6 +368,7 @@ const Partners = () => {
         </Tabs>
       </div>
 
+      {/* Single Partner Creation/Edit Dialog */}
       <PartnerDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -292,6 +377,163 @@ const Partners = () => {
         onSubmit={handleSubmit}
         isLoading={createPartner.isPending || updatePartner.isPending}
       />
+
+      {/* Bulk Quick Classification Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="max-w-3xl bg-popover text-popover-foreground z-50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" /> Thiết lập phân loại đối tác hàng loạt
+            </DialogTitle>
+            <DialogDescription>
+              Chọn nhiều đối tác từ danh sách để gán nhanh chi nhánh phụ trách, kho xuất hàng hoặc tệp ưu đãi áp dụng.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 py-2">
+            {/* Left partners list selection */}
+            <div className="md:col-span-3 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-8 h-9 text-sm"
+                  placeholder="Lọc đối tác để chọn..."
+                  value={bulkSearch}
+                  onChange={e => setBulkSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <div className="max-h-[45vh] overflow-y-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead className="w-10 text-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-border focus:ring-primary h-4 w-4 accent-primary"
+                            checked={
+                              selectablePartners.length > 0 &&
+                              selectedPartnerIds.length === selectablePartners.length
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPartnerIds(selectablePartners.map(p => p.id));
+                              } else {
+                                setSelectedPartnerIds([]);
+                              }
+                            }}
+                          />
+                        </TableHead>
+                        <TableHead>Mã / Tên đối tác</TableHead>
+                        <TableHead>Thông tin phân loại hiện tại</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectablePartners.map(p => (
+                        <TableRow key={p.id} className="hover:bg-muted/10">
+                          <TableCell className="text-center">
+                            <input
+                              type="checkbox"
+                              className="rounded border-border focus:ring-primary h-4 w-4 accent-primary"
+                              checked={selectedPartnerIds.includes(p.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedPartnerIds([...selectedPartnerIds, p.id]);
+                                } else {
+                                  setSelectedPartnerIds(selectedPartnerIds.filter(id => id !== p.id));
+                                }
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-sm">{p.name}</div>
+                            <div className="text-xs text-muted-foreground font-mono">{p.code}</div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground space-y-0.5">
+                            {p.branch_id && <div>Chi nhánh: {p.branch_id}</div>}
+                            {p.warehouse_id && <div>Kho mặc định: {warehouses.find(w => w.id === p.warehouse_id)?.name || p.warehouse_id}</div>}
+                            {p.promo_segment && (
+                              <div>
+                                Tệp ưu đãi: {p.promo_segment === "all" ? "Khách lẻ / Tất cả" : p.promo_segment === "loyalty" ? "Loyalty VIP" : "Khách sỉ"}
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Đã chọn: <span className="font-semibold text-primary">{selectedPartnerIds.length}</span> đối tác
+              </div>
+            </div>
+
+            {/* Right bulk settings panel */}
+            <div className="md:col-span-2 space-y-4 border p-4 rounded-lg bg-muted/10 h-fit">
+              <h4 className="font-semibold text-sm border-b pb-2">Gán giá trị hàng loạt</h4>
+
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Chi nhánh phụ trách</Label>
+                  <Select value={bulkBranch} onValueChange={setBulkBranch}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Giữ nguyên --</SelectItem>
+                      <SelectItem value="Chi nhánh miền Bắc">Chi nhánh miền Bắc</SelectItem>
+                      <SelectItem value="Chi nhánh miền Nam">Chi nhánh miền Nam</SelectItem>
+                      <SelectItem value="Chi nhánh miền Trung">Chi nhánh miền Trung</SelectItem>
+                      <SelectItem value="clear">Xóa phân loại chi nhánh</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Kho xuất mặc định</Label>
+                  <Select value={bulkWarehouse} onValueChange={setBulkWarehouse}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Giữ nguyên --</SelectItem>
+                      <SelectItem value="clear">Xóa kho mặc định</SelectItem>
+                      {warehouses.filter(w => w.is_active).map(w => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tệp khuyến mãi áp dụng</Label>
+                  <Select value={bulkSegment} onValueChange={setBulkSegment}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">-- Giữ nguyên --</SelectItem>
+                      <SelectItem value="all">Khách lẻ / Tất cả (retail)</SelectItem>
+                      <SelectItem value="loyalty">Thành viên VIP (loyalty)</SelectItem>
+                      <SelectItem value="wholesale">Khách mua sỉ (wholesale)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                className="w-full gap-2 mt-4"
+                disabled={selectedPartnerIds.length === 0 || isBulkUpdating}
+                onClick={handleBulkUpdateSubmit}
+              >
+                {isBulkUpdating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Đang cập nhật...
+                  </>
+                ) : (
+                  <>Áp dụng thiết lập ({selectedPartnerIds.length})</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
