@@ -790,7 +790,12 @@ export function useOrders() {
               debt_amount: 0,
               loyalty_points: 0,
               total_spent: 0,
-              promo_segment: "all"
+              promo_segment: "all",
+              address: "",
+              tax_id: "",
+              notes: "",
+              is_active: true,
+              group_id: null
             };
             localPartners.unshift(newPartner);
             saveLocalPartners(localPartners);
