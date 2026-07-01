@@ -19,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
+import { CashVoucherTab } from "@/components/finance/CashVoucherTab";
 
 const TYPE_LABELS: Record<string, string> = {
   asset: "Tài sản", liability: "Nợ phải trả", equity: "Vốn chủ sở hữu",
