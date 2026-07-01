@@ -841,6 +841,11 @@ export function createLocalInventoryTransaction(input: {
     }
   );
 
+  // Publish STOCK_TRANSACTION_RECORDED event for accounting integration
+  if (typeof window !== "undefined" && (window as any).erpEventBus) {
+    (window as any).erpEventBus.publish("STOCK_TRANSACTION_RECORDED", { transaction, product });
+  }
+
   return transaction;
 }
 

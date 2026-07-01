@@ -170,6 +170,9 @@ class ErpEventBus {
 }
 
 export const erpEventBus = new ErpEventBus();
+if (typeof window !== "undefined") {
+  (window as any).erpEventBus = erpEventBus;
+}
 
 // --- Helper: BOM-based COGS calculation ---
 function calculateOrderCOGS(order: any): number {
@@ -677,5 +680,95 @@ if (typeof window !== "undefined") {
     // Publish ORDER_CREATED event
     erpEventBus.publish("ORDER_CREATED", { order: newOrder, items: orderItems });
   }, "ContractToOrderHandler");
+
+  // 4. Stock Journal Entries Auto Posting
+  erpEventBus.subscribe("STOCK_TRANSACTION_RECORDED", (payload) => {
+    if (!isLocalDemoAuthEnabled()) return;
+
+    const { transaction, product } = payload;
+    const companyId = product.company_id || "local-demo-company";
+    const entryDate = (transaction.created_at || new Date().toISOString()).split("T")[0];
+    
+    const costPrice = Number(product.cost_price || 0);
+    const quantity = Math.abs(Number(transaction.quantity || 0));
+    const txAmount = quantity * costPrice;
+    if (txAmount <= 0) return;
+
+    const accounts = getLocalAccounts(companyId);
+    if (accounts.length === 0) return;
+
+    const entries = getLocalEntries();
+    const lines = getLocalLines();
+
+    const entryId = `ent-stock-${transaction.id}-${Date.now()}`;
+    const isInput = transaction.transaction_type === "in";
+
+    const stockEntry = {
+      id: entryId,
+      company_id: companyId,
+      entry_date: entryDate,
+      description: transaction.notes || `${isInput ? "Nhập kho" : "Xuất kho"} vật tư ${product.name} (SL: ${quantity})`,
+      status: "posted",
+      source_type: "inventory",
+      source_id: transaction.id,
+      created_by: "system",
+      posted_by: "system",
+      created_at: transaction.created_at || new Date().toISOString(),
+      updated_at: transaction.created_at || new Date().toISOString()
+    };
+
+    const drAccId = isInput ? "acc-156" : "acc-632";
+    const drAccCode = isInput ? "156" : "632";
+    const crAccId = isInput ? "acc-331" : "acc-156";
+    const crAccCode = isInput ? "331" : "156";
+
+    const stockLines = [
+      {
+        id: `line-stock-dr-${transaction.id}-${Date.now()}`,
+        entry_id: entryId,
+        account_id: drAccId,
+        debit: txAmount,
+        credit: 0,
+        memo: isInput ? "Tăng giá trị hàng tồn kho" : "Ghi nhận giá vốn hàng bán",
+        created_at: transaction.created_at || new Date().toISOString()
+      },
+      {
+        id: `line-stock-cr-${transaction.id}-${Date.now()}`,
+        entry_id: entryId,
+        account_id: crAccId,
+        debit: 0,
+        credit: txAmount,
+        memo: isInput ? "Tăng phải trả người bán" : "Giảm giá trị hàng tồn kho",
+        created_at: transaction.created_at || new Date().toISOString()
+      }
+    ];
+
+    entries.unshift(stockEntry);
+    lines.push(...stockLines);
+
+    // Update balances
+    accounts.forEach((acc: any) => {
+      if (acc.code === drAccCode) {
+        if (drAccCode === "331") {
+          acc.balance = (acc.balance || 0) - txAmount;
+        } else {
+          acc.balance = (acc.balance || 0) + txAmount;
+        }
+      }
+      if (acc.code === crAccCode) {
+        if (crAccCode === "331") {
+          acc.balance = (acc.balance || 0) - txAmount;
+        } else {
+          acc.balance = (acc.balance || 0) - txAmount;
+        }
+      }
+    });
+
+    saveLocalAccountingData(accounts, entries, lines);
+
+    // Audit log
+    logLocalAction("EventBus: Ghi bút toán kho", "journal_entries", entryId,
+      null, { type: transaction.transaction_type, amount: txAmount, product_id: product.id });
+  }, "StockAccountingHandler");
 }
 
