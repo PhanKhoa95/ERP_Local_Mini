@@ -61,6 +61,8 @@ import {
   printShopShopeeFees,
   printShopCapacityProducts,
   printShopSummary,
+  type PrintShopCapexItem,
+  type PrintShopChannel,
 } from "@/lib/printShopReportModel";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
@@ -2135,6 +2137,286 @@ export function PrintShopReportTab() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {subTab === "settings" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
+                Cấu hình tham số mô hình tài chính (Print Shop Setup)
+              </CardTitle>
+              <CardDescription>
+                Thay đổi các tham số đầu vào của mô hình tài chính. Số liệu tại tất cả các tab khác sẽ tự động cập nhật ngay lập tức.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* CAPEX Settings */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-foreground flex items-center gap-1.5">
+                  <Coins className="h-4 w-4 text-primary" />
+                  Đầu tư ban đầu (CAPEX)
+                </h3>
+                <div className="space-y-3">
+                  {capexList.map((item, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center gap-3 p-3 border border-border rounded-lg bg-muted/20">
+                      <div className="flex-1 min-w-[200px]">
+                        <Label className="text-[10px] text-muted-foreground">Tên hạng mục</Label>
+                        <Input
+                          value={item.item}
+                          onChange={(e) => {
+                            const newCapex = [...capexList];
+                            newCapex[idx].item = e.target.value;
+                            saveCapex(newCapex);
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="w-[120px]">
+                        <Label className="text-[10px] text-muted-foreground">Chi phí (đ)</Label>
+                        <Input
+                          type="number"
+                          value={item.baseCost}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            const newCapex = [...capexList];
+                            newCapex[idx].baseCost = val;
+                            newCapex[idx].depreciationPerMonth = val / (newCapex[idx].usefulMonths || 1);
+                            saveCapex(newCapex);
+                          }}
+                          className="h-8 text-xs text-right"
+                        />
+                      </div>
+                      <div className="w-[80px]">
+                        <Label className="text-[10px] text-muted-foreground">Tháng KH</Label>
+                        <Input
+                          type="number"
+                          value={item.usefulMonths}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            const newCapex = [...capexList];
+                            newCapex[idx].usefulMonths = val;
+                            newCapex[idx].depreciationPerMonth = newCapex[idx].baseCost / (val || 1);
+                            saveCapex(newCapex);
+                          }}
+                          className="h-8 text-xs text-center"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <Label className="text-[10px] text-muted-foreground">Mục đích</Label>
+                        <Input
+                          value={item.purpose}
+                          onChange={(e) => {
+                            const newCapex = [...capexList];
+                            newCapex[idx].purpose = e.target.value;
+                            saveCapex(newCapex);
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-4 text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                        onClick={() => {
+                          const newCapex = capexList.filter((_, i) => i !== idx);
+                          saveCapex(newCapex);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-dashed"
+                    onClick={() => {
+                      const newItem: PrintShopCapexItem = {
+                        item: "Hạng mục mới",
+                        purpose: "Nhập mục đích...",
+                        baseCost: 1000000,
+                        usefulMonths: 12,
+                        depreciationPerMonth: 1000000 / 12,
+                        spendMonth: 1,
+                        note: ""
+                      };
+                      saveCapex([...capexList, newItem]);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Thêm hạng mục CAPEX
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Fixed Costs Settings */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-foreground flex items-center gap-1.5">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Định phí hàng tháng (Fixed Costs)
+                </h3>
+                <div className="space-y-3">
+                  {fixedCostsList.map((item, idx) => (
+                    <div key={idx} className="flex flex-wrap items-center gap-3 p-3 border border-border rounded-lg bg-muted/20">
+                      <div className="w-[120px]">
+                        <Label className="text-[10px] text-muted-foreground">Nhóm</Label>
+                        <Input
+                          value={item.group}
+                          onChange={(e) => {
+                            const newFixed = [...fixedCostsList];
+                            newFixed[idx].group = e.target.value;
+                            saveFixedCosts(newFixed);
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-[200px]">
+                        <Label className="text-[10px] text-muted-foreground">Khoản mục chi tiết</Label>
+                        <Input
+                          value={item.item}
+                          onChange={(e) => {
+                            const newFixed = [...fixedCostsList];
+                            newFixed[idx].item = e.target.value;
+                            saveFixedCosts(newFixed);
+                          }}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="w-[150px]">
+                        <Label className="text-[10px] text-muted-foreground">Chi phí/tháng (đ)</Label>
+                        <Input
+                          type="number"
+                          value={item.monthlyCost}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            const newFixed = [...fixedCostsList];
+                            newFixed[idx].monthlyCost = val;
+                            saveFixedCosts(newFixed);
+                          }}
+                          className="h-8 text-xs text-right"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-4 text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                        onClick={() => {
+                          const newFixed = fixedCostsList.filter((_, i) => i !== idx);
+                          saveFixedCosts(newFixed);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-dashed"
+                    onClick={() => {
+                      const newItem = {
+                        group: "Khác",
+                        item: "Khoản chi phí mới",
+                        monthlyCost: 500000,
+                        required: true
+                      };
+                      saveFixedCosts([...fixedCostsList, newItem]);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Thêm khoản chi phí cố định
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Calculator & Shopee fee settings */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-foreground flex items-center gap-1.5">
+                  <Sliders className="h-4 w-4 text-primary" />
+                  Cài đặt phí sàn Shopee & Biên ròng mục tiêu
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-xs">Phí giao dịch (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeTxFee}
+                      onChange={(e) => setCalcShopeeTxFee(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Phí cố định (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeCommFee}
+                      onChange={(e) => setCalcShopeeCommFee(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Phí Voucher (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeVoucherFee}
+                      onChange={(e) => setCalcShopeeVoucherFee(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Phí cố định đơn (đ)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeFlatFee}
+                      onChange={(e) => setCalcShopeeFlatFee(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Phí chạy Ads (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcAdsFee}
+                      onChange={(e) => setCalcAdsFee(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tỷ lệ hủy/hoàn (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeCancelRate}
+                      onChange={(e) => setCalcShopeeCancelRate(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Tỷ lệ thuế (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeTaxRate}
+                      onChange={(e) => setCalcShopeeTaxRate(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Biên ròng mục tiêu (%)</Label>
+                    <Input
+                      type="number"
+                      value={calcShopeeTargetMargin}
+                      onChange={(e) => setCalcShopeeTargetMargin(Number(e.target.value))}
+                      className="h-8 text-xs mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
