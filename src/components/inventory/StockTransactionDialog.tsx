@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -100,21 +100,23 @@ export function StockTransactionDialog({
     setItems(items.filter(item => item.id !== id));
   };
 
-  const handleItemChange = (id: string, field: keyof StockTransactionItem, value: any) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updated = { ...item, [field]: value };
-        if (field === "product_id") {
-          updated.variant_id = ""; // Reset variant when product changes
-          const selected = products.find(p => p.id === value);
-          if (selected) {
-            updated.search_query = `${selected.sku} - ${selected.name}`;
+  const handleItemUpdate = (id: string, updates: Partial<StockTransactionItem>) => {
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.id === id) {
+          const updated = { ...item, ...updates };
+          if (updates.hasOwnProperty("product_id")) {
+            updated.variant_id = ""; // Reset variant when product changes
+            const selected = products.find((p) => p.id === updates.product_id);
+            if (selected) {
+              updated.search_query = `${selected.sku} - ${selected.name}`;
+            }
           }
+          return updated;
         }
-        return updated;
-      }
-      return item;
-    }));
+        return item;
+      })
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -461,12 +463,15 @@ export function StockTransactionDialog({
                           placeholder="Gõ hoặc quét Barcode..."
                           value={item.search_query}
                           onChange={(e) => {
-                            handleItemChange(item.id, "search_query", e.target.value);
-                            handleItemChange(item.id, "product_id", ""); // Reset product id when typing
-                            handleItemChange(item.id, "is_open", true);
+                            // Atomic update: set query text, reset product ID, open panel in one go
+                            handleItemUpdate(item.id, {
+                              search_query: e.target.value,
+                              product_id: "",
+                              is_open: true
+                            });
                           }}
-                          onFocus={() => handleItemChange(item.id, "is_open", true)}
-                          onBlur={() => setTimeout(() => handleItemChange(item.id, "is_open", false), 250)} // Delay for click event
+                          onFocus={() => handleItemUpdate(item.id, { is_open: true })}
+                          onBlur={() => setTimeout(() => handleItemUpdate(item.id, { is_open: false }), 250)}
                           className="h-9 text-xs pl-8 pr-3"
                         />
                         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -483,9 +488,12 @@ export function StockTransactionDialog({
                                 type="button"
                                 className="w-full text-left p-2.5 hover:bg-primary/10 text-xs transition-colors flex flex-col gap-0.5"
                                 onMouseDown={(e) => {
-                                  e.preventDefault(); // Ngăn chặn input mất focus trước khi cập nhật
-                                  handleItemChange(item.id, "product_id", p.id);
-                                  handleItemChange(item.id, "is_open", false);
+                                  e.preventDefault(); // Ngên chặn input mất focus trước khi cập nhật
+                                  // Atomic update: set selected product and close panel
+                                  handleItemUpdate(item.id, {
+                                    product_id: p.id,
+                                    is_open: false
+                                  });
                                 }}
                               >
                                 <span className="font-semibold text-foreground">{p.name}</span>
@@ -511,7 +519,7 @@ export function StockTransactionDialog({
                       {hasVars ? (
                         <Select
                           value={item.variant_id}
-                          onValueChange={(val) => handleItemChange(item.id, "variant_id", val)}
+                          onValueChange={(val) => handleItemUpdate(item.id, { variant_id: val })}
                         >
                           <SelectTrigger className="h-9 text-xs border-primary/40 focus:ring-primary">
                             <SelectValue placeholder="Chọn biến thể (Màu, Size)" />
@@ -539,7 +547,7 @@ export function StockTransactionDialog({
                         min="0.0001"
                         step="0.0001"
                         value={item.quantity}
-                        onChange={(e) => handleItemChange(item.id, "quantity", Number(e.target.value))}
+                        onChange={(e) => handleItemUpdate(item.id, { quantity: Number(e.target.value) })}
                         className="h-9 text-xs"
                         required
                       />
