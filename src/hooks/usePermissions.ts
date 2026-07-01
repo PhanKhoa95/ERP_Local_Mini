@@ -270,3 +270,46 @@ export function usePermissions() {
     }
   };
 }
+
+export function getRegionFromProvince(province: string): string {
+  if (!province) return "Khác";
+  const p = province.toLowerCase().trim();
+  
+  // Northern provinces
+  const northern = [
+    "hà nội", "ha noi", "hải phòng", "hai phong", "bắc ninh", "bac ninh", "hà nam", "ha nam", 
+    "hải dương", "hai duong", "hưng yên", "hung yen", "nam định", "nam dinh", "ninh bình", "ninh binh", 
+    "thái bình", "thai binh", "vĩnh phúc", "vinh phuc", "hà giang", "ha giang", "cao bằng", "cao bang", 
+    "bắc kạn", "bac kan", "tuyên quang", "tuyen quang", "lào cai", "lao cai", "yên bái", "yen bai", 
+    "thái nguyên", "thai nguyen", "lạng sơn", "lang son", "bắc giang", "bac giang", "quảng ninh", "quang ninh", 
+    "phú thọ", "phu tho", "điện biên", "dien bien", "lai châu", "lai chau", "sơn la", "son la", "hòa bình", "hoa binh",
+    "miền bắc", "mien bac"
+  ];
+  
+  // Central provinces
+  const central = [
+    "đà nẵng", "da nang", "thanh hóa", "thanh hoa", "nghệ an", "nghe an", "hà tĩnh", "ha tinh", 
+    "quảng bình", "quang binh", "quảng trị", "quang tri", "thừa thiên huế", "thua thien hue", "quảng nam", "quang nam", 
+    "quảng ngãi", "quang ngai", "bình định", "binh dinh", "phú yên", "phu yen", "khánh hòa", "khanh hoa", 
+    "ninh thuận", "ninh thuan", "bình thuận", "binh thuan", "kon tum", "gia lai", "đắk lắk", "dak lak", 
+    "đắk nông", "dak nong", "lâm đồng", "lam dong",
+    "miền trung", "mien trung"
+  ];
+  
+  // Southern provinces
+  const southern = [
+    "hồ chí minh", "ho chi minh", "tp.hcm", "tphcm", "sg", "sài gòn", "sai gon", "bình phước", "binh phuoc", 
+    "bình dương", "binh duong", "đồng nai", "dong nai", "tây ninh", "tay ninh", "bà rịa", "ba ria", "vũng tàu", "vung tau", 
+    "long an", "đồng tháp", "dong thap", "an giang", "tiền giang", "tien giang", "bến tre", "ben tre", 
+    "vĩnh long", "vinh long", "trà vinh", "tra vinh", "hậu giang", "hau giang", "kiên giang", "kien giang", 
+    "sóc trăng", "soc trang", "bạc liêu", "bac lieu", "cà mau", "ca mau", "cần thơ", "can tho",
+    "miền nam", "mien nam"
+  ];
+
+  if (northern.some(prov => p.includes(prov))) return "Miền Bắc";
+  if (central.some(prov => p.includes(prov))) return "Miền Trung";
+  if (southern.some(prov => p.includes(prov))) return "Miền Nam";
+  
+  return "Khác";
+}
+
