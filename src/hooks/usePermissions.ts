@@ -147,8 +147,22 @@ export function getLocalCompanyMembers() {
 }
 
 export function usePermissions() {
-  const { user } = useAuth();
-  const { companyId } = useCompanyContext();
+  let user: any = null;
+  let companyId: any = null;
+
+  try {
+    const auth = useAuth();
+    user = auth?.user;
+  } catch (e) {
+    // Fallback when called outside AuthProvider (e.g. in tests)
+  }
+
+  try {
+    const comp = useCompanyContext();
+    companyId = comp?.companyId;
+  } catch (e) {
+    // Fallback when called outside CompanyProvider (e.g. in tests)
+  }
 
   const { data: member, isLoading: isMemberLoading, refetch: refetchMember } = useQuery({
     queryKey: ["current-member", companyId, user?.id],
