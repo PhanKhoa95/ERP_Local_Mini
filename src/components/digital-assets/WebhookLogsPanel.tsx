@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { FileText, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 
 export function WebhookLogsPanel() {
   const { companyId } = useCompanyContext();
@@ -25,6 +26,16 @@ export function WebhookLogsPanel() {
       return data;
     },
     enabled: !!companyId,
+  });
+
+  const { startDate, endDate } = useGlobalDateFilter();
+
+  const filteredLogs = logs.filter((log: any) => {
+    if (!log.created_at) return true;
+    const logDateStr = log.created_at.split("T")[0];
+    if (startDate && logDateStr < startDate) return false;
+    if (endDate && logDateStr > endDate) return false;
+    return true;
   });
 
   return (
@@ -52,10 +63,10 @@ export function WebhookLogsPanel() {
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center">Đang tải...</TableCell></TableRow>
-              ) : logs.length === 0 ? (
+              ) : filteredLogs.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Chưa có log nào</TableCell></TableRow>
               ) : (
-                logs.map((log: any) => (
+                filteredLogs.map((log: any) => (
                   <>
                     <TableRow key={log.id}>
                       <TableCell className="text-xs">{format(new Date(log.created_at), 'dd/MM HH:mm:ss')}</TableCell>

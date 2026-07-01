@@ -15,6 +15,7 @@ import { useDataHub, type DataSource, type RawEvent } from "@/hooks/useDataHub";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { seedTestDataFlow, seedComplexTestDataFlow, seedGrowthTestDataFlow } from "@/lib/testDataSeeder";
 import { useToast } from "@/hooks/use-toast";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import {
   useChannelAttribution,
   useCustomerCLV,
@@ -179,6 +180,7 @@ const DataHub = () => {
   const { channels } = useSalesChannels();
   const { toast } = useToast();
   const [sourceFilter, setSourceFilter] = useState("all");
+  const { startDate, endDate } = useGlobalDateFilter();
   const canManageDataHub = role === "admin";
 
   const [inactiveDays, setInactiveDays] = useState(180);
@@ -299,9 +301,16 @@ const DataHub = () => {
         event.external_id?.toLowerCase().includes(normalizedSearch) ||
         event.entity_type?.toLowerCase().includes(normalizedSearch) ||
         getSourceName(event).toLowerCase().includes(normalizedSearch);
-      return matchesSource && matchesStatus && matchesSearch;
+      
+      let matchesDate = true;
+      if (event.received_at) {
+        const evDateStr = event.received_at.split("T")[0];
+        if (startDate && evDateStr < startDate) matchesDate = false;
+        if (endDate && evDateStr > endDate) matchesDate = false;
+      }
+      return matchesSource && matchesStatus && matchesSearch && matchesDate;
     });
-  }, [rawEvents, searchTerm, sourceFilter, statusFilter]);
+  }, [rawEvents, searchTerm, sourceFilter, statusFilter, startDate, endDate]);
 
   const retryQueue = useMemo(
     () => rawEvents.filter((event) => event.ingestion_status === "failed").slice(0, 10),
