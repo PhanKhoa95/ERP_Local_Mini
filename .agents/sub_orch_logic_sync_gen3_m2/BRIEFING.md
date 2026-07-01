@@ -1,4 +1,4 @@
-# BRIEFING — 2026-07-01T08:02:30Z
+# BRIEFING — 2026-07-01T08:04:20Z
 
 ## Mission
 Coordinate implementation and verification of Milestone 2 (Finance and Casso Reconciliation: R1.1, R1.2, R1.7, R2.4).
@@ -26,12 +26,12 @@ Coordinate implementation and verification of Milestone 2 (Finance and Casso Rec
    - Escalate: report to parent (sub-orchestrators only, last resort)
 4. **Succession**: Self-succeed at spawn count >= 16. Write handoff.md, spawn successor.
 - **Work items**:
-  - R1.1 Order Payment Status [pending]
-  - R1.2 Casso Manual Match [pending]
-  - R1.7 Voucher budget check [pending]
-  - R2.4 Casso timezone sync [pending]
-- **Current phase**: 1
-- **Current focus**: Decomposition and planning
+  - R1.1 Order Payment Status [in-progress]
+  - R1.2 Casso Manual Match [in-progress]
+  - R1.7 Voucher budget check [in-progress]
+  - R2.4 Casso timezone sync [in-progress]
+- **Current phase**: 2
+- **Current focus**: Worker execution of implementation and unit tests
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -44,21 +44,23 @@ Coordinate implementation and verification of Milestone 2 (Finance and Casso Rec
 - Updated: not yet
 
 ## Key Decisions Made
-- Initializing the sub-orchestrator state and preparing for decomposition.
+- Milestone decomposed, SCOPE.md created, progress.md initialized, heartbeat cron task-37 running.
+- Dispatched worker subagent fe8e2bd5-5262-42c8-b9b1-351a0b790af4.
 
 ## Team Roster
 | Agent ID | Archetype | Task | Status | Conv ID |
 |---|---|---|---|---|
+| fe8e2bd5-5262-42c8-b9b1-351a0b790af4 | teamwork_preview_worker | Milestone 2 Worker (R1.1, R1.2, R1.7, R2.4) | in-progress | fe8e2bd5-5262-42c8-b9b1-351a0b790af4 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
-- Pending subagents: none
+- Spawn count: 1 / 16
+- Pending subagents: fe8e2bd5-5262-42c8-b9b1-351a0b790af4
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: not started
+- Heartbeat cron: task-37
 - Safety timer: none
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing

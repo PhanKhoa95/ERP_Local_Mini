@@ -162,7 +162,10 @@ export function OrderDetailDialog({
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Thanh toán:</span>
                   <span className="font-medium text-foreground">
-                    {getPaymentMethodLabel(order.payment_method)} · {order.payment_status || "unpaid"}
+                    {getPaymentMethodLabel(order.payment_method)} · {
+                      order.payment_status === "paid" ? "Đã thanh toán" :
+                      order.payment_status === "partially_paid" ? "Thanh toán một phần" : "Chưa thanh toán"
+                    }
                   </span>
                 </div>
                 {order.payment_reference && (

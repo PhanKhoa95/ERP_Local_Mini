@@ -457,7 +457,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                         <TableCell className="text-right font-medium">{fmtMoney(o.total || 0)}</TableCell>
                         <TableCell>
                           <Badge variant={o.payment_status === "paid" ? "default" : "outline"}>
-                            {o.payment_status === "paid" ? "Đã TT" : o.payment_status === "partial" ? "TT một phần" : "Chưa TT"}
+                            {o.payment_status === "paid" ? "Đã TT" : (o.payment_status === "partial" || o.payment_status === "partially_paid") ? "TT một phần" : "Chưa TT"}
                           </Badge>
                         </TableCell>
                       </TableRow>

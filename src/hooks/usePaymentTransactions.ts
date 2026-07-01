@@ -349,11 +349,16 @@ export function usePaymentTransactions(partnerId?: string) {
           const orders = rawOrders ? JSON.parse(rawOrders) : [];
           const orderIdx = orders.findIndex((o: any) => o.id === transaction.order_id);
           if (orderIdx > -1) {
-            orders[orderIdx].paid_amount = (orders[orderIdx].paid_amount || 0) + transaction.amount;
+            const updatedPaidAmount = (orders[orderIdx].paid_amount || 0) + transaction.amount;
+            orders[orderIdx].paid_amount = updatedPaidAmount;
             
-            // Auto update payment_status if fully paid
-            if (orders[orderIdx].paid_amount >= (orders[orderIdx].total || 0)) {
+            const total = orders[orderIdx].total || 0;
+            if (updatedPaidAmount >= total) {
               orders[orderIdx].payment_status = "paid";
+            } else if (updatedPaidAmount > 0) {
+              orders[orderIdx].payment_status = "partially_paid";
+            } else {
+              orders[orderIdx].payment_status = "unpaid";
             }
             
             localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
@@ -381,13 +386,21 @@ export function usePaymentTransactions(partnerId?: string) {
       if (transaction.order_id && (transaction.transaction_type === 'payment_in' || transaction.transaction_type === 'payment_out')) {
         const { data: order } = await supabase
           .from("orders")
-          .select("paid_amount")
+          .select("paid_amount, total")
           .eq("id", transaction.order_id)
           .single();
         if (order) {
+          const updatedPaidAmount = (order.paid_amount || 0) + transaction.amount;
+          const total = order.total || 0;
+          let paymentStatus = "unpaid";
+          if (updatedPaidAmount >= total) {
+            paymentStatus = "paid";
+          } else if (updatedPaidAmount > 0) {
+            paymentStatus = "partially_paid";
+          }
           await supabase
             .from("orders")
-            .update({ paid_amount: (order.paid_amount || 0) + transaction.amount })
+            .update({ paid_amount: updatedPaidAmount, payment_status: paymentStatus })
             .eq("id", transaction.order_id);
         }
       }
