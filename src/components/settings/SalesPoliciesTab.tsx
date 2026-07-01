@@ -467,6 +467,7 @@ function WarrantyRow({
     await updateCategory.mutateAsync({
       id: category.id,
       name: category.name,
+      description: category.description || "",
       warranty_months: editingWarranty[category.id],
     });
     setEditingWarranty((prev) => {

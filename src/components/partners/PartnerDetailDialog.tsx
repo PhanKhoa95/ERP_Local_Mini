@@ -67,29 +67,38 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const [followUpDate, setFollowUpDate] = useState("");
 
   const warranties = useMemo(() => {
-    // Build a map: category name (lowercase) -> warranty_months
+    // Build a map: category name (lowercase) -> warranty_months, and category ID -> warranty_months
     const catWarrantyMap = new Map<string, number>();
     for (const cat of categories) {
-      catWarrantyMap.set((cat.name || "").toLowerCase(), cat.warranty_months ?? 3);
-      catWarrantyMap.set(cat.id, cat.warranty_months ?? 3);
+      if (cat.warranty_months !== undefined && cat.warranty_months !== null) {
+        catWarrantyMap.set((cat.name || "").toLowerCase(), cat.warranty_months);
+        catWarrantyMap.set(cat.id, cat.warranty_months);
+      }
     }
 
     return purchasedItems.map((item: any) => {
       // Try to resolve warranty from the product's category
-      let months = 3;
-      const productCategory = (item.category || "").toLowerCase();
-      if (productCategory && catWarrantyMap.has(productCategory)) {
-        months = catWarrantyMap.get(productCategory)!;
-      } else if (item.category && catWarrantyMap.has(item.category)) {
-        months = catWarrantyMap.get(item.category)!;
-      } else {
-        // Fallback: infer from SKU/name keywords
+      let months: number | null = null;
+      const productCategory = item.category ? String(item.category).trim() : "";
+      
+      if (productCategory) {
+        if (catWarrantyMap.has(productCategory.toLowerCase())) {
+          months = catWarrantyMap.get(productCategory.toLowerCase())!;
+        } else if (catWarrantyMap.has(productCategory)) {
+          months = catWarrantyMap.get(productCategory)!;
+        }
+      }
+
+      // Fallback: only if category warranty is not set or undefined
+      if (months === null || months === undefined) {
         const sku = (item.sku || "").toUpperCase();
         const name = (item.name || "").toUpperCase();
         if (sku.includes("QR-CARD") || name.includes("THẺ QR")) {
           months = 12;
         } else if (sku.includes("BOARD") || name.includes("BẢNG QR")) {
           months = 6;
+        } else {
+          months = 3; // final fallback if keyword also doesn't match
         }
       }
 
@@ -553,11 +562,21 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                         return (
                           <div className="space-y-2.5">
                             {activePolicies.map((policy) => (
-                              <div key={policy.id} className="flex items-start gap-2 text-xs">
+                              <div key={policy.id} className="flex items-start gap-2 p-2 rounded-md bg-muted/30 border border-muted/50 text-xs">
                                 <Check className={cn("h-4 w-4 shrink-0 mt-0.5", colorClass)} />
-                                <span>
-                                  <strong>{policy.title}:</strong> {policy.description}
-                                </span>
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center flex-wrap gap-1">
+                                    <span className="font-semibold text-foreground">{policy.title}</span>
+                                    {policy.value > 0 && policy.unit && (
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0 bg-primary/5 text-primary border-primary/20">
+                                        {policy.unit === "đ"
+                                          ? `${policy.value.toLocaleString("vi-VN")}${policy.unit}`
+                                          : `${policy.value} ${policy.unit}`}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-muted-foreground leading-relaxed">{policy.description}</p>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -581,8 +600,8 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                           Chưa có lịch sử mua sản phẩm bảo hành.
                         </div>
                       ) : (
-                        <div className="max-h-[300px] overflow-y-auto">
-                          <Table>
+                        <div className="max-h-[300px] overflow-y-auto overflow-x-auto w-full">
+                          <Table className="min-w-[500px] md:min-w-full">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="text-xs">Sản phẩm</TableHead>

@@ -169,7 +169,7 @@ export function usePartnerDetail(partnerId: string | null) {
           quantity,
           unit_price,
           total,
-          products(id, name, sku),
+          products(id, name, sku, category),
           orders!inner(partner_id, company_id, order_date)
         `)
         .eq("orders.partner_id", partnerId!)
@@ -180,6 +180,7 @@ export function usePartnerDetail(partnerId: string | null) {
         product_id: item.product_id,
         name: item.products?.name || "Sản phẩm không tên",
         sku: item.products?.sku || "N/A",
+        category: item.products?.category || null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         total: item.total,
