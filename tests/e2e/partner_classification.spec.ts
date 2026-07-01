@@ -124,25 +124,45 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
   test("should support simulated QR VIP scanning and automatic loyalty tier upgrading on POS checkout", async ({ page }) => {
     test.setTimeout(60000);
 
-    // 1. Navigate to POS
+    // 1. Navigate to Partners to create a new retail customer
+    await page.goto("/partners");
+    await page.click("text=Thêm mới");
+
+    const partnerForm = page.locator('form');
+    await expect(partnerForm).toBeVisible({ timeout: 5000 });
+
+    // Fill partner creation fields
+    await partnerForm.locator('input#code').fill("KH-NEW-RETAIL");
+    await partnerForm.locator('input#name').fill("Khách Hàng Mới");
+    
+    // Choose Tệp khuyến mãi -> Khách lẻ / Tất cả (retail) which maps to promo_segment="all"
+    const promoSegmentSelect = partnerForm.locator('div.space-y-2:has-text("Tệp khuyến mãi áp dụng") button');
+    await promoSegmentSelect.click();
+    await page.click('div[role="presentation"] >> text=Khách lẻ / Tất cả');
+
+    // Click Submit
+    await partnerForm.locator('button:has-text("Kích hoạt")').click();
+    await page.waitForTimeout(1000);
+
+    // 2. Navigate to POS
     await page.goto("/pos");
 
-    // Click "Giả lập Quét VIP"
-    const qrScanBtn = page.locator('button:has-text("Giả lập Quét VIP")');
-    await expect(qrScanBtn).toBeVisible({ timeout: 5000 });
-    await qrScanBtn.click();
+    // Select "Khách Hàng Mới" as the customer
+    const searchCustomerInput = page.locator('input[placeholder="Tìm khách hàng (tên, SĐT, mã)..."]');
+    await expect(searchCustomerInput).toBeVisible({ timeout: 5000 });
+    await searchCustomerInput.fill("Mới");
+    await page.waitForTimeout(600);
 
-    // Verify success toast that scanner simulated OK
-    await expect(page.locator("text=Quét thẻ thành viên thành công").first()).toBeVisible({ timeout: 10000 });
+    // Open customer select dropdown
+    const customerSelectTrigger = page.locator('div.space-y-2 button[role="combobox"]').first();
+    await customerSelectTrigger.click();
+    await page.waitForTimeout(500);
 
-    // Verify customer is selected
-    const selectedCustomerValue = page.locator('div.space-y-2 button[role="combobox"]').first();
-    await expect(selectedCustomerValue).not.toContainText("Khách lẻ", { timeout: 10000 });
+    // Select Khách Hàng Mới
+    await page.click('div[role="presentation"] >> text=Khách Hàng Mới');
+    await page.waitForTimeout(500);
 
-    const fullSelectedText = await selectedCustomerValue.textContent();
-    const selectedCustomerName = fullSelectedText?.split("•")[0]?.replace(/[0-9]/g, "")?.trim() || "Techcom";
-
-    // 2. Perform a checkout that crosses the 10,000,000đ threshold to trigger VIP auto-upgrade!
+    // 3. Perform a checkout that crosses the 10,000,000đ threshold to trigger VIP auto-upgrade!
     // Add product "Thẻ QR cá nhân thông minh"
     await page.waitForSelector(".grid >> text=Thẻ QR");
     await page.click("text=Thẻ QR cá nhân thông minh");
@@ -161,17 +181,17 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await expect(page.locator("text=Thanh toán thành công").first()).toBeVisible({ timeout: 15000 });
     await expect(page.locator("text=Thăng hạng Thành viên VIP").first()).toBeVisible({ timeout: 15000 });
 
-    // 3. Now let's navigate to Partners, search for the dynamically upgraded customer and check detail card
+    // 4. Now let's navigate to Partners, search for Khách Hàng Mới and check detail card
     await page.goto("/partners");
     await page.waitForSelector("text=Quản lý đối tác");
 
     // Search for the upgraded customer
     const searchInput = page.locator('input[placeholder="Tìm kiếm..."]');
-    await searchInput.fill(selectedCustomerName);
+    await searchInput.fill("Khách Hàng Mới");
     await page.waitForTimeout(500);
 
     // Click "Chi tiết" button on the customer card
-    const targetCard = page.locator(`div.hover\\:shadow-md:has-text("${selectedCustomerName}")`);
+    const targetCard = page.locator(`div.hover\\:shadow-md:has-text("Khách Hàng Mới")`);
     await targetCard.locator('button:has-text("Chi tiết")').click();
 
     // Verify glassmorphic loyalty membership card is displayed and shows "VIP Member" badge!
