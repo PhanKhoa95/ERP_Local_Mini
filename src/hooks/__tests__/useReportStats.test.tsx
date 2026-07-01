@@ -562,6 +562,7 @@ describe("useReportStats Test Suite", () => {
         orderCount: 0,
         dailyChart: [],
         channelChart: [],
+        orders: [],
       });
 
       // Test Product Report
