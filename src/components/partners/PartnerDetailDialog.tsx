@@ -165,12 +165,13 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
           </div>
         ) : (
           <Tabs defaultValue="overview" className="mt-4">
-            <TabsList className="w-full grid grid-cols-6">
+            <TabsList className="w-full grid grid-cols-7">
               <TabsTrigger value="overview" className="gap-1 text-xs sm:text-sm"><User className="h-4 w-4" /><span className="hidden sm:inline">Tổng quan</span></TabsTrigger>
               <TabsTrigger value="behavior" className="gap-1 text-xs sm:text-sm"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Hành vi & Phân tích</span></TabsTrigger>
               <TabsTrigger value="orders" className="gap-1 text-xs sm:text-sm"><ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Đơn hàng</span></TabsTrigger>
               <TabsTrigger value="payments" className="gap-1 text-xs sm:text-sm"><CreditCard className="h-4 w-4" /><span className="hidden sm:inline">Thanh toán</span></TabsTrigger>
               <TabsTrigger value="products" className="gap-1 text-xs sm:text-sm"><Package className="h-4 w-4" /><span className="hidden sm:inline">Sản phẩm</span></TabsTrigger>
+              <TabsTrigger value="warranty" className="gap-1 text-xs sm:text-sm"><ShieldCheck className="h-4 w-4" /><span className="hidden sm:inline">Bảo hành & CS</span></TabsTrigger>
               <TabsTrigger value="notes" className="gap-1 text-xs sm:text-sm"><MessageSquare className="h-4 w-4" /><span className="hidden sm:inline">CSKH</span></TabsTrigger>
             </TabsList>
 
