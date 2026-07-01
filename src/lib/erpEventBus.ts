@@ -1,7 +1,7 @@
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { createLocalInventoryTransaction, getLocalProductBom, logLocalAction } from "@/lib/localInventoryStore";
 
-export type ErpEvent = "ORDER_CREATED" | "PAYMENT_RECORDED" | "CONTRACT_SIGNED";
+export type ErpEvent = "ORDER_CREATED" | "PAYMENT_RECORDED" | "CONTRACT_SIGNED" | "STOCK_TRANSACTION_RECORDED";
 
 export interface ErpEventPayloads {
   ORDER_CREATED: {
@@ -14,6 +14,10 @@ export interface ErpEventPayloads {
   CONTRACT_SIGNED: {
     contract: any;
     companyId: string;
+  };
+  STOCK_TRANSACTION_RECORDED: {
+    transaction: any;
+    product: any;
   };
 }
 
