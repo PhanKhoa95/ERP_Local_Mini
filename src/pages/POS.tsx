@@ -44,7 +44,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { usePartners } from "@/hooks/usePartners";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { useOrders } from "@/hooks/useOrders";
-import { useMemberships } from "@/hooks/useMemberships";
+import { useMemberships, TIER_LABELS, STATUS_LABELS } from "@/hooks/useMemberships";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useWarehouseStock } from "@/hooks/useWarehouseStock";
 import { useToast } from "@/hooks/use-toast";
@@ -301,10 +301,7 @@ const POS = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
-  const customerMembership = useMemo(() => {
-    if (!selectedCustomer || selectedCustomer === "walk-in") return null;
-    return memberships.find(m => m.partner_id === selectedCustomer);
-  }, [selectedCustomer, memberships]);
+  const [customSelectedCardId, setCustomSelectedCardId] = useState<string>("");
 
   const handleQuickAddCustomerSubmit = async (data: any) => {
     try {
