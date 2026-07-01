@@ -12,6 +12,7 @@ import { ContractSignDialog } from "@/components/contracts/ContractSignDialog";
 import { ContractMilestones } from "@/components/contracts/ContractMilestones";
 import { format } from "date-fns";
 import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
+import { Plus, Search, FileSignature, ChevronDown, ChevronRight } from "lucide-react";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   draft: { label: "Nháp", color: "bg-muted text-muted-foreground" },
