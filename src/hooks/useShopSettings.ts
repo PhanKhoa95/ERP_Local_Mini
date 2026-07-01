@@ -95,11 +95,23 @@ export function useShopSettings() {
     },
   });
 
+  const updateSetting = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: any }) => upsertSetting(key, value),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["shop_settings", variables.key] });
+      toast({ title: "Cập nhật cấu hình thành công" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Lỗi", description: error.message });
+    },
+  });
+
   return {
     bankInfo: bankInfo || { bank_name: "", account_number: "", account_holder: "", branch: "" },
     shopInfo: shopInfo || { name: "Cửa hàng", phone: "", address: "" },
     isLoading: bankLoading || shopLoading,
     updateBankInfo,
     updateShopInfo,
+    updateSetting,
   };
 }

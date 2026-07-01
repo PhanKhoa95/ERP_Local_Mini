@@ -1,4 +1,7 @@
 import { useSubscriptions } from "@/hooks/useSubscriptions";
+import { useOrders } from "@/hooks/useOrders";
+import { useWarehouses } from "@/hooks/useWarehouses";
+import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +23,15 @@ import { vi } from "date-fns/locale";
 
 export function SubscriptionsTab() {
   const { subscription, isLoading, upgradePlan } = useSubscriptions();
+  const { orders = [] } = useOrders();
+  const { warehouses = [] } = useWarehouses();
+  const { salesChannels = [] } = useSalesChannels();
+
+  const currentMonthOrders = orders.filter(o => {
+    const d = o.created_at ? new Date(o.created_at) : new Date();
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
 
   const plans = [
     {
@@ -123,25 +135,25 @@ export function SubscriptionsTab() {
 
   const activePlan = getPlanDetails(subscription?.plan_type || "starter");
 
-  // Mock usage statistics for UI representation
+  // Dynamic usage statistics from database
   const usageStats = [
     {
       name: "Đơn hàng trong tháng",
-      current: 45,
+      current: currentMonthOrders,
       limit: activePlan.limits.orders,
       unit: "đơn",
       isUnlimited: activePlan.id === "enterprise",
     },
     {
       name: "Số kho hoạt động",
-      current: 1,
+      current: warehouses.length,
       limit: activePlan.limits.warehouses,
       unit: "kho",
       isUnlimited: activePlan.id === "enterprise",
     },
     {
       name: "Kênh bán hàng kết nối",
-      current: 2,
+      current: salesChannels.length,
       limit: activePlan.limits.channels,
       unit: "kênh",
       isUnlimited: activePlan.id === "enterprise" || activePlan.id === "growth",
