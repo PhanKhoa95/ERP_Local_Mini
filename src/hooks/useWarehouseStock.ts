@@ -303,6 +303,19 @@ export function useWarehouseStock() {
           .insert({ warehouse_id, product_id, quantity: newQty });
         if (error) throw error;
       }
+
+      // Sync total stock quantity back to products table
+      const { data: allStocks } = await supabase
+        .from("warehouse_stock")
+        .select("quantity")
+        .eq("product_id", product_id);
+      
+      const totalStock = (allStocks || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+      await supabase
+        .from("products")
+        .update({ stock_quantity: totalStock })
+        .eq("id", product_id);
     },
     onSuccess: () => {
       invalidateWarehouseRelated(queryClient);
