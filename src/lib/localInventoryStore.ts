@@ -637,6 +637,10 @@ export function updateLocalProduct(input: ProductUpdate & { id: string }): Produ
 
   products[index] = updated;
   writeJson(PRODUCTS_KEY, products);
+
+  // Auto sync cost price of finished goods if price/cost changed
+  syncBomCostToProducts();
+
   return updated;
 }
 
@@ -909,6 +913,9 @@ export function addLocalBomItem(input: {
     }
   );
 
+  // Auto sync cost price of finished goods
+  syncBomCostToProducts();
+
   return item;
 }
 
@@ -934,6 +941,9 @@ export function updateLocalBomItem(id: string, updates: Partial<ProductBom>) {
     { quantity: updated.quantity, notes: updated.notes }
   );
 
+  // Auto sync cost price of finished goods
+  syncBomCostToProducts();
+
   return updated;
 }
 
@@ -952,6 +962,9 @@ export function deleteLocalBomItem(id: string) {
       null
     );
   }
+
+  // Auto sync cost price of finished goods
+  syncBomCostToProducts();
 }
 
 export function applyLocalProductionCompletion(input: {

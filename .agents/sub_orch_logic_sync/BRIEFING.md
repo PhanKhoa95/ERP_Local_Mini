@@ -48,18 +48,19 @@ Khắc phục 10 lỗi logic nghiệp vụ và 10 lỗi mất đồng bộ dữ 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| explorer_1 | teamwork_preview_explorer | Explore 10 logic and 10 sync issues | in-progress | 5958208f-109c-4cdc-add8-82791f05df49 |
+| explorer_1 | teamwork_preview_explorer | Explore 10 logic and 10 sync issues | failed | 5958208f-109c-4cdc-add8-82791f05df49 |
+| explorer_2 | teamwork_preview_explorer | Explore 10 logic and 10 sync issues (Attempt 2) | in-progress | f370e422-e32a-43e9-9857-6e9a0d2529e1 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 1 / 16
+- Spawn count: 2 / 16
 - Pending subagents: none
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
 - Heartbeat cron: task-37
-- Safety timer: task-130
+- Safety timer: task-184
 
 ## Artifact Index
 - y:\ERP_Local_Mini\.agents\sub_orch_logic_sync\ORIGINAL_REQUEST.md — Original request replica

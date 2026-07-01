@@ -840,9 +840,20 @@ export function useOrders() {
         }
       }
 
+      const totalAmount = orderData.total || 0;
+      const paidAmt = orderData.paid_amount || 0;
+      let finalPaymentStatus = orderData.payment_status || "unpaid";
+
+      if (finalPaymentStatus === "paid" && paidAmt < totalAmount) {
+        finalPaymentStatus = paidAmt === 0 ? "unpaid" : "partial";
+      } else if (paidAmt >= totalAmount && totalAmount > 0) {
+        finalPaymentStatus = "paid";
+      }
+
       const resolvedOrderData = {
         ...orderData,
         partner_id: resolvedPartnerId,
+        payment_status: finalPaymentStatus,
       };
       
       if (isLocalDemoAuthEnabled()) {
