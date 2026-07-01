@@ -500,6 +500,131 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
               )}
             </TabsContent>
 
+            {/* Warranty & Policies Tab */}
+            <TabsContent value="warranty" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Policies (1 col) */}
+                <div className="md:col-span-1 space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                        <ShieldCheck className="h-4 w-4 text-primary" /> Chính sách mua hàng
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-xs text-muted-foreground pb-1">
+                        Áp dụng dựa trên phân khúc đối tác hiện tại:
+                      </div>
+                      {partner.promo_segment === "loyalty" ? (
+                        <div className="space-y-2.5">
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span><strong>Đổi trả 30 ngày:</strong> Miễn phí hoàn trả hàng đối với lỗi kỹ thuật hoặc không ưng ý.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span><strong>Tích điểm VIP:</strong> Hoàn 2% tổng hóa đơn dưới dạng điểm tích lũy thành viên.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span><strong>Hotline 24/7:</strong> Kênh chăm sóc kỹ thuật đặc biệt dành riêng cho VIP.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                            <span><strong>Tri ân VIP:</strong> Quà tặng ngày sinh nhật và ưu đãi trước các sự kiện lớn.</span>
+                          </div>
+                        </div>
+                      ) : partner.promo_segment === "wholesale" ? (
+                        <div className="space-y-2.5">
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                            <span><strong>Hạn mức Công nợ:</strong> Hỗ trợ thanh toán trả chậm gối đầu trong vòng 30 ngày.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                            <span><strong>Giao hàng miễn phí:</strong> Áp dụng cho các đơn hàng phân phối có giá trị từ 5,000,000đ.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                            <span><strong>Đổi trả phân phối:</strong> 15 ngày đối với các sản phẩm lỗi do nhà sản xuất.</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                            <span><strong>Đổi trả 7 ngày:</strong> Đổi mới sản phẩm đối với các lỗi kỹ thuật phát sinh.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                            <span><strong>Tích điểm Loyalty:</strong> Hoàn 1% giá trị hóa đơn quy đổi sang điểm thưởng.</span>
+                          </div>
+                          <div className="flex items-start gap-2 text-xs">
+                            <Check className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                            <span><strong>Giao hàng:</strong> Miễn phí ship cho đơn từ 200,000đ khi đặt mua online.</span>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Warranties (2 cols) */}
+                <div className="md:col-span-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                        <Package className="h-4 w-4 text-primary" /> Theo dõi bảo hành sản phẩm
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {warranties.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground text-xs">
+                          Chưa có lịch sử mua sản phẩm bảo hành.
+                        </div>
+                      ) : (
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="text-xs">Sản phẩm</TableHead>
+                                <TableHead className="text-xs">Ngày mua</TableHead>
+                                <TableHead className="text-xs text-center">Bảo hành</TableHead>
+                                <TableHead className="text-xs text-right">Trạng thái</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {warranties.map((w, i) => (
+                                <TableRow key={w.id || i}>
+                                  <TableCell className="font-medium text-xs">
+                                    <div>{w.name}</div>
+                                    <div className="text-[10px] text-muted-foreground font-mono">{w.sku}</div>
+                                  </TableCell>
+                                  <TableCell className="text-xs">{fmtDate(w.purchaseDate)}</TableCell>
+                                  <TableCell className="text-xs text-center">{w.durationMonths} tháng</TableCell>
+                                  <TableCell className="text-right">
+                                    <Badge 
+                                      variant={w.isActive ? "default" : "secondary"} 
+                                      className={cn("text-[9px] uppercase px-1.5 py-0", w.isActive ? "bg-green-600 hover:bg-green-500" : "bg-muted text-muted-foreground")}
+                                    >
+                                      {w.isActive ? "Còn hạn" : "Hết hạn"}
+                                    </Badge>
+                                    <div className="text-[9px] text-muted-foreground mt-0.5">
+                                      Hạn: {fmtDate(w.expirationDate)}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
             {/* Notes Tab */}
             <TabsContent value="notes" className="space-y-4">
               <Card>
