@@ -579,12 +579,12 @@ export function createLocalProduct(input: ProductInsert, companyId = LOCAL_DEMO_
     is_active: input.is_active ?? true,
     is_service: input.is_service ?? false,
     lead_time_days: input.lead_time_days ?? 0,
-    min_stock: input.is_service ? 0 : input.min_stock ?? 0,
+    min_stock: input.is_service ? (((input.min_stock ?? 0) > 0 || (input.stock_quantity ?? 0) > 0) ? (input.min_stock ?? 0) : 0) : input.min_stock ?? 0,
     name: input.name,
     reorder_point: input.reorder_point ?? null,
     selling_price: input.selling_price ?? 0,
     sku: input.sku,
-    stock_quantity: input.is_service ? 0 : input.stock_quantity ?? 0,
+    stock_quantity: input.is_service ? (((input.stock_quantity ?? 0) > 0 || (input.min_stock ?? 0) > 0) ? (input.stock_quantity ?? 0) : 0) : input.stock_quantity ?? 0,
     unit: normalizeText(input.unit) ?? "cai",
     updated_at: input.updated_at ?? timestamp,
   };
@@ -630,8 +630,12 @@ export function updateLocalProduct(input: ProductUpdate & { id: string }): Produ
     description: input.description !== undefined ? normalizeText(input.description) : current.description,
     image_url: input.image_url !== undefined ? normalizeText(input.image_url) : current.image_url,
     unit: input.unit !== undefined ? normalizeText(input.unit) : current.unit,
-    stock_quantity: input.is_service ? 0 : input.stock_quantity ?? current.stock_quantity,
-    min_stock: input.is_service ? 0 : input.min_stock ?? current.min_stock,
+    stock_quantity: (input.is_service !== undefined ? input.is_service : current.is_service) 
+      ? (((input.stock_quantity ?? current.stock_quantity ?? 0) > 0 || (input.min_stock ?? current.min_stock ?? 0) > 0) ? (input.stock_quantity ?? current.stock_quantity ?? 0) : 0)
+      : (input.stock_quantity !== undefined ? input.stock_quantity : current.stock_quantity),
+    min_stock: (input.is_service !== undefined ? input.is_service : current.is_service)
+      ? (((input.min_stock ?? current.min_stock ?? 0) > 0 || (input.stock_quantity ?? current.stock_quantity ?? 0) > 0) ? (input.min_stock ?? current.min_stock ?? 0) : 0)
+      : (input.min_stock !== undefined ? input.min_stock : current.min_stock),
     updated_at: now(),
   };
 
@@ -790,7 +794,8 @@ export function createLocalInventoryTransaction(input: {
   if (productIndex < 0) throw new Error("Khong tim thay san pham local.");
 
   const product = products[productIndex];
-  if (product.is_service) throw new Error("San pham dich vu khong quan ly ton kho.");
+  const isLimitedService = product.is_service && ((product.stock_quantity ?? 0) > 0 || (product.min_stock ?? 0) > 0);
+  if (product.is_service && !isLimitedService) throw new Error("San pham dich vu khong quan ly ton kho.");
   if (!isPositiveQuantity(input.quantity)) throw new Error("So luong giao dich phai lon hon 0.");
 
   const delta = input.transaction_type === "in" ? input.quantity : -input.quantity;

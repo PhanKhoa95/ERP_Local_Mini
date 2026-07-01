@@ -435,10 +435,11 @@ const POS = () => {
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.product.id === product.id);
     const isService = product.is_service === true;
+    const isLimitedService = isService && ((product.stock_quantity || 0) > 0 || (product.min_stock || 0) > 0);
+    const shouldCheckStock = !isService || isLimitedService;
     
     if (existingItem) {
-      // Skip stock check for service items
-      if (!isService && existingItem.quantity >= (product.stock_quantity || 0)) {
+      if (shouldCheckStock && existingItem.quantity >= (product.stock_quantity || 0)) {
         toast({
           variant: "destructive",
           title: "Hết hàng",
@@ -454,12 +455,11 @@ const POS = () => {
         )
       );
     } else {
-      // Skip stock check for service items
-      if (!isService && (product.stock_quantity || 0) < 1) {
+      if (shouldCheckStock && (product.stock_quantity || 0) < 1) {
         toast({
           variant: "destructive",
           title: "Hết hàng",
-          description: `${product.name} đã hết hàng`,
+          description: "Sản phẩm đã hết hàng.",
         });
         return;
       }
