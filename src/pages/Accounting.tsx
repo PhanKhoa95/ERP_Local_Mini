@@ -1925,6 +1925,77 @@ export default function Accounting() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Account Dialog */}
+      <Dialog open={editAccountOpen} onOpenChange={setEditAccountOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sửa tài khoản: {editAccount?.code}</DialogTitle>
+            <DialogDescription>
+              Cập nhật tên hoặc loại tài khoản. Số hiệu tài khoản (code) không thể thay đổi.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 my-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Số hiệu tài khoản (Code)</label>
+              <Input 
+                value={editAccount?.code || ""}
+                disabled
+                className="text-sm bg-muted"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Tên tài khoản (Name)</label>
+              <Input 
+                value={editAccountName}
+                onChange={(e) => setEditAccountName(e.target.value)}
+                placeholder="Tên tài khoản..."
+                className="text-sm"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Loại tài khoản (Type)</label>
+              <select
+                value={editAccountType}
+                onChange={(e) => setEditAccountType(e.target.value)}
+                className="w-full bg-background border rounded px-3 py-2 outline-none text-sm h-10"
+              >
+                <option value="asset">Tài sản (Asset)</option>
+                <option value="liability">Nợ phải trả (Liability)</option>
+                <option value="equity">Vốn chủ sở hữu (Equity)</option>
+                <option value="revenue">Doanh thu (Revenue)</option>
+                <option value="expense">Chi phí (Expense)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+            <Button variant="outline" size="sm" onClick={() => setEditAccountOpen(false)}>
+              Hủy bỏ
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={() => {
+                if (editAccount) {
+                  updateAccount.mutate({
+                    id: editAccount.id,
+                    name: editAccountName,
+                    account_type: editAccountType as any,
+                  });
+                  setEditAccountOpen(false);
+                }
+              }}
+              disabled={!editAccountName.trim() || updateAccount.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {updateAccount.isPending ? "Đang lưu..." : "Lưu thay đổi"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
