@@ -12,6 +12,7 @@ import {
 import { useCashVouchers, type VoucherType } from "@/hooks/useCashVouchers";
 import { useAccounting } from "@/hooks/useAccounting";
 import { useProjects } from "@/hooks/useProjects";
+import { cn } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString("vi-VN");
 
@@ -49,6 +50,25 @@ export function CashVoucherTab() {
   const [formProjectId, setFormProjectId] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [formRef, setFormRef] = useState("");
+
+  const selectedProjectBudgetInfo = useMemo(() => {
+    if (formType !== "payment" || !formProjectId) return null;
+    const proj = projects.find((p: any) => p.id === formProjectId);
+    if (!proj || proj.budget === null || proj.budget === undefined) return null;
+
+    const confirmedExpenses = vouchers
+      .filter((v: any) => v.project_id === formProjectId && v.voucher_type === "payment" && v.status !== "voided")
+      .reduce((sum: number, v: any) => sum + (v.amount || 0), 0);
+
+    const remainingBudget = proj.budget - confirmedExpenses;
+    return {
+      name: proj.name,
+      budget: proj.budget,
+      spent: confirmedExpenses,
+      remaining: remainingBudget,
+      isExceeded: Number(formAmount) > remainingBudget
+    };
+  }, [formProjectId, formType, vouchers, projects, formAmount]);
 
   // Detail dialog
   const [detailVoucher, setDetailVoucher] = useState<any | null>(null);
@@ -365,6 +385,31 @@ export function CashVoucherTab() {
                   <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
                 ))}
               </select>
+              {selectedProjectBudgetInfo && (
+                <div className={cn("p-2 border rounded-md text-xs mt-1 space-y-1", 
+                  selectedProjectBudgetInfo.isExceeded 
+                    ? "bg-destructive/10 border-destructive text-destructive" 
+                    : "bg-muted/40 border-muted-foreground/20 text-muted-foreground"
+                )}>
+                  <div className="flex justify-between">
+                    <span>Ngân sách dự án:</span>
+                    <span className="font-semibold">{fmt(selectedProjectBudgetInfo.budget)}đ</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Đã chi tiêu (tạm tính):</span>
+                    <span className="font-semibold">{fmt(selectedProjectBudgetInfo.spent)}đ</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ngân sách còn lại:</span>
+                    <span className="font-semibold">{fmt(selectedProjectBudgetInfo.remaining)}đ</span>
+                  </div>
+                  {selectedProjectBudgetInfo.isExceeded && (
+                    <p className="font-bold mt-1 text-center">
+                      ⚠️ Phiếu chi này vượt quá ngân sách còn lại của dự án!
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Amount + Method */}
