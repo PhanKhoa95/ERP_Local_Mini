@@ -213,6 +213,24 @@ const Reports = () => {
     }
   });
 
+  const handleSaveProjectHealth = async () => {
+    if (!selectedProjectForHealth) return;
+    const code = selectedProjectForHealth.code;
+    const updatedDetails = {
+      ...dbHealthDetails,
+      [code]: healthFormData
+    };
+    updateSetting.mutate(
+      { key: "project_health_details", value: updatedDetails },
+      {
+        onSuccess: () => {
+          setHealthSettingsOpen(false);
+          refetchHealthDetails();
+        }
+      }
+    );
+  };
+
   const { projects, isLoading: projectsLoading } = useProjects();
 
   const filteredProjects = projects ? projects.filter(p => {
@@ -223,6 +241,25 @@ const Reports = () => {
     if (end && end < dateRange.from) return false;
     return true;
   }) : [];
+
+  const processedProjects = useMemo(() => {
+    if (!filteredProjects) return [];
+    return filteredProjects.map(p => {
+      const detail = dbHealthDetails[p.code] || {
+        progress: p.status === "completed" ? 100 : p.status === "active" ? 50 : 10,
+        manager: "Chủ shop (bạn)",
+        blocker: "Không có sự cố ghi nhận",
+        action: "Không cần hành động khắc phục"
+      };
+      return {
+        ...p,
+        progress: detail.progress,
+        manager: detail.manager,
+        blocker: detail.blocker,
+        action: detail.action
+      };
+    });
+  }, [filteredProjects, dbHealthDetails]);
 
 
   const totalRevenue = revenueData?.totalRevenue || 0;
@@ -2031,26 +2068,11 @@ const Reports = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {(projects && filteredProjects.length > 0 ? filteredProjects.map(p => {
-                                const mockDetails = [
-                                    { code: "SHP", progress: 85, manager: "Nhân viên part-time 1", blocker: "Hình ảnh mô tả sản phẩm bị lỗi kích thước", action: "Nhờ thiết kế cập nhật ảnh chuẩn 800x800px" },
-                                    { code: "BOM", progress: 65, manager: "Chủ shop (bạn)", blocker: "Giấy in decal cuộn bị kẹt khi bế decal tròn", action: "Điều chỉnh lại trục giữ giấy và lực cắt máy bế" },
-                                    { code: "AIC", progress: 40, manager: "Cộng tác viên thiết kế", blocker: "API Zalo OA cần xác thực doanh nghiệp", action: "Chuẩn bị giấy phép đăng ký hộ kinh doanh để nộp" },
-                                    { code: "MKT", progress: 0, manager: "Chủ shop (bạn)", blocker: "Chưa gom đủ danh sách địa chỉ shop", action: "Tìm kiếm thông tin shop trên các hội nhóm Facebook" }
-                                  ].find(m => m.code === p.code) || { progress: p.status === "completed" ? 100 : p.status === "active" ? 50 : 10, manager: "Chủ shop", blocker: "Không có sự cố ghi nhận", action: "Không cần hành động khắc phục" };
-
-                                return {
-                                  ...p,
-                                  progress: mockDetails.progress,
-                                  manager: mockDetails.manager,
-                                  blocker: mockDetails.blocker,
-                                  action: mockDetails.action
-                                };
-                              }) : [
+                              {(processedProjects.length > 0 ? processedProjects : [
                                 { code: "MKT", name: "Chiến dịch Marketing Thu Đông 2026", status: "planning", budget: 80000000, progress: 0, priority: "normal", manager: "Phạm Thanh Thủy (Sales 1)", blocker: "Thiếu thiết kế banner key-visual chính", action: "Tuyển thêm Designer freelancer thực hiện gấp" },
                                 { code: "AIC", name: "Xây dựng Trợ lý ảo AI CSKH", status: "active", budget: 45000000, progress: 40, priority: "high", manager: "Hoàng Anh Tuấn (Sales 2)", blocker: "API Gemini quá tải lượt gọi miễn phí", action: "Nâng cấp lên token trả phí để ổn định dịch vụ" }
                               ]).map((p, idx) => (
-                                <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 cursor-pointer transition-colors" onClick={() => navigate("/projects")}>
+                                <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 cursor-pointer transition-colors relative group" onClick={() => navigate("/projects")}>
                                   <td className="p-3">
                                     <span className="font-semibold block">{p.name}</span>
                                     <span className="font-mono text-[10px] text-muted-foreground">{p.code} - Ngân sách: {formatCurrency(p.budget || 0)}</span>
@@ -2075,10 +2097,30 @@ const Reports = () => {
                                     <span className="font-semibold text-foreground block">{p.manager}</span>
                                     <span className="text-[10px] text-red-500 font-medium block mt-0.5">{p.blocker}</span>
                                   </td>
-                                  <td className="p-3">
+                                  <td className="p-3 pr-12">
                                     <div className="bg-primary/5 border border-primary/10 text-primary p-2 rounded text-[11px] font-medium leading-relaxed">
                                       {p.action}
                                     </div>
+                                  </td>
+                                  <td className="p-3 absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-8 w-8 bg-background border-primary/20 hover:bg-primary/5 text-primary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedProjectForHealth(p);
+                                        setHealthFormData({
+                                          progress: p.progress || 0,
+                                          manager: p.manager || "",
+                                          blocker: p.blocker || "",
+                                          action: p.action || "",
+                                        });
+                                        setHealthSettingsOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
                                   </td>
                                 </tr>
                               ))}
@@ -2419,6 +2461,68 @@ const Reports = () => {
               Xuất Excel
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={healthSettingsOpen} onOpenChange={setHealthSettingsOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-primary">Cập nhật Tiến độ & Sức khỏe Dự án</DialogTitle>
+            <DialogDescription>
+              Cấu hình các thông số về tiến độ, người chịu trách nhiệm trực tiếp, sự cố tắc nghẽn và hành động xử lý tiếp theo của dự án {selectedProjectForHealth?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 text-sm">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="progress" className="text-right font-medium">Tiến độ (%) *</Label>
+              <Input
+                id="progress"
+                type="number"
+                min="0"
+                max="100"
+                value={healthFormData.progress}
+                onChange={(e) => setHealthFormData(prev => ({ ...prev, progress: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="manager" className="text-right font-medium">Người phụ trách *</Label>
+              <Input
+                id="manager"
+                value={healthFormData.manager}
+                onChange={(e) => setHealthFormData(prev => ({ ...prev, manager: e.target.value }))}
+                className="col-span-3"
+                placeholder="Họ tên nhân viên..."
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="blocker" className="text-right font-medium">Điểm tắc nghẽn *</Label>
+              <Input
+                id="blocker"
+                value={healthFormData.blocker}
+                onChange={(e) => setHealthFormData(prev => ({ ...prev, blocker: e.target.value }))}
+                className="col-span-3"
+                placeholder="Mô tả sự cố hoặc 'Không có sự cố ghi nhận'..."
+              />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="action" className="text-right font-medium pt-2">Hành động xử lý *</Label>
+              <Textarea
+                id="action"
+                value={healthFormData.action}
+                onChange={(e) => setHealthFormData(prev => ({ ...prev, action: e.target.value }))}
+                className="col-span-3 min-h-[80px]"
+                placeholder="Đề xuất hành động khắc phục..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHealthSettingsOpen(false)}>Hủy</Button>
+            <Button onClick={handleSaveProjectHealth} disabled={updateSetting.isPending}>
+              {updateSetting.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Lưu thay đổi
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </MainLayout>
