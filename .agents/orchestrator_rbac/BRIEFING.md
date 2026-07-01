@@ -54,12 +54,17 @@ Design, upgrade, and complete the dynamic RBAC/ABAC role system for ERP_Local_Mi
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
 | explorer_m1 | teamwork_preview_explorer | Codebase Exploration | completed | ce19efd1-cfef-4ee4-8752-45b18c3e2847 |
-| worker_m2 | teamwork_preview_worker | Implement RBAC/ABAC role system | in-progress | f481c42a-d76c-4a8f-9314-f5e81a7edb4d |
+| worker_m2 | teamwork_preview_worker | Implement RBAC/ABAC role system | completed | f481c42a-d76c-4a8f-9314-f5e81a7edb4d |
+| reviewer_m5_1 | teamwork_preview_reviewer | Code correctness & Unit checks | in-progress | 1f69316a-d277-41e1-998e-091b21fae721 |
+| reviewer_m5_2 | teamwork_preview_reviewer | Dynamic check & E2E checks | in-progress | 307152a1-b86a-49a3-8fbc-7a5d71a8f12e |
+| challenger_m5_1 | teamwork_preview_challenger | Security stress checks | in-progress | b783fbd2-e089-4174-969e-ee9e58370853 |
+| challenger_m5_2 | teamwork_preview_challenger | Local/Supabase sync check | in-progress | 8ac8525a-373c-49e4-b0e2-74f269b5171b |
+| auditor_m5 | teamwork_preview_auditor | Forensic Integrity Audit | in-progress | d6bced82-8b2c-4780-9e0b-5603a0b89dc5 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 2 / 16
-- Pending subagents: f481c42a-d76c-4a8f-9314-f5e81a7edb4d
+- Spawn count: 7 / 16
+- Pending subagents: 1f69316a-d277-41e1-998e-091b21fae721, 307152a1-b86a-49a3-8fbc-7a5d71a8f12e, b783fbd2-e089-4174-969e-ee9e58370853, 8ac8525a-373c-49e4-b0e2-74f269b5171b, d6bced82-8b2c-4780-9e0b-5603a0b89dc5
 - Predecessor: none
 - Successor: not yet spawned
 
