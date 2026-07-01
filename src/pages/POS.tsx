@@ -60,6 +60,62 @@ interface CartItem {
   discount: number;
 }
 
+interface POSQuantityInputProps {
+  value: number;
+  maxStock: number;
+  isService: boolean;
+  onChange: (val: number) => void;
+}
+
+const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
+  value,
+  maxStock,
+  isService,
+  onChange,
+}) => {
+  const [localValue, setLocalValue] = useState<string>(value.toString());
+
+  useEffect(() => {
+    setLocalValue(value.toString());
+  }, [value]);
+
+  const handleInputChange = (valStr: string) => {
+    const cleanVal = valStr.replace(/[^0-9]/g, "");
+    setLocalValue(cleanVal);
+
+    if (cleanVal !== "") {
+      const num = parseInt(cleanVal, 10);
+      if (num >= 1) {
+        if (!isService && num > maxStock) {
+          onChange(maxStock);
+          setLocalValue(maxStock.toString());
+        } else {
+          onChange(num);
+        }
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    if (localValue === "" || parseInt(localValue, 10) < 1) {
+      onChange(1);
+      setLocalValue("1");
+    }
+  };
+
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={localValue}
+      onChange={(e) => handleInputChange(e.target.value)}
+      onBlur={handleBlur}
+      className="w-14 h-8 text-center text-sm font-semibold border-border bg-background focus-visible:ring-1 focus-visible:ring-primary shadow-xs px-1"
+    />
+  );
+};
+
 const POS = () => {
   const { products, isLoading: productsLoading } = useProducts();
   const { customers } = usePartners();
@@ -500,29 +556,27 @@ const POS = () => {
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </Button>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() =>
                         updateQuantity(item.product.id, item.quantity - 1)
                       }
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <Input
-                      type="number"
+                    <POSQuantityInput
                       value={item.quantity}
-                      onChange={(e) =>
-                        updateQuantity(item.product.id, Number(e.target.value))
-                      }
-                      className="w-12 h-7 text-center text-sm"
+                      maxStock={item.product.stock_quantity || 0}
+                      isService={item.product.is_service === true}
+                      onChange={(newVal) => updateQuantity(item.product.id, newVal)}
                     />
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() =>
                         updateQuantity(item.product.id, item.quantity + 1)
                       }
