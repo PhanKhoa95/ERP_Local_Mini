@@ -288,8 +288,8 @@ describe("Memberships & Wallet Balance Empirical Tests", () => {
 
   it("9. should allow updating membership card details (card number, tier, notes, image) and block duplicate card numbers on update", () => {
     const memberships = [
-      { id: "mem-1", partner_id: "cust-1", card_number: "MEM-OLD-111", tier: "bronze", notes: "Old notes", balance: 0, points: 0, status: "active" },
-      { id: "mem-2", partner_id: "cust-2", card_number: "MEM-DUPLICATE", tier: "bronze", notes: "Other notes", balance: 0, points: 0, status: "active" }
+      { id: "mem-1", partner_id: "cust-1", card_number: "MEM-OLD-111", tier: "bronze", notes: "Old notes", balance: 0, points: 0, status: "active", card_image: null as string | null },
+      { id: "mem-2", partner_id: "cust-2", card_number: "MEM-DUPLICATE", tier: "bronze", notes: "Other notes", balance: 0, points: 0, status: "active", card_image: null as string | null }
     ];
     
     // Simulate updating mem-1 with duplicate card number
