@@ -53,6 +53,7 @@ const DEFAULT_ACCOUNTS = (companyId: string): ChartOfAccount[] => [
   { id: "acc-1111", company_id: companyId, code: "1111", name: "Tiền mặt", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-1121", company_id: companyId, code: "1121", name: "Tiền gửi ngân hàng", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-131", company_id: companyId, code: "131", name: "Phải thu khách hàng", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
+  { id: "acc-141", company_id: companyId, code: "141", name: "Tạm ứng cho nhân viên", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-156", company_id: companyId, code: "156", name: "Hàng hóa", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-211", company_id: companyId, code: "211", name: "Tài sản cố định (CAPEX)", account_type: "asset", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },
   { id: "acc-331", company_id: companyId, code: "331", name: "Phải trả người bán", account_type: "liability", balance: 0, parent_id: null, is_active: true, created_at: new Date().toISOString() },

@@ -426,8 +426,12 @@ if (typeof window !== "undefined") {
       const partner = partners.find((p: any) => p.id === transaction.partner_id);
       const isSupplier = (transaction.partner_id && transaction.partner_id.includes("supplier")) || (partner && partner.partner_type === "supplier");
       const isCapex = transaction.notes && transaction.notes.toLowerCase().includes("capex");
-      const drAccId = isCapex ? "acc-211" : (isSupplier ? "acc-331" : "acc-642");
-      const drAccCode = isCapex ? "211" : (isSupplier ? "331" : "642");
+      const isEmployeeAdvance = (transaction.partner_id && (transaction.partner_id.includes("employee") || transaction.partner_id.includes("emp-"))) || 
+                                (partner && partner.partner_type === "employee") || 
+                                (transaction.notes && (transaction.notes.toLowerCase().includes("tạm ứng") || transaction.notes.toLowerCase().includes("ứng tiền") || transaction.notes.toLowerCase().includes("advance")));
+
+      const drAccId = isCapex ? "acc-211" : (isEmployeeAdvance ? "acc-141" : (isSupplier ? "acc-331" : "acc-642"));
+      const drAccCode = isCapex ? "211" : (isEmployeeAdvance ? "141" : (isSupplier ? "331" : "642"));
 
       const paymentEntry = {
         id: entryId,
@@ -480,6 +484,15 @@ if (typeof window !== "undefined") {
         }
       });
     } else {
+      const partners = getLocalPartners();
+      const partner = partners.find((p: any) => p.id === transaction.partner_id);
+      const isEmployeeRefund = (transaction.partner_id && (transaction.partner_id.includes("employee") || transaction.partner_id.includes("emp-"))) || 
+                               (partner && partner.partner_type === "employee") || 
+                               (transaction.notes && (transaction.notes.toLowerCase().includes("hoàn ứng") || transaction.notes.toLowerCase().includes("hoàn trả") || transaction.notes.toLowerCase().includes("repay") || transaction.notes.toLowerCase().includes("refund")));
+
+      const crAccId = isEmployeeRefund ? "acc-141" : "acc-131";
+      const crAccCode = isEmployeeRefund ? "141" : "131";
+
       const paymentEntry = {
         id: entryId,
         company_id: companyId,
@@ -507,10 +520,10 @@ if (typeof window !== "undefined") {
         {
           id: `line-payin-cr-${transaction.id}-${Date.now()}`,
           entry_id: entryId,
-          account_id: "acc-131", // Phải thu khách hàng
+          account_id: crAccId,
           debit: 0,
           credit: txAmount,
-          memo: `Giảm phải thu từ giao dịch thu tiền`,
+          memo: isEmployeeRefund ? `Giảm tạm ứng từ giao dịch hoàn ứng` : `Giảm phải thu từ giao dịch thu tiền`,
           created_at: transaction.created_at || new Date().toISOString()
         }
       ];
@@ -522,7 +535,7 @@ if (typeof window !== "undefined") {
       accounts.forEach((acc: any) => {
         if (acc.code === payAccCode) {
           acc.balance = (acc.balance || 0) + txAmount;
-        } else if (acc.code === "131") {
+        } else if (acc.code === crAccCode) {
           acc.balance = (acc.balance || 0) - txAmount;
         }
       });
