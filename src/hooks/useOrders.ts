@@ -38,6 +38,9 @@ export interface Order {
   customer_email?: string | null;
   customer_address?: string | null;
   shipping_address?: string | null;
+  shipping_province?: string | null;
+  shipping_district?: string | null;
+  shipping_ward?: string | null;
   payment_method?: string | null;
   payment_status?: string | null;
   priority?: string;

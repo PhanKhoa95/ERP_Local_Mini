@@ -57,7 +57,7 @@ export function useCompanyMembers() {
         if (!raw) return [];
         try { return JSON.parse(raw); } catch { return []; }
       }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("custom_roles")
         .select("*")
         .eq("company_id", companyId);
@@ -116,13 +116,13 @@ export function useCompanyMembers() {
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
+      await (supabase as any).from("audit_logs").insert({
         user_id: user?.id,
         action: `Cập nhật vai trò nhân viên thành ${role}`,
         table_name: "company_members",
         record_id: memberId,
-        old_data: oldMember,
-        new_data: { ...oldMember, role }
+        old_data: oldMember as any,
+        new_data: { ...oldMember, role } as any
       });
     },
     onSuccess: () => {
@@ -171,20 +171,20 @@ export function useCompanyMembers() {
         .eq("id", memberId)
         .single();
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("company_members")
         .update({ region })
         .eq("id", memberId);
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
+      await (supabase as any).from("audit_logs").insert({
         user_id: user?.id,
         action: `Cập nhật vùng miền nhân viên thành ${region || "Toàn quốc"}`,
         table_name: "company_members",
         record_id: memberId,
-        old_data: oldMember,
-        new_data: { ...oldMember, region }
+        old_data: oldMember as any,
+        new_data: { ...oldMember, region } as any
       });
     },
     onSuccess: () => {

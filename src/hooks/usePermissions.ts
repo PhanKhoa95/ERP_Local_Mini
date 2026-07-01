@@ -177,7 +177,7 @@ export function usePermissions() {
       if (isLocalDemoAuthEnabled()) {
         return getLocalCustomRoles();
       }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("custom_roles")
         .select("*")
         .eq("company_id", companyId);

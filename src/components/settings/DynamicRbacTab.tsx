@@ -57,7 +57,7 @@ export function DynamicRbacTab() {
       if (isLocalDemoAuthEnabled()) {
         return getLocalCustomRoles();
       }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("custom_roles")
         .select("*")
         .eq("company_id", companyId)
@@ -165,7 +165,7 @@ export function DynamicRbacTab() {
       }
 
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("custom_roles")
         .insert({
           company_id: companyId,
@@ -177,12 +177,12 @@ export function DynamicRbacTab() {
         .single();
       if (error) throw error;
 
-      await supabase.from("audit_logs").insert({
+      await (supabase as any).from("audit_logs").insert({
         user_id: user?.id,
         action: "Tạo vai trò tùy chỉnh: Vai trò mới",
         table_name: "custom_roles",
-        record_id: data.id,
-        new_data: data
+        record_id: (data as any).id,
+        new_data: data as any
       });
 
       return data;
@@ -234,13 +234,13 @@ export function DynamicRbacTab() {
         return;
       }
 
-      const { data: oldRole } = await supabase
+      const { data: oldRole } = await (supabase as any)
         .from("custom_roles")
         .select("*")
         .eq("id", selectedRoleId)
         .single();
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("custom_roles")
         .update({
           name: roleName,
@@ -251,13 +251,13 @@ export function DynamicRbacTab() {
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
+      await (supabase as any).from("audit_logs").insert({
         user_id: user?.id,
         action: `Cập nhật cấu hình vai trò tùy chỉnh: ${roleName}`,
         table_name: "custom_roles",
         record_id: selectedRoleId,
-        old_data: oldRole,
-        new_data: { ...oldRole, name: roleName, description: roleDesc, permissions }
+        old_data: oldRole as any,
+        new_data: { ...oldRole, name: roleName, description: roleDesc, permissions } as any
       });
     },
     onSuccess: () => {
@@ -296,25 +296,25 @@ export function DynamicRbacTab() {
         return;
       }
 
-      const { data: oldRole } = await supabase
+      const { data: oldRole } = await (supabase as any)
         .from("custom_roles")
         .select("*")
         .eq("id", selectedRoleId)
         .single();
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("custom_roles")
         .delete()
         .eq("id", selectedRoleId);
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("audit_logs").insert({
+      await (supabase as any).from("audit_logs").insert({
         user_id: user?.id,
-        action: `Xóa vai trò tùy chỉnh: ${oldRole?.name}`,
+        action: `Xóa vai trò tùy chỉnh: ${(oldRole as any)?.name}`,
         table_name: "custom_roles",
         record_id: selectedRoleId,
-        old_data: oldRole
+        old_data: oldRole as any
       });
     },
     onSuccess: () => {
