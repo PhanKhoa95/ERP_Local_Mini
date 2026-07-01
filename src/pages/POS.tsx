@@ -471,6 +471,59 @@ const POS = () => {
   );
   const total = subtotal - discount + shippingFee;
 
+  const handleDiscountChange = (val: number) => {
+    setIsManualDiscount(true);
+    setDiscount(val);
+  };
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setIsManualDiscount(false);
+      setAppliedPromoName(null);
+    }
+  }, [cart]);
+
+  useEffect(() => {
+    if (isManualDiscount) return;
+
+    const now = new Date();
+    const eligiblePromos = vouchers.filter(v => {
+      if (!v.is_active || !v.is_auto_apply) return false;
+      if (v.start_date && new Date(v.start_date) > now) return false;
+      if (v.end_date && new Date(v.end_date) < now) return false;
+      if (v.usage_limit && v.used_count >= v.usage_limit) return false;
+      if (v.min_order_value && subtotal < v.min_order_value) return false;
+      return true;
+    });
+
+    if (eligiblePromos.length === 0) {
+      setDiscount(0);
+      setAppliedPromoName(null);
+      return;
+    }
+
+    let bestDiscount = 0;
+    let bestPromoName: string | null = null;
+
+    eligiblePromos.forEach(v => {
+      let currentDiscount = v.discount_type === "percentage"
+        ? subtotal * (v.discount_value / 100)
+        : v.discount_value;
+
+      if (v.max_discount && currentDiscount > v.max_discount) {
+        currentDiscount = v.max_discount;
+      }
+
+      if (currentDiscount > bestDiscount) {
+        bestDiscount = Math.round(currentDiscount);
+        bestPromoName = v.name;
+      }
+    });
+
+    setDiscount(bestDiscount);
+    setAppliedPromoName(bestPromoName);
+  }, [subtotal, vouchers, isManualDiscount]);
+
   // Submit order
   const handleCheckout = async () => {
     if (!selectedChannel) {
@@ -766,10 +819,17 @@ const POS = () => {
         {/* Discount & Shipping */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-muted-foreground">Giảm giá</label>
+            <label className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+              <span>Giảm giá</span>
+              {appliedPromoName && (
+                <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 font-semibold px-1.5 py-0.5 rounded leading-none">
+                  Tự động: {appliedPromoName}
+                </span>
+              )}
+            </label>
             <POSNumberInput
               value={discount}
-              onChange={setDiscount}
+              onChange={handleDiscountChange}
               className="h-9"
               placeholder="0"
             />
