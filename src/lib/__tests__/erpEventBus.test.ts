@@ -251,4 +251,75 @@ describe("ERP Event Bus Integration Tests", () => {
     expect(orders[0].partner_id).toBe("partner-retail-123");
     expect(orders[0].customer_name).toBe("Nhà bán lẻ ABC");
   });
+
+  it("should handle ORDER_CREATED with membership_wallet payment using custom configured offset account code", () => {
+    // Setup initial mock accounts in localStorage
+    const mockAccounts = [
+      { id: "acc-3388", code: "3388", name: "Phải trả khác", account_type: "liability", balance: 100000 },
+      { id: "acc-511", code: "511", name: "Doanh thu", balance: 0 },
+      { id: "acc-632", code: "632", name: "Giá vốn", balance: 0 },
+      { id: "acc-156", code: "156", name: "Hàng hóa", balance: 500000 }
+    ];
+    localStorage.setItem("erp-mini-local-demo-accounts", JSON.stringify(mockAccounts));
+    localStorage.setItem("erp-mini-membership-offset-account", "3388");
+
+    const payload = {
+      order: {
+        id: "ord-wallet-test",
+        total: 40000,
+        company_id: "demo",
+        order_number: "ORD-WALL-001",
+        payment_method: "membership_wallet",
+        created_at: new Date().toISOString()
+      },
+      items: []
+    };
+
+    erpEventBus.publish("ORDER_CREATED", payload);
+
+    // Verify ledger accounts balances updated correctly
+    const rawUpdatedAccounts = localStorage.getItem("erp-mini-local-demo-accounts");
+    const updatedAccounts = JSON.parse(rawUpdatedAccounts!);
+    
+    // Configured offset account is 3388 (liability), debit should decrease its balance
+    const acc3388 = updatedAccounts.find((a: any) => a.code === "3388");
+    expect(acc3388.balance).toBe(60000); // 100k - 40k
+
+    const acc511 = updatedAccounts.find((a: any) => a.code === "511");
+    expect(acc511.balance).toBe(40000); // 0 + 40k
+  });
+
+  it("should handle ORDER_CREATED with membership_wallet payment using custom asset offset account code", () => {
+    // Setup initial mock accounts in localStorage
+    const mockAccounts = [
+      { id: "acc-131", code: "131", name: "Phải thu khách hàng", account_type: "asset", balance: 100000 },
+      { id: "acc-511", code: "511", name: "Doanh thu", balance: 0 },
+      { id: "acc-632", code: "632", name: "Giá vốn", balance: 0 },
+      { id: "acc-156", code: "156", name: "Hàng hóa", balance: 500000 }
+    ];
+    localStorage.setItem("erp-mini-local-demo-accounts", JSON.stringify(mockAccounts));
+    localStorage.setItem("erp-mini-membership-offset-account", "131");
+
+    const payload = {
+      order: {
+        id: "ord-wallet-asset-test",
+        total: 30000,
+        company_id: "demo",
+        order_number: "ORD-WALL-ASSET-001",
+        payment_method: "membership_wallet",
+        created_at: new Date().toISOString()
+      },
+      items: []
+    };
+
+    erpEventBus.publish("ORDER_CREATED", payload);
+
+    // Verify ledger accounts balances updated correctly
+    const rawUpdatedAccounts = localStorage.getItem("erp-mini-local-demo-accounts");
+    const updatedAccounts = JSON.parse(rawUpdatedAccounts!);
+    
+    // Configured offset account is 131 (asset), debit should increase its balance
+    const acc131 = updatedAccounts.find((a: any) => a.code === "131");
+    expect(acc131.balance).toBe(130000); // 100k + 30k
+  });
 });
