@@ -62,14 +62,18 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await page.click("text=Thẻ QR cá nhân thông minh");
     await page.waitForTimeout(500);
 
-    // Search for "0988777666" in customer selection combobox
-    const customerCombo = page.locator('div.space-y-2 button[role="combobox"]').first();
-    await customerCombo.click();
-    const searchComboInput = page.locator('input[placeholder="Tìm đối tác..."]');
-    await searchComboInput.fill("0988777666");
+    // Search for "0988777666" in customer selection input
+    const searchCustomerInput = page.locator('input[placeholder="Tìm khách hàng (tên, SĐT, mã)..."]').first();
+    await searchCustomerInput.fill("0988777666");
     await page.waitForTimeout(500);
-    // Click the matching result
-    await page.click('div[role="option"]:has-text("0988777666")');
+
+    // Click the combobox trigger next to it
+    const customerSelect = page.locator('div.space-y-2 button[role="combobox"]').first();
+    await customerSelect.click();
+    await page.waitForTimeout(500);
+
+    // Click the matching result from dropdown options
+    await page.click('div[role="option"]:has-text("Khách Hàng Ẩn Danh")');
 
     // Checkout
     await page.click('button:has-text("Tiền mặt")');
