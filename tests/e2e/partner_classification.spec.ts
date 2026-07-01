@@ -154,8 +154,8 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await priceInput.fill("11000000");
     await page.waitForTimeout(500);
 
-    // Click "Thanh toán" button (Channel is auto-selected on POS load)
-    await page.click('button:has-text("Thanh toán (")');
+    // Click "Tiền mặt" checkout button (Channel is auto-selected on POS load)
+    await page.click('button:has-text("Tiền mặt")');
 
     // Wait for the thăng hạng VIP toast & checkout success toast!
     await expect(page.locator("text=Thanh toán thành công").first()).toBeVisible({ timeout: 15000 });
