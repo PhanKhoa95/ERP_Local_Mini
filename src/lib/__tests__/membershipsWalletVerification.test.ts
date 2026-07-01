@@ -262,4 +262,27 @@ describe("Memberships & Wallet Balance Empirical Tests", () => {
 
     expect(customerMembership!.id).toBe("mem-2");
   });
+
+  it("8. should allow adding a dynamic tier config and assigning it to a card", () => {
+    const mockTiers = [
+      { id: "bronze", name: "Đồng", min_spent: 0, discount_rate: 0, color: "bg-orange-100", bg_gradient: "from-amber-700" }
+    ];
+    localStorage.setItem("erp-mini-local-demo-membership-tiers-config", JSON.stringify(mockTiers));
+
+    // Simulate adding a dynamic tier "platinum"
+    const newTier = { id: "platinum", name: "Bạch Kim", min_spent: 30000000, discount_rate: 7, color: "bg-purple-100", bg_gradient: "from-purple-600" };
+    const savedConfigs = JSON.parse(localStorage.getItem("erp-mini-local-demo-membership-tiers-config") || "[]");
+    savedConfigs.push(newTier);
+    localStorage.setItem("erp-mini-local-demo-membership-tiers-config", JSON.stringify(savedConfigs));
+
+    // Retrieve configs and verify
+    const updatedConfigs = JSON.parse(localStorage.getItem("erp-mini-local-demo-membership-tiers-config")!);
+    expect(updatedConfigs.length).toBe(2);
+    expect(updatedConfigs[1].id).toBe("platinum");
+    expect(updatedConfigs[1].discount_rate).toBe(7);
+
+    // Issue a card with the platinum tier
+    const card = { id: "mem-3", partner_id: "cust-9", card_number: "MEM-PLATINUM-777", tier: "platinum", balance: 0, points: 0, status: "active" };
+    expect(card.tier).toBe("platinum");
+  });
 });

@@ -63,7 +63,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { categories } = useProductCategories();
   const { getPoliciesForSegment } = useSalesPolicies();
   const { orders, transactions, topProducts, purchasedItems = [], notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
-  const { memberships = [] } = useMemberships();
+  const { memberships = [], tierConfigs = [] } = useMemberships();
   const partnerMemberships = useMemo(() => {
     if (!partner?.id) return [];
     return memberships.filter(m => m.partner_id === partner.id);
@@ -272,70 +272,65 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                       <p className="text-xs">Chưa phát hành thẻ thành viên</p>
                     </div>
                   ) : (
-                    partnerMemberships.map((card) => (
-                      <div 
-                        key={card.id}
-                        className={cn(
-                          "relative overflow-hidden rounded-xl p-5 text-white shadow-xl border flex flex-col justify-between transition-all hover:scale-[1.02] min-h-[220px]",
-                          card.card_image 
-                            ? "bg-slate-900 text-white" 
-                            : card.tier === "diamond"
-                            ? "bg-gradient-to-br from-cyan-900 via-blue-955/70 to-indigo-950 border-cyan-500/30"
-                            : card.tier === "gold"
-                            ? "bg-gradient-to-br from-slate-900 via-amber-955/70 to-slate-900 border-amber-500/30"
-                            : card.tier === "silver"
-                            ? "bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 border-slate-600/30"
-                            : "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 border-white/10"
-                        )}
-                        style={card.card_image ? { backgroundImage: `url(${card.card_image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-                      >
-                        {card.card_image && (
-                          <div className="absolute inset-0 bg-black/45 rounded-xl pointer-events-none" />
-                        )}
-                        {/* Metallic glow accents */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-                        
-                        {/* Header */}
-                        <div className="flex items-start justify-between z-10">
-                          <div>
-                            <div className="text-[9px] font-bold tracking-widest text-white/80">VIETERP SMART CARD</div>
-                            <div className="text-[7px] text-white/50">MEMBER CARD</div>
-                          </div>
-                          <Badge className={cn(
-                            "text-[8px] px-1.5 py-0.5 leading-none uppercase font-mono border-none",
-                            card.tier === "diamond"
-                              ? "bg-cyan-500 text-cyan-950 hover:bg-cyan-400"
-                              : card.tier === "gold"
-                              ? "bg-amber-500 text-amber-950 hover:bg-amber-400"
-                              : card.tier === "silver"
-                              ? "bg-slate-300 text-slate-900 hover:bg-slate-200"
-                              : "bg-orange-400 text-orange-950 hover:bg-orange-300"
-                          )}>
-                            {card.tier}
-                          </Badge>
-                        </div>
+                    partnerMemberships.map((card) => {
+                      const tierConfig = tierConfigs.find(tc => tc.id === card.tier);
+                      const bgGradient = tierConfig?.bg_gradient || "from-slate-950 via-slate-900 to-slate-800 border-white/10";
+                      const badgeColor = tierConfig?.color || "bg-slate-300 text-slate-900 hover:bg-slate-200";
+                      const tierName = tierConfig?.name || card.tier;
 
-                        {/* Middle: QR & Code */}
-                        <div className="flex items-center justify-between gap-4 mt-2 z-10">
-                          <div className="space-y-1">
-                            <div className="text-sm font-semibold truncate max-w-[130px]">{partner.name}</div>
-                            <div className="text-[10px] text-white/60 font-mono tracking-wider">{card.card_number}</div>
+                      return (
+                        <div 
+                          key={card.id}
+                          className={cn(
+                            "relative overflow-hidden rounded-xl p-5 text-white shadow-xl border flex flex-col justify-between transition-all hover:scale-[1.02] min-h-[220px]",
+                            card.card_image 
+                              ? "bg-slate-900 text-white" 
+                              : bgGradient
+                          )}
+                          style={card.card_image ? { backgroundImage: `url(${card.card_image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                        >
+                          {card.card_image && (
+                            <div className="absolute inset-0 bg-black/45 rounded-xl pointer-events-none" />
+                          )}
+                          {/* Metallic glow accents */}
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+                          
+                          {/* Header */}
+                          <div className="flex items-start justify-between z-10">
+                            <div>
+                              <div className="text-[9px] font-bold tracking-widest text-white/80">VIETERP SMART CARD</div>
+                              <div className="text-[7px] text-white/50">MEMBER CARD</div>
+                            </div>
+                            <Badge className={cn(
+                              "text-[8px] px-1.5 py-0.5 leading-none uppercase font-mono border-none",
+                              badgeColor
+                            )}>
+                              {tierName}
+                            </Badge>
                           </div>
-                          {renderSimulatedQRCode(card.card_number)}
-                        </div>
 
-                        {/* Footer: balance and points */}
-                        <div className="flex items-end justify-between border-t border-white/10 pt-2 mt-2 z-10">
-                          <div className="text-[9px] text-white/60">
-                            Ví: <span className="font-semibold text-white">{card.balance.toLocaleString("vi-VN")}đ</span>
+                          {/* Middle: QR & Code */}
+                          <div className="flex items-center justify-between gap-4 mt-2 z-10">
+                            <div className="space-y-1">
+                              <div className="text-sm font-semibold truncate max-w-[130px]">{partner.name}</div>
+                              <div className="text-[10px] text-white/60 font-mono tracking-wider">{card.card_number}</div>
+                            </div>
+                            {renderSimulatedQRCode(card.card_number)}
                           </div>
-                          <div className="text-[9px] text-white/60 flex items-center gap-0.5">
-                            <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                            <span className="font-semibold text-white">{card.points || 0} điểm</span>
+
+                          {/* Footer: balance and points */}
+                          <div className="flex items-end justify-between border-t border-white/10 pt-2 mt-2 z-10">
+                            <div className="text-[9px] text-white/60">
+                              Ví: <span className="font-semibold text-white">{card.balance.toLocaleString("vi-VN")}đ</span>
+                            </div>
+                            <div className="text-[9px] text-white/60 flex items-center gap-0.5">
+                              <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                              <span className="font-semibold text-white">{card.points || 0} điểm</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

@@ -772,7 +772,8 @@ export default function Memberships() {
               </TabsContent>
 
               {isManagerOrAdmin && (
-                <TabsContent value="settings" className="space-y-4 focus-visible:outline-none">
+                <TabsContent value="settings" className="space-y-6 focus-visible:outline-none">
+                  {/* Cấu hình ví */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -802,6 +803,69 @@ export default function Memberships() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Các tài khoản thông dụng: 3387 (Doanh thu chưa thực hiện / Nhận trước), 131 (Phải thu khách hàng), 3388 (Phải trả khác)...
                         </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Cấu hình hạng thẻ */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Layers className="h-4 w-4 text-primary" /> Cấu hình Hạng thành viên
+                        </CardTitle>
+                        <CardDescription>
+                          Định nghĩa các hạng thẻ thành viên, quyền lợi chiết khấu và điều kiện tích lũy chi tiêu.
+                        </CardDescription>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => handleOpenTierEditor()}>
+                        <Plus className="h-4 w-4 mr-1.5" /> Thêm hạng thẻ
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="rounded-lg border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Tên hạng</TableHead>
+                              <TableHead className="text-xs">Mức chi tiêu tối thiểu</TableHead>
+                              <TableHead className="text-xs text-center">Chiết khấu</TableHead>
+                              <TableHead className="text-xs text-right">Thao tác</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {tierConfigs.map((tc) => (
+                              <TableRow key={tc.id}>
+                                <TableCell className="py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <Badge className={cn("text-[9px] px-1.5 py-0 border", tc.color)}>
+                                      {tc.name}
+                                    </Badge>
+                                    <span className="text-[10px] text-muted-foreground font-mono">({tc.id})</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-2.5 text-xs">
+                                  {tc.min_spent.toLocaleString("vi-VN")}đ
+                                </TableCell>
+                                <TableCell className="py-2.5 text-xs text-center font-bold text-green-600">
+                                  {tc.discount_rate}%
+                                </TableCell>
+                                <TableCell className="py-2.5 text-right space-x-1">
+                                  <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={() => handleOpenTierEditor(tc)}>
+                                    Sửa
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-7 text-xs px-2 text-destructive" onClick={() => {
+                                    if (confirm(`Bạn có chắc chắn muốn xóa hạng thẻ "${tc.name}" không?`)) {
+                                      deleteMembershipTier.mutate(tc.id);
+                                    }
+                                  }}>
+                                    Xóa
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </CardContent>
                   </Card>
@@ -854,13 +918,13 @@ export default function Memberships() {
 
             <div className="space-y-2">
               <Label>Hạng thành viên ban đầu</Label>
-              <Select value={newTier} onValueChange={(val: MembershipTier) => setNewTier(val)}>
+              <Select value={newTier} onValueChange={(val: string) => setNewTier(val)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(TIER_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  {tierConfigs.map((tc) => (
+                    <SelectItem key={tc.id} value={tc.id}>{tc.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -907,6 +971,116 @@ export default function Memberships() {
               </Button>
               <Button type="submit" disabled={!newPartnerId || !newCardNumber || createMembership.isPending || isUploadingImage}>
                 {createMembership.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Xác nhận
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* TIER EDITOR DIALOG */}
+      <Dialog open={tierEditorOpen} onOpenChange={setTierEditorOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingTier ? "Chỉnh sửa hạng thẻ" : "Thêm hạng thẻ mới"}</DialogTitle>
+            <DialogDescription>Cấu hình quyền lợi, điều kiện và giao diện hiển thị cho hạng thẻ</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveTier} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tier-id">Mã hạng thẻ *</Label>
+                <Input
+                  id="tier-id"
+                  value={tierId}
+                  onChange={(e) => setTierId(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+                  placeholder="VD: platinum"
+                  disabled={!!editingTier}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tier-name">Tên hạng hiển thị *</Label>
+                <Input
+                  id="tier-name"
+                  value={tierName}
+                  onChange={(e) => setTierName(e.target.value)}
+                  placeholder="VD: Bạch Kim"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tier-discount">Chiết khấu đơn hàng (%)</Label>
+                <Input
+                  id="tier-discount"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={tierDiscountRate}
+                  onChange={(e) => setTierDiscountRate(parseInt(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tier-min-spent">Doanh số tối thiểu (đ)</Label>
+                <Input
+                  id="tier-min-spent"
+                  type="number"
+                  min={0}
+                  value={tierMinSpent}
+                  onChange={(e) => setTierMinSpent(parseInt(e.target.value) || 0)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tier-desc">Mô tả quyền lợi</Label>
+              <Input
+                id="tier-desc"
+                value={tierDesc}
+                onChange={(e) => setTierDesc(e.target.value)}
+                placeholder="VD: Giảm ngay 7% cho tất cả đơn hàng..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Kiểu hiển thị (Màu Badge CSS)</Label>
+              <Select value={tierColor} onValueChange={setTierColor}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-900">Màu Tím (Purple)</SelectItem>
+                  <SelectItem value="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-900">Màu Cam (Orange)</SelectItem>
+                  <SelectItem value="bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800">Màu Bạc (Silver/Slate)</SelectItem>
+                  <SelectItem value="bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-900">Màu Vàng (Gold)</SelectItem>
+                  <SelectItem value="bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-900">Màu Xanh Ngọc (Cyan/Diamond)</SelectItem>
+                  <SelectItem value="bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900">Màu Xanh Lá (Emerald/VIP)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Màu Thẻ 3D (Background Gradient CSS)</Label>
+              <Select value={tierBgGradient} onValueChange={setTierBgGradient}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="from-purple-600 via-pink-600 to-indigo-800 text-purple-50 shadow-purple-800/20">Gradient Tím-Hồng Sang Trọng</SelectItem>
+                  <SelectItem value="from-amber-700 via-amber-800 to-amber-950 text-amber-50 shadow-amber-950/20">Gradient Đồng Cổ Điển</SelectItem>
+                  <SelectItem value="from-slate-500 via-slate-600 to-slate-800 text-slate-50 shadow-slate-900/20">Gradient Bạc Hiện Đại</SelectItem>
+                  <SelectItem value="from-amber-400 via-yellow-500 to-amber-600 text-yellow-950 shadow-yellow-500/10">Gradient Vàng Hoàng Gia</SelectItem>
+                  <SelectItem value="from-cyan-500 via-blue-600 to-indigo-800 text-cyan-50 shadow-blue-800/20">Gradient Kim Cương Huyền Ảo</SelectItem>
+                  <SelectItem value="from-emerald-600 via-teal-700 to-emerald-950 text-emerald-50 shadow-emerald-950/20">Gradient Lục Bảo Quý Phái</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTierEditorOpen(false)}>
+                Hủy
+              </Button>
+              <Button type="submit" disabled={!tierId || !tierName || createMembershipTier.isPending || updateMembershipTierConfig.isPending}>
                 Xác nhận
               </Button>
             </DialogFooter>

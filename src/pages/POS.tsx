@@ -292,7 +292,7 @@ const POS = () => {
   const { warehouses } = useWarehouses();
   const { autoSelectWarehouse, checkStockAvailability } = useWarehouseStock();
   const { toast } = useToast();
-  const { memberships, performTransaction } = useMemberships();
+  const { memberships, tierConfigs = [], performTransaction } = useMemberships();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -1171,7 +1171,7 @@ const POS = () => {
                 <SelectContent>
                   {customerMemberships.map((m) => (
                     <SelectItem key={m.id} value={m.id} className="text-xs">
-                      {m.card_number} ({TIER_LABELS[m.tier]} - Ví: {m.balance.toLocaleString("vi-VN")}đ) {m.status !== "active" ? `[${STATUS_LABELS[m.status]}]` : ""}
+                      {m.card_number} ({tierConfigs.find(tc => tc.id === m.tier)?.name || m.tier} - Ví: {m.balance.toLocaleString("vi-VN")}đ) {m.status !== "active" ? `[${STATUS_LABELS[m.status]}]` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
