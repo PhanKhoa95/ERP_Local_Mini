@@ -529,6 +529,35 @@ const POS = () => {
   );
   const total = subtotal - discount + shippingFee;
 
+  const customerMemberships = useMemo(() => {
+    if (!selectedCustomer || selectedCustomer === "walk-in") return [];
+    return memberships.filter(m => m.partner_id === selectedCustomer);
+  }, [selectedCustomer, memberships]);
+
+  const defaultCard = useMemo(() => {
+    if (customerMemberships.length === 0) return null;
+    // Find first active card with sufficient balance
+    const activeWithBalance = customerMemberships.find(m => m.status === "active" && m.balance >= total);
+    if (activeWithBalance) return activeWithBalance;
+    // Fallback to first active card
+    const firstActive = customerMemberships.find(m => m.status === "active");
+    if (firstActive) return firstActive;
+    // Fallback to first card
+    return customerMemberships[0];
+  }, [customerMemberships, total]);
+
+  const customerMembership = useMemo(() => {
+    if (customSelectedCardId) {
+      const found = customerMemberships.find(m => m.id === customSelectedCardId);
+      if (found) return found;
+    }
+    return defaultCard;
+  }, [customerMemberships, customSelectedCardId, defaultCard]);
+
+  useEffect(() => {
+    setCustomSelectedCardId("");
+  }, [selectedCustomer]);
+
   const handleDiscountChange = (val: number) => {
     setIsManualDiscount(true);
     setDiscount(val);
@@ -1131,6 +1160,24 @@ const POS = () => {
               Chuyển khoản
             </Button>
           </div>
+
+          {customerMemberships.length > 1 && (
+            <div className="space-y-1 mb-2">
+              <label className="text-[10px] uppercase font-semibold text-muted-foreground">Chọn thẻ thanh toán ({customerMemberships.length})</label>
+              <Select value={customerMembership?.id} onValueChange={(val) => setCustomSelectedCardId(val)}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Chọn thẻ..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customerMemberships.map((m) => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      {m.card_number} ({TIER_LABELS[m.tier]} - Ví: {m.balance.toLocaleString("vi-VN")}đ) {m.status !== "active" ? `[${STATUS_LABELS[m.status]}]` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
           {customerMembership && (
             <Button
