@@ -482,7 +482,11 @@ export function StockTransactionDialog({
                                 key={p.id}
                                 type="button"
                                 className="w-full text-left p-2.5 hover:bg-primary/10 text-xs transition-colors flex flex-col gap-0.5"
-                                onClick={() => handleItemChange(item.id, "product_id", p.id)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault(); // Ngăn chặn input mất focus trước khi cập nhật
+                                  handleItemChange(item.id, "product_id", p.id);
+                                  handleItemChange(item.id, "is_open", false);
+                                }}
                               >
                                 <span className="font-semibold text-foreground">{p.name}</span>
                                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
