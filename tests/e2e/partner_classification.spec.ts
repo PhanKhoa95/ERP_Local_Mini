@@ -120,4 +120,64 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     const discountDisplay = page.locator("text=-10.350đ");
     await expect(discountDisplay).toBeVisible({ timeout: 5000 });
   });
+
+  test("should support simulated QR VIP scanning and automatic loyalty tier upgrading on POS checkout", async ({ page }) => {
+    test.setTimeout(60000);
+
+    // 1. Navigate to POS
+    await page.goto("/pos");
+
+    // Click "Giả lập Quét VIP"
+    const qrScanBtn = page.locator('button:has-text("Giả lập Quét VIP")');
+    await expect(qrScanBtn).toBeVisible({ timeout: 5000 });
+    await qrScanBtn.click();
+
+    // Verify success toast that scanner simulated OK
+    await expect(page.locator("text=Quét thẻ thành viên thành công").first()).toBeVisible({ timeout: 10000 });
+
+    // Verify customer is selected
+    const selectedCustomerValue = page.locator('div.space-y-2 button[role="combobox"]').first();
+    await expect(selectedCustomerValue).toContainText("BlueSky", { timeout: 10000 });
+
+    // 2. Perform a checkout that crosses the 10,000,000đ threshold to trigger VIP auto-upgrade!
+    // Add product "Thẻ QR cá nhân thông minh"
+    await page.waitForSelector(".grid >> text=Thẻ QR");
+    await page.click("text=Thẻ QR cá nhân thông minh");
+    await page.waitForTimeout(500);
+
+    // Locate the unit price input inside cart item to bypass inventory limits by setting it to 11 million
+    const priceInput = page.locator('input.w-24.h-7.text-xs').first();
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
+    await priceInput.fill("11000000");
+    await page.waitForTimeout(500);
+
+    // Select sales channel
+    const channelSelect = page.locator('button:has-text("Chọn kênh bán hàng *")').first();
+    await channelSelect.click();
+    await page.click('div[role="presentation"] >> text=Cửa hàng bán lẻ');
+
+    // Click "Thanh toán" button
+    await page.click('button:has-text("Thanh toán (")');
+
+    // Wait for the thăng hạng VIP toast & checkout success toast!
+    await expect(page.locator("text=Thanh toán thành công").first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator("text=Thăng hạng Thành viên VIP").first()).toBeVisible({ timeout: 15000 });
+
+    // 3. Now let's navigate to Partners, search for BlueSky and check detail card
+    await page.goto("/partners");
+    await page.waitForSelector("text=Quản lý đối tác");
+
+    // Search for BlueSky
+    const searchInput = page.locator('input[placeholder="Tìm kiếm..."]');
+    await searchInput.fill("BlueSky");
+    await page.waitForTimeout(500);
+
+    // Click "Chi tiết" button on BlueSky card
+    const blueskyCard = page.locator('div.hover\\:shadow-md:has-text("BlueSky")');
+    await blueskyCard.locator('button:has-text("Chi tiết")').click();
+
+    // Verify glassmorphic loyalty membership card is displayed and shows "VIP Member" badge!
+    const detailDialog = page.locator('div[role="dialog"]');
+    await expect(detailDialog.locator('text=VIP Member')).toBeVisible({ timeout: 10000 });
+  });
 });
