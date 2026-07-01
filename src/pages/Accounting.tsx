@@ -11,6 +11,7 @@ import { useProjects } from "@/hooks/useProjects";
 import {
   BookOpen, FileText, PieChart, TrendingUp, RefreshCw, Plus,
   ArrowUpRight, ArrowDownRight, Wallet, Coins, BarChart3, Search, ExternalLink,
+  Pencil, Trash2, Filter,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
