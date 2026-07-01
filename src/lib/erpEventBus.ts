@@ -749,15 +749,11 @@ if (typeof window !== "undefined") {
     // Update balances
     accounts.forEach((acc: any) => {
       if (acc.code === drAccCode) {
-        if (drAccCode === "331") {
-          acc.balance = (acc.balance || 0) - txAmount;
-        } else {
-          acc.balance = (acc.balance || 0) + txAmount;
-        }
+        acc.balance = (acc.balance || 0) + txAmount;
       }
       if (acc.code === crAccCode) {
         if (crAccCode === "331") {
-          acc.balance = (acc.balance || 0) - txAmount;
+          acc.balance = (acc.balance || 0) + txAmount;
         } else {
           acc.balance = (acc.balance || 0) - txAmount;
         }
