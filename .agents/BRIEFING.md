@@ -6,7 +6,7 @@ Rà soát toàn diện hệ thống cấu hình, danh mục, chính sách và tr
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents
-- Orchestrator: TBD
+- Orchestrator: 3c4c53a6-6026-43c8-a5cc-adaf1d9cd471
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
