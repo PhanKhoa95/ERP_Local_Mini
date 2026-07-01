@@ -96,6 +96,11 @@ function SortableCategoryItem({ category, isChild, onEdit, onDelete, children }:
               {!isChild && <FolderTree className="h-4 w-4 text-muted-foreground" />}
               {isChild && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
               <span className="font-medium">{category.name}</span>
+              {category.warranty_months !== undefined && (
+                <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                  BH: {category.warranty_months} tháng
+                </Badge>
+              )}
               {!category.is_active && (
                 <Badge variant="secondary" className="text-xs">Ẩn</Badge>
               )}
@@ -126,13 +131,14 @@ export function CategoriesTab() {
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<ProductCategory | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<ProductCategoryInsert>({
+  const [formData, setFormData] = useState<ProductCategoryInsert & { warranty_months: number }>({
     name: "",
     description: "",
     color: "#3B82F6",
     is_active: true,
     sort_order: 0,
     parent_id: null,
+    warranty_months: 3,
   });
 
   const sensors = useSensors(
@@ -167,6 +173,7 @@ export function CategoriesTab() {
         is_active: category.is_active !== false,
         sort_order: category.sort_order || 0,
         parent_id: category.parent_id || null,
+        warranty_months: category.warranty_months !== undefined ? category.warranty_months : 3,
       });
     } else {
       setEditingCategory(null);
@@ -177,6 +184,7 @@ export function CategoriesTab() {
         is_active: true,
         sort_order: categories.length,
         parent_id: null,
+        warranty_months: 3,
       });
     }
     setDialogOpen(true);
@@ -388,6 +396,20 @@ export function CategoriesTab() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Mô tả ngắn về danh mục"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="warranty_months">Thời gian bảo hành (tháng) *</Label>
+              <Input
+                id="warranty_months"
+                type="number"
+                min={0}
+                max={120}
+                value={formData.warranty_months}
+                onChange={(e) => setFormData({ ...formData, warranty_months: parseInt(e.target.value) || 0 })}
+                placeholder="VD: 12, 6, 3..."
+              />
+              <p className="text-xs text-muted-foreground">Thời gian bảo hành mặc định cho tất cả sản phẩm thuộc danh mục này.</p>
             </div>
 
             <div className="space-y-2">

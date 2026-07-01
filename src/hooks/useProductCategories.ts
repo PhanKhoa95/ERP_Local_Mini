@@ -20,6 +20,7 @@ export interface ProductCategory {
   sort_order: number | null;
   created_at: string;
   updated_at: string;
+  warranty_months?: number;
 }
 
 export interface ProductCategoryInsert {
@@ -32,6 +33,44 @@ export interface ProductCategoryInsert {
   sort_order?: number | null;
 }
 
+export function parseCategoryMetadata(cat: any): ProductCategory {
+  if (!cat) return cat;
+  const desc = cat.description || "";
+  let warrantyMonths = 3;
+  
+  const nameUpper = (cat.name || "").toUpperCase();
+  if (nameUpper.includes("THANH PHAM") || nameUpper.includes("THÀNH PHẨM") || nameUpper.includes("THẺ QR")) {
+    warrantyMonths = 12;
+  } else if (nameUpper.includes("VAT TU") || nameUpper.includes("VẬT TƯ") || nameUpper.includes("BẢNG QR")) {
+    warrantyMonths = 6;
+  }
+
+  if (desc.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(desc);
+      return {
+        ...cat,
+        description: parsed.desc || "",
+        warranty_months: parsed.warranty_months !== undefined ? parsed.warranty_months : warrantyMonths,
+      };
+    } catch {
+      // Ignore
+    }
+  }
+
+  return {
+    ...cat,
+    warranty_months: warrantyMonths,
+  };
+}
+
+export function serializeCategoryMetadata(desc: string, warrantyMonths: number): string {
+  return JSON.stringify({
+    desc: desc || "",
+    warranty_months: warrantyMonths,
+  });
+}
+
 export function useProductCategories() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -40,7 +79,8 @@ export function useProductCategories() {
     queryKey: ["product-categories"],
     queryFn: async () => {
       if (isLocalDemoAuthEnabled()) {
-        return getLocalProductCategories() as ProductCategory[];
+        const raw = getLocalProductCategories();
+        return (raw || []).map(parseCategoryMetadata) as ProductCategory[];
       }
 
       const { data, error } = await supabase
@@ -49,25 +89,34 @@ export function useProductCategories() {
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
       if (error) throw error;
-      return data as ProductCategory[];
+      return (data || []).map(parseCategoryMetadata) as ProductCategory[];
     },
   });
 
   const activeCategories = categories.filter(c => c.is_active !== false);
 
   const createCategory = useMutation({
-    mutationFn: async (category: ProductCategoryInsert & { name: string }) => {
+    mutationFn: async (category: ProductCategoryInsert & { name: string; warranty_months?: number }) => {
+      const { warranty_months, description, ...rest } = category;
+      const serializedDesc = serializeCategoryMetadata(description || "", warranty_months !== undefined ? warranty_months : 3);
+      
+      const payload = {
+        ...rest,
+        description: serializedDesc,
+      };
+
       if (isLocalDemoAuthEnabled()) {
-        return createLocalProductCategory(category) as ProductCategory;
+        const created = createLocalProductCategory(payload as any);
+        return parseCategoryMetadata(created) as ProductCategory;
       }
 
       const { data, error } = await supabase
         .from("product_categories")
-        .insert(category)
+        .insert(payload as any)
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return parseCategoryMetadata(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["product-categories"] });
@@ -79,19 +128,27 @@ export function useProductCategories() {
   });
 
   const updateCategory = useMutation({
-    mutationFn: async ({ id, ...updates }: ProductCategoryInsert & { id: string }) => {
+    mutationFn: async ({ id, warranty_months, description, ...updates }: ProductCategoryInsert & { id: string; warranty_months?: number }) => {
+      const serializedDesc = serializeCategoryMetadata(description || "", warranty_months !== undefined ? warranty_months : 3);
+      
+      const payload = {
+        ...updates,
+        description: serializedDesc,
+      };
+
       if (isLocalDemoAuthEnabled()) {
-        return updateLocalProductCategory({ id, ...updates }) as ProductCategory;
+        const updated = updateLocalProductCategory({ id, ...payload } as any);
+        return parseCategoryMetadata(updated) as ProductCategory;
       }
 
       const { data, error } = await supabase
         .from("product_categories")
-        .update(updates)
+        .update(payload as any)
         .eq("id", id)
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return parseCategoryMetadata(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["product-categories"] });
