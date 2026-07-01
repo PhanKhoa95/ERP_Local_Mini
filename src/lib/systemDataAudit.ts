@@ -106,6 +106,27 @@ interface ProductBomLike {
   material?: ProductLike | null;
 }
 
+export interface MembershipLike {
+  id: string;
+  partner_id?: string | null;
+  card_number?: string | null;
+  tier?: string | null;
+  balance?: number | null;
+  points?: number | null;
+  status?: string | null;
+  notes?: string | null;
+}
+
+export interface MembershipTransactionLike {
+  id: string;
+  membership_id?: string | null;
+  transaction_type?: string | null;
+  amount?: number | null;
+  points_delta?: number | null;
+  description?: string | null;
+  created_at?: string | null;
+}
+
 export interface SystemAuditSnapshot {
   products: ProductLike[];
   warehouseStock: WarehouseStockLike[];
@@ -114,6 +135,8 @@ export interface SystemAuditSnapshot {
   journalEntries: JournalEntryLike[];
   journalLines: JournalLineLike[];
   productBom: ProductBomLike[];
+  memberships: MembershipLike[];
+  membershipTransactions: MembershipTransactionLike[];
 }
 
 const MONEY_TOLERANCE = 1;
@@ -204,6 +227,8 @@ function loadLocalSnapshot(): SystemAuditSnapshot {
     product: productMap.get(item.product_id) || null,
     material: productMap.get(item.material_id) || null,
   }));
+  const memberships = readJson<MembershipLike[]>("erp-mini-local-demo-memberships", []);
+  const membershipTransactions = readJson<MembershipTransactionLike[]>("erp-mini-local-demo-membership-transactions", []);
 
   const journalEntries = rawEntries.map((entry) => ({
     ...entry,
@@ -227,6 +252,8 @@ function loadLocalSnapshot(): SystemAuditSnapshot {
     journalEntries,
     journalLines,
     productBom,
+    memberships,
+    membershipTransactions,
   };
 }
 
@@ -239,6 +266,8 @@ async function loadSupabaseSnapshot(companyId: string): Promise<SystemAuditSnaps
     entriesResult,
     linesResult,
     bomResult,
+    membershipsResult,
+    memTxsResult,
   ] = await Promise.all([
     supabase
       .from("products")
@@ -274,6 +303,14 @@ async function loadSupabaseSnapshot(companyId: string): Promise<SystemAuditSnaps
         product:products!product_bom_product_id_fkey(id, company_id, sku, name, cost_price, is_service),
         material:products!product_bom_material_id_fkey(id, company_id, sku, name, cost_price, stock_quantity, is_service)
       `),
+    supabase
+      .from("memberships")
+      .select("id, partner_id, card_number, tier, balance, points, status, notes, partners!inner(company_id)")
+      .eq("partners.company_id", companyId),
+    supabase
+      .from("membership_transactions")
+      .select("id, membership_id, transaction_type, amount, points_delta, description, created_at, memberships!inner(partners!inner(company_id))")
+      .eq("memberships.partners.company_id", companyId),
   ]);
 
   const firstError =
@@ -283,7 +320,9 @@ async function loadSupabaseSnapshot(companyId: string): Promise<SystemAuditSnaps
     paymentsResult.error ||
     entriesResult.error ||
     linesResult.error ||
-    bomResult.error;
+    bomResult.error ||
+    membershipsResult.error ||
+    memTxsResult.error;
 
   if (firstError) throw firstError;
 
@@ -303,6 +342,8 @@ async function loadSupabaseSnapshot(companyId: string): Promise<SystemAuditSnaps
     productBom: ((bomResult.data || []) as ProductBomLike[]).filter(
       (item) => item.product?.company_id === companyId
     ),
+    memberships: (membershipsResult.data || []) as MembershipLike[],
+    membershipTransactions: (memTxsResult.data || []) as MembershipTransactionLike[],
   };
 }
 
@@ -693,6 +734,82 @@ export function buildSystemDataAuditReport(snapshot: SystemAuditSnapshot): Syste
         recommendation: "Chạy hoàn tất lệnh sản xuất/BOM sync hoặc cập nhật lại giá vốn bình quân.",
       });
     }
+  });
+
+  // ==========================================
+  // KIỂM TOÁN VÍ THÀNH VIÊN & THẺ THÀNH VIÊN (MEMBERSHIPS)
+  // ==========================================
+  const memberships = snapshot.memberships || [];
+  const membershipTransactions = snapshot.membershipTransactions || [];
+
+  const cardNumbers = new Map<string, string>(); // card_number -> membership_id
+  memberships.forEach((m) => {
+    totalChecks += 1;
+    const cardNum = (m.card_number || "").trim().toUpperCase();
+    if (cardNum) {
+      if (cardNumbers.has(cardNum)) {
+        pushIssue(issues, {
+          module: "Thẻ thành viên",
+          entityType: "membership",
+          entityId: m.id,
+          title: "Trùng số thẻ thành viên",
+          severity: "error",
+          expectedLabel: "Mã số thẻ duy nhất",
+          expectedValue: 1,
+          actualLabel: "Mã số thẻ bị trùng",
+          actualValue: 2,
+          detail: `Thẻ thành viên ID ${m.id} trùng mã số thẻ "${cardNum}" với thẻ ID ${cardNumbers.get(cardNum)}.`,
+          recommendation: "Sửa đổi số thẻ thành viên bị trùng thành duy nhất để tránh xung đột thanh toán POS.",
+        });
+      } else {
+        cardNumbers.set(cardNum, m.id);
+      }
+    }
+
+    totalChecks += 1;
+    const bal = toNumber(m.balance);
+    if (bal < 0) {
+      pushIssue(issues, {
+        module: "Thẻ thành viên",
+        entityType: "membership",
+        entityId: m.id,
+        title: "Số dư ví thành viên bị âm",
+        severity: "error",
+        expectedLabel: "Số dư tối thiểu hợp lệ",
+        expectedValue: 0,
+        actualLabel: "Số dư thực tế",
+        actualValue: bal,
+        detail: `Thẻ thành viên ${m.card_number} đang có số dư ví bị âm (${bal.toLocaleString("vi-VN")}đ).`,
+        recommendation: "Kiểm tra lại lịch sử giao dịch ví và hoàn tiền ví liên quan.",
+      });
+    }
+
+    totalChecks += 1;
+    const cardTxs = membershipTransactions.filter((tx) => tx.membership_id === m.id);
+    const calculatedBalance = cardTxs.reduce((sum, tx) => {
+      const amt = toNumber(tx.amount);
+      if (tx.transaction_type === "deposit") {
+        return sum + amt;
+      } else if (tx.transaction_type === "payment" || tx.transaction_type === "refund") {
+        return sum - amt;
+      }
+      return sum;
+    }, 0);
+
+    compareValues({
+      issues,
+      module: "Thẻ thành viên",
+      entityType: "membership",
+      entityId: m.id,
+      title: "Lệch số dư ví so với lịch sử giao dịch",
+      expectedLabel: "Tổng giao dịch ví lũy kế",
+      expectedValue: calculatedBalance,
+      actualLabel: "Số dư thẻ (balance)",
+      actualValue: bal,
+      tolerance: MONEY_TOLERANCE,
+      detail: `Thẻ thành viên ${m.card_number} có số dư hiện tại không khớp với tổng dòng tiền phát sinh từ lịch sử giao dịch ví.`,
+      recommendation: "Đồng bộ lại số dư thẻ thành viên (balance) từ tổng số tiền giao dịch ví tương ứng.",
+    });
   });
 
   const warningCount = issues.filter((issue) => issue.severity === "warning").length;

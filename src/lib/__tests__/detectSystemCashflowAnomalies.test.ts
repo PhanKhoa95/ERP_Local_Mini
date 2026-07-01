@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import { buildSystemDataAuditReport, type SystemAuditSnapshot } from "../systemDataAudit";
 
 // Giả lập dữ liệu hệ thống mặc định để kiểm tra bất thường
@@ -68,7 +68,9 @@ describe("Kiểm toán dòng tiền và bất thường hệ thống", () => {
       payments: defaultPayments,
       journalEntries: defaultJournalEntries,
       journalLines: [],
-      productBom: []
+      productBom: [],
+      memberships: [],
+      membershipTransactions: []
     };
 
     const report = buildSystemDataAuditReport(snapshot);
@@ -97,5 +99,42 @@ describe("Kiểm toán dòng tiền và bất thường hệ thống", () => {
       });
     }
     console.log("==============================================");
+    expect(report.errorCount).toBe(0);
+  });
+
+  it("Phát hiện bất đồng bộ thẻ thành viên: số dư âm, lệch dòng tiền, trùng số thẻ", () => {
+    const snapshot: SystemAuditSnapshot = {
+      products: defaultProducts,
+      warehouseStock: defaultWarehouseStock,
+      orders: defaultOrders,
+      payments: defaultPayments,
+      journalEntries: defaultJournalEntries,
+      journalLines: [],
+      productBom: [],
+      memberships: [
+        { id: "mem-1", partner_id: "cust-1", card_number: "MEM-GOLD-123", balance: -5000, points: 0, status: "active" }, // Lỗi 1: số dư âm
+        { id: "mem-2", partner_id: "cust-2", card_number: "MEM-GOLD-123", balance: 10000, points: 0, status: "active" }, // Lỗi 2: Trùng số thẻ với mem-1
+        { id: "mem-3", partner_id: "cust-3", card_number: "MEM-SILVER-456", balance: 50000, points: 0, status: "active" } // Lỗi 3: Lệch dòng tiền ví (không giao dịch nào mà số dư bằng 50k)
+      ],
+      membershipTransactions: [
+        { id: "tx-1", membership_id: "mem-1", transaction_type: "deposit", amount: 10000 },
+        { id: "tx-2", membership_id: "mem-1", transaction_type: "payment", amount: 15000 } // mem-1 nạp 10k chi 15k -> âm 5k
+      ]
+    };
+
+    const report = buildSystemDataAuditReport(snapshot);
+    
+    // Lọc các lỗi liên quan đến ví thành viên
+    const membershipIssues = report.issues.filter(issue => issue.module === "Thẻ thành viên");
+    expect(membershipIssues.length).toBeGreaterThan(0);
+    
+    const negativeBalanceIssue = membershipIssues.find(issue => issue.title === "Số dư ví thành viên bị âm");
+    expect(negativeBalanceIssue).toBeDefined();
+    
+    const duplicateCardIssue = membershipIssues.find(issue => issue.title === "Trùng số thẻ thành viên");
+    expect(duplicateCardIssue).toBeDefined();
+
+    const imbalanceIssue = membershipIssues.find(issue => issue.title === "Lệch số dư ví so với lịch sử giao dịch");
+    expect(imbalanceIssue).toBeDefined();
   });
 });
