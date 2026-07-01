@@ -53,11 +53,11 @@ test.describe("Category-Specific Promotions & Quick Customer E2E Tests", () => {
     await expect(plusBtn).toBeVisible({ timeout: 5000 });
     await plusBtn.click();
 
-    // Fill partner creation fields inside the quick add dialog
+    // Fill partner creation fields inside the quick add dialog (Only name & phone, code is auto-generated!)
     const partnerDialog = page.locator('div[role="dialog"]');
     await expect(partnerDialog).toBeVisible({ timeout: 5000 });
-    await partnerDialog.locator('input#code').fill("KH-QUICK-POS");
     await partnerDialog.locator('input#name').fill("Khách Hàng POS Mới");
+    await partnerDialog.locator('input#phone').fill("0978999888");
     
     // Click Kích hoạt inside dialog
     await partnerDialog.locator('button:has-text("Kích hoạt")').click();
