@@ -86,7 +86,7 @@ export function DynamicRbacTab() {
     if (selectedRole) {
       setRoleName(selectedRole.name);
       setRoleDesc(selectedRole.description || "");
-      const permissions = selectedRole.permissions || {};
+      const permissions = (selectedRole.permissions || {}) as any;
       setMatrix(permissions.modules || {});
       setViewCostPrice(!!permissions.view_cost_price);
       setAllowedRegions(permissions.regions || []);
@@ -97,7 +97,7 @@ export function DynamicRbacTab() {
     setSelectedRoleId(role.id);
     setRoleName(role.name);
     setRoleDesc(role.description || "");
-    const permissions = role.permissions || {};
+    const permissions = (role.permissions || {}) as any;
     setMatrix(permissions.modules || {});
     setViewCostPrice(!!permissions.view_cost_price);
     setAllowedRegions(permissions.regions || []);
@@ -140,7 +140,7 @@ export function DynamicRbacTab() {
           company_id: LOCAL_DEMO_COMPANY_ID,
           name: "Vai trò mới",
           description: "Mô tả vai trò",
-          permissions: defaultPerms,
+          permissions: defaultPerms as any,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
