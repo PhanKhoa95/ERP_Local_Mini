@@ -1,12 +1,12 @@
-# BRIEFING — 2026-07-01T07:46:14Z
+# BRIEFING — 2026-07-01T08:38:19Z
 
 ## Mission
-Khắc phục 10 lỗi logic nghiệp vụ và 10 lỗi mất đồng bộ dữ liệu trên hệ thống ERP_Local_Mini.
+Thiết kế, nâng cấp và hoàn thiện hệ thống phân quyền đa tầng động (Dynamic RBAC/ABAC) cho dự án ERP_Local_Mini hỗ trợ cả môi trường Local Demo và Supabase thật.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents
-- Orchestrator: de04f284-aaf8-4678-87db-188e0ff2c0b0
+- Orchestrator: TBD
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
@@ -15,12 +15,12 @@ Khắc phục 10 lỗi logic nghiệp vụ và 10 lỗi mất đồng bộ dữ 
 - No writing code, analyzing problems, or making any technical decisions. Keep context ultra-light.
 
 ## User Context
-- **Last user request**: Nghiên cứu và khắc phục 10 lỗi logic nghiệp vụ và 10 lỗi mất đồng bộ dữ liệu trên hệ thống ERP_Local_Mini.
+- **Last user request**: Thiết kế, nâng cấp và hoàn thiện hệ thống phân quyền đa tầng động (Dynamic RBAC/ABAC) cho dự án ERP_Local_Mini.
 - **Pending clarifications**: none
 - **Delivered results**: none
 
 ## Project Status
-- **Phase**: in progress
+- **Phase**: not started
 
 ## Victory Audit Status
 - **Triggered**: no

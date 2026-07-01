@@ -225,3 +225,45 @@ Bảo đảm tính toàn vẹn dữ liệu thời gian thực giữa các phân 
 - [ ] Lệnh `npm run typecheck` hoàn thành thành công không lỗi (exit code = 0).
 - [ ] Lệnh `npm run build` hoàn thành thành công không lỗi (exit code = 0).
 - [ ] 100% các ca kiểm thử Vitest và Playwright E2E vượt qua thành công.
+
+## Follow-up — 2026-07-01T08:38:19Z
+
+Thiết kế, nâng cấp và hoàn thiện hệ thống phân quyền đa tầng động (Dynamic RBAC/ABAC) cho dự án ERP_Local_Mini hỗ trợ cả môi trường Local Demo và Supabase thật.
+
+Working directory: y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Cấu hình vai trò và ma trận phân quyền động (Dynamic Roles & Permission Matrix)
+- Cung cấp giao diện tại tab Phân quyền (Settings) cho phép Admin tạo mới, chỉnh sửa và xóa các vai trò tùy chỉnh (Custom Roles).
+- Thiết lập giao diện ma trận phân quyền (Permission Matrix) cho phép bật/tắt các quyền thao tác (Xem, Tạo, Sửa, Xóa) và quyền truy cập phân hệ đối với từng vai trò.
+
+### R2. Áp dụng cơ chế phân quyền đa tầng (Phân hệ, Chức năng, Bản ghi, Trường dữ liệu)
+- **Module-level:** Ẩn/hiện các menu điều hướng sidebar và tabs chính (ví dụ: Tài chính, Nhân sự, Báo cáo) tùy thuộc vào quyền truy cập phân hệ của vai trò hiện tại.
+- **Action-level:** Ẩn hoặc disable các nút bấm Tạo mới, Sửa, Xóa trên các bảng dữ liệu nếu vai trò của người dùng không có quyền tương ứng.
+- **Record-level:** Hỗ trợ lọc phạm vi dữ liệu bản ghi đơn hàng/doanh thu hiển thị trên giao diện theo thuộc tính Vùng miền (Region: Miền Bắc, Miền Trung, Miền Nam) được gán cho nhân sự.
+- **Field-level:** Ẩn hiển thị cột giá vốn (`cost_price`) và các thông tin liên quan đến biên lợi nhuận của sản phẩm trong bảng Sản phẩm đối với nhân sự không được phân quyền xem thông tin nhạy cảm này.
+
+### R3. Hoạt động trên cả Local Demo và Supabase
+- Tích hợp lưu trữ cấu hình vai trò, gán quyền và ma trận phân quyền vào `localStorage` khi bật Local Demo, và đồng bộ/lưu trữ vào database Supabase khi chạy ở chế độ online.
+
+### R4. Nhật ký kiểm toán phân quyền (Audit Logging)
+- Tự động ghi nhận thông tin nhật ký chi tiết vào `audit_logs` khi có bất kỳ thay đổi nào liên quan đến việc thay đổi quyền của vai trò hoặc gán vai trò mới cho tài khoản nhân sự.
+
+## Acceptance Criteria
+
+### Giao diện cấu hình phân quyền động
+- [ ] UI Settings hiển thị tab Quản lý Vai trò và Ma trận Quyền cho phép Admin tích chọn quyền Xem/Tạo/Sửa/Xóa động và cập nhật trực tiếp.
+- [ ] Gán vai trò cho nhân sự cập nhật tức thì quyền hạn tương ứng của tài khoản đó.
+
+### Thực thi phân quyền đa tầng
+- [ ] Sidebar ẩn các phân hệ không được phép truy cập theo ma trận quyền đã cấu hình.
+- [ ] Nút "Xóa" hoặc "Sửa" sản phẩm/đơn hàng bị ẩn hoặc vô hiệu hóa đối với nhân viên không có quyền tương ứng.
+- [ ] Khi nhân viên được gán vùng miền "Miền Nam", danh sách đơn hàng và biểu đồ doanh thu chỉ hiển thị dữ liệu của "Miền Nam".
+- [ ] Cột giá vốn (`cost_price`) trong danh sách sản phẩm bị ẩn đi (hoặc thay bằng dấu `***`) khi đăng nhập bằng vai trò không có quyền xem giá vốn.
+
+### Tính tương thích và Audit log
+- [ ] Hệ thống hoạt động mượt mà không lỗi cú pháp khi bật/tắt Local Demo.
+- [ ] Mọi thay đổi ma trận quyền được ghi vào lịch sử Audit log thành công.
+- [ ] Vượt qua kiểm tra kiểu tĩnh `npm run typecheck` và build production `npm run build` thành công.
