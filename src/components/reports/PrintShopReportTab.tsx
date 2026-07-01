@@ -756,10 +756,16 @@ export function PrintShopReportTab() {
                           key={row.domain}
                           className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
                           onClick={() => {
-                            if (row.domain === "Shopee" || row.domain === "Hủy/Hoàn/COD" || row.domain === "CAC / Quay lại") {
+                            if (row.domain === "Shopee") {
+                              navigate("/orders?view=list&search=shopee");
+                            } else if (row.domain === "Hủy/Hoàn/COD") {
+                              navigate("/orders?view=list&status=cancelled");
+                            } else if (row.domain === "CAC / Quay lại") {
                               navigate("/orders?view=list");
-                            } else if (row.domain === "Công suất" || row.domain === "Giá cạnh tranh") {
-                              navigate("/inventory");
+                            } else if (row.domain === "Công suất") {
+                              navigate("/inventory?tab=production");
+                            } else if (row.domain === "Giá cạnh tranh") {
+                              navigate("/inventory?stock=low");
                             }
                           }}
                         >
@@ -1293,7 +1299,7 @@ export function PrintShopReportTab() {
                       <tr
                         key={row.name}
                         className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
-                        onClick={() => navigate("/inventory")}
+                        onClick={() => navigate(`/inventory?search=${encodeURIComponent(row.name)}`)}
                       >
                         <td className="p-3 font-medium text-foreground">{row.name}</td>
                         <td className="p-3 text-xs text-muted-foreground">{row.spec}</td>
@@ -1349,7 +1355,7 @@ export function PrintShopReportTab() {
                           <tr
                             key={row.product}
                             className="border-b border-border hover:bg-secondary/20 transition-colors cursor-pointer"
-                            onClick={() => navigate("/inventory")}
+                            onClick={() => navigate(`/inventory?search=${encodeURIComponent(row.product)}`)}
                           >
                             <td className="p-3 font-medium text-foreground">{row.product}</td>
                             <td className="p-3 text-right font-medium text-primary">{fmtVnd(row.shopeePrice)}</td>
