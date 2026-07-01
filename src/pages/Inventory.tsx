@@ -52,7 +52,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProductBom } from "@/hooks/useProductBom";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -62,6 +62,7 @@ import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { getLocalInventoryTransactions } from "@/lib/localInventoryStore";
 
 const Inventory = () => {
+  const queryClient = useQueryClient();
   const { hasPermission, hasFieldPermission, canCreate, canEdit, canDelete } = usePermissions();
   const { products, isLoading, createProduct, updateProduct, deleteProduct } = useProducts();
   const { activeCategories } = useProductCategories();
