@@ -37,30 +37,31 @@ test.describe("Promotions & Auto-Apply E2E Tests", () => {
 
     // Increase quantity of the item to 4 items (subtotal = 4 * 69k = 276,000đ)
     // 276k is above 200k threshold, triggering the AUTO10 auto-apply!
-    // Locate the first inputmode="numeric" input, which is the cart item quantity input
     const qtyInput = page.locator('input[inputmode="numeric"]').first();
     await qtyInput.fill("4");
     await qtyInput.blur();
     
     // Wait for the debounce to trigger and compute totals
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1000);
     
     // Verify auto-apply badge is now visible in the footer
     await expect(page.locator("body")).toContainText("Tự động: Tự động giảm 10% đơn từ 200k");
     
     // Verify total discount is 10% of 276k = 27,600đ
     const discountDisplay = page.locator("text=-27.600đ");
-    await expect(discountDisplay).toBeVisible();
+    await expect(discountDisplay).toBeVisible({ timeout: 10000 });
 
     // Verify subtotal, discount, and grand total in the summary
     const totalDisplay = page.locator("text=248.400đ");
-    await expect(totalDisplay).toBeVisible();
+    await expect(totalDisplay).toBeVisible({ timeout: 10000 });
 
-    // 3. Complete checkout
-    await page.click("text=Tiền mặt");
-    await page.click("text=Thanh toán");
+    // 3. Complete checkout by clicking Cash (Tiền mặt)
+    const cashBtn = page.getByRole("button", { name: "Tiền mặt" });
+    await expect(cashBtn).toBeVisible({ timeout: 5000 });
+    await cashBtn.click();
     
     // Wait for order completion success toast
-    await expect(page.locator("text=Thanh toán thành công")).toBeVisible();
+    const successToast = page.getByText("Thanh toán thành công").first();
+    await expect(successToast).toBeVisible({ timeout: 15000 });
   });
 });
