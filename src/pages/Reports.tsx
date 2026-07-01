@@ -58,6 +58,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { useCompanyMembers } from "@/hooks/useCompanyMembers";
 import { useShopSettings } from "@/hooks/useShopSettings";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
+import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Users, Building, Clock, Target, MapPin, Store, Globe, Percent, Award, FolderKanban, Activity, Flame, ShieldAlert, CheckSquare, Sparkles } from "lucide-react";
@@ -186,6 +187,7 @@ const Reports = () => {
   const { companyId } = useCompanyContext();
   const { members = [] } = useCompanyMembers();
   const { updateSetting } = useShopSettings();
+  const { logAction } = useAuditLogs();
 
   // Dialog State for Project Health Check
   const [healthSettingsOpen, setHealthSettingsOpen] = useState(false);
@@ -224,6 +226,13 @@ const Reports = () => {
       { key: "project_health_details", value: updatedDetails },
       {
         onSuccess: () => {
+          logAction(
+            "Cập nhật cấu hình sức khỏe dự án",
+            "shop_settings",
+            code,
+            dbHealthDetails[code] || null,
+            healthFormData
+          );
           setHealthSettingsOpen(false);
           refetchHealthDetails();
         }
