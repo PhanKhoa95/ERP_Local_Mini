@@ -273,13 +273,23 @@ if (typeof window !== "undefined") {
     const entries = getLocalEntries();
     const lines = getLocalLines();
 
+    // Determine debit account based on payment method
+    const isMembershipWallet = order.payment_method === "membership_wallet";
+    const salesDrAccId = isMembershipWallet ? "acc-3387" : "acc-131";
+    const salesDrAccCode = isMembershipWallet ? "3387" : "131";
+    const salesDrMemo = isMembershipWallet
+      ? `Trừ ví thành viên đơn ${orderNum}`
+      : `Ghi nhận phải thu đơn ${orderNum}`;
+
     // Sales Entry
     const salesEntryId = `ent-sales-${order.id}-${Date.now()}`;
     const salesEntry = {
       id: salesEntryId,
       company_id: companyId,
       entry_date: entryDate,
-      description: `Doanh thu đơn hàng ${orderNum}`,
+      description: isMembershipWallet
+        ? `Doanh thu đơn ${orderNum} (thanh toán ví thành viên)`
+        : `Doanh thu đơn hàng ${orderNum}`,
       status: "posted",
       source_type: "order",
       source_id: order.id,
@@ -293,10 +303,10 @@ if (typeof window !== "undefined") {
       {
         id: `line-sales-dr-${order.id}-${Date.now()}`,
         entry_id: salesEntryId,
-        account_id: "acc-131", // Phải thu khách hàng
+        account_id: salesDrAccId,
         debit: orderTotal,
         credit: 0,
-        memo: `Ghi nhận phải thu đơn ${orderNum}`,
+        memo: salesDrMemo,
         created_at: order.created_at || new Date().toISOString()
       },
       {
@@ -358,8 +368,14 @@ if (typeof window !== "undefined") {
 
     // Update balances
     accounts.forEach((acc: any) => {
-      if (acc.code === "131") {
-        acc.balance = (acc.balance || 0) + orderTotal;
+      if (acc.code === salesDrAccCode) {
+        // For membership wallet (3387 liability): debit decreases balance
+        // For receivable (131 asset): debit increases balance
+        if (isMembershipWallet) {
+          acc.balance = (acc.balance || 0) - orderTotal;
+        } else {
+          acc.balance = (acc.balance || 0) + orderTotal;
+        }
       } else if (acc.code === "511") {
         acc.balance = (acc.balance || 0) + orderTotal;
       } else if (acc.code === "632") {
@@ -397,10 +413,11 @@ if (typeof window !== "undefined") {
     const entries = getLocalEntries();
     const lines = getLocalLines();
 
+    const isMemberWallet = transaction.payment_method === "membership_wallet";
     const isBank = transaction.payment_method === "vietqr" || transaction.payment_method === "bank_transfer";
-    const payAccCode = isBank ? "1121" : "1111";
-    const payAccId = isBank ? "acc-1121" : "acc-1111";
-    const payMethodName = isBank ? "tiền gửi ngân hàng" : "tiền mặt";
+    const payAccCode = isMemberWallet ? "3387" : (isBank ? "1121" : "1111");
+    const payAccId = isMemberWallet ? "acc-3387" : (isBank ? "acc-1121" : "acc-1111");
+    const payMethodName = isMemberWallet ? "ví thành viên" : (isBank ? "tiền gửi ngân hàng" : "tiền mặt");
 
     const entryId = `ent-pay-${transaction.id}-${Date.now()}`;
 
