@@ -6,7 +6,7 @@ Khắc phục 10 lỗi logic nghiệp vụ và 10 lỗi mất đồng bộ dữ 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents
-- Orchestrator: 5faa1d3d-0e36-4243-aa88-a1b4722da5b5
+- Orchestrator: de04f284-aaf8-4678-87db-188e0ff2c0b0
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
