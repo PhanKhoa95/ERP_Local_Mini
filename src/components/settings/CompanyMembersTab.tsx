@@ -20,7 +20,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export function CompanyMembersTab() {
-  const { members, isLoading, updateRole, removeMember, addMemberById } = useCompanyMembers();
+  const { members, customRoles, isLoading, updateRole, updateRegion, removeMember, addMemberById } = useCompanyMembers();
   const { user } = useAuth();
   const { role } = useCompanyContext();
   const isAdmin = role === "admin";
@@ -37,6 +37,10 @@ export function CompanyMembersTab() {
 
   const handleRoleChange = (memberId: string, newRole: string) => {
     updateRole.mutate({ memberId, role: newRole });
+  };
+
+  const handleRegionChange = (memberId: string, newRegion: string | null) => {
+    updateRegion.mutate({ memberId, region: newRegion });
   };
 
   const handleRemove = (memberId: string, memberUserId: string) => {
@@ -107,25 +111,50 @@ export function CompanyMembersTab() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {isAdmin && m.user_id !== user?.id ? (
-                      <Select
-                        value={m.role}
-                        onValueChange={(v) => handleRoleChange(m.id, v)}
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Quản trị viên</SelectItem>
-                          <SelectItem value="manager">Quản lý</SelectItem>
-                          <SelectItem value="staff">Nhân viên</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <>
+                        <Select
+                          value={m.role}
+                          onValueChange={(v) => handleRoleChange(m.id, v)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Vai trò" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Quản trị viên</SelectItem>
+                            <SelectItem value="manager">Quản lý</SelectItem>
+                            <SelectItem value="staff">Nhân viên</SelectItem>
+                            {customRoles.map((r: any) => (
+                              <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={m.region || "all"}
+                          onValueChange={(v) => handleRegionChange(m.id, v === "all" ? null : v)}
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Vùng miền" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Toàn quốc / All</SelectItem>
+                            <SelectItem value="Miền Bắc">Miền Bắc</SelectItem>
+                            <SelectItem value="Miền Trung">Miền Trung</SelectItem>
+                            <SelectItem value="Miền Nam">Miền Nam</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </>
                     ) : (
-                      <Badge variant={m.role === "admin" ? "destructive" : "default"}>
-                        {roleLabels[m.role] || m.role}
-                      </Badge>
+                      <>
+                        <Badge variant={m.role === "admin" ? "destructive" : "default"}>
+                          {roleLabels[m.role] || m.role}
+                        </Badge>
+                        <Badge variant="outline">
+                          {m.region || "Toàn quốc"}
+                        </Badge>
+                      </>
                     )}
                     {isAdmin && m.user_id !== user?.id && (
                       <Button
@@ -183,6 +212,9 @@ export function CompanyMembersTab() {
                   <SelectItem value="admin">Quản trị viên</SelectItem>
                   <SelectItem value="manager">Quản lý</SelectItem>
                   <SelectItem value="staff">Nhân viên</SelectItem>
+                  {customRoles.map((r: any) => (
+                    <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
