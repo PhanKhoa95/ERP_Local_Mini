@@ -26,6 +26,7 @@ export interface CashVoucher {
   voided_at: string | null;
   created_at: string;
   company_id: string;
+  project_id: string | null;
 }
 
 // ──────────────────────── Storage Keys ────────────────────────
@@ -104,6 +105,7 @@ export function useCashVouchers() {
       account_id: string;
       description: string;
       reference?: string | null;
+      project_id?: string | null;
     }) => {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
       const all = getLocalVouchers();
@@ -126,6 +128,7 @@ export function useCashVouchers() {
         voided_at: null,
         created_at: now,
         company_id: companyId,
+        project_id: payload.project_id || null,
       };
       all.unshift(newV);
       saveLocalVouchers(all);
@@ -166,11 +169,16 @@ export function useCashVouchers() {
         const cashAccId = v.payment_method === "bank_transfer" ? "acc-1121" : "acc-1111";
         const cashAccCode = v.payment_method === "bank_transfer" ? "1121" : "1111";
 
+        // Retrieve project details for ledger tag matching
+        const localProjects = JSON.parse(localStorage.getItem("erp-mini-local-demo-projects") || "[]");
+        const proj = localProjects.find((p: any) => p.id === v.project_id);
+        const projTag = proj ? ` [${proj.code}]` : "";
+
         entries.unshift({
           id: entryId,
           company_id: companyId,
           entry_date: entryDate,
-          description: `${isReceipt ? "Phiếu thu" : "Phiếu chi"} ${v.voucher_number}: ${v.description}`,
+          description: `${isReceipt ? "Phiếu thu" : "Phiếu chi"} ${v.voucher_number}: ${v.description}${projTag}`,
           status: "posted",
           source_type: "cash_voucher",
           source_id: v.id,
@@ -183,8 +191,8 @@ export function useCashVouchers() {
         if (isReceipt) {
           // Phiếu thu: Dr Cash/Bank, Cr contra account
           jLines.push(
-            { id: `line-vr-dr-${v.id}`, entry_id: entryId, account_id: cashAccId, debit: v.amount, credit: 0, memo: `Thu tiền ${v.voucher_number} - ${v.partner_name}`, created_at: now },
-            { id: `line-vr-cr-${v.id}`, entry_id: entryId, account_id: v.account_id, debit: 0, credit: v.amount, memo: v.description, created_at: now }
+            { id: `line-vr-dr-${v.id}`, entry_id: entryId, account_id: cashAccId, debit: v.amount, credit: 0, memo: `Thu tiền ${v.voucher_number} - ${v.partner_name}${projTag}`, created_at: now },
+            { id: `line-vr-cr-${v.id}`, entry_id: entryId, account_id: v.account_id, debit: 0, credit: v.amount, memo: `${v.description}${projTag}`, created_at: now }
           );
           // Update balances
           accounts.forEach((a: any) => {
@@ -201,8 +209,8 @@ export function useCashVouchers() {
         } else {
           // Phiếu chi: Dr contra account, Cr Cash/Bank
           jLines.push(
-            { id: `line-vp-dr-${v.id}`, entry_id: entryId, account_id: v.account_id, debit: v.amount, credit: 0, memo: v.description, created_at: now },
-            { id: `line-vp-cr-${v.id}`, entry_id: entryId, account_id: cashAccId, debit: 0, credit: v.amount, memo: `Chi tiền ${v.voucher_number} - ${v.partner_name}`, created_at: now }
+            { id: `line-vp-dr-${v.id}`, entry_id: entryId, account_id: v.account_id, debit: v.amount, credit: 0, memo: `${v.description}${projTag}`, created_at: now },
+            { id: `line-vp-cr-${v.id}`, entry_id: entryId, account_id: cashAccId, debit: 0, credit: v.amount, memo: `Chi tiền ${v.voucher_number} - ${v.partner_name}${projTag}`, created_at: now }
           );
           // Update balances
           accounts.forEach((a: any) => {

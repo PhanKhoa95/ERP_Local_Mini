@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useCashVouchers, type VoucherType } from "@/hooks/useCashVouchers";
 import { useAccounting } from "@/hooks/useAccounting";
+import { useProjects } from "@/hooks/useProjects";
 
 const fmt = (n: number) => n.toLocaleString("vi-VN");
 
@@ -29,10 +30,12 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 export function CashVoucherTab() {
   const { vouchers, partners, createVoucher, confirmVoucher, voidVoucher } = useCashVouchers();
   const { accounts } = useAccounting();
+  const { projects = [] } = useProjects();
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Create dialog
@@ -43,6 +46,7 @@ export function CashVoucherTab() {
   const [formAmount, setFormAmount] = useState("");
   const [formMethod, setFormMethod] = useState<"cash" | "bank_transfer" | "other">("cash");
   const [formAccountId, setFormAccountId] = useState("");
+  const [formProjectId, setFormProjectId] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [formRef, setFormRef] = useState("");
 
@@ -53,6 +57,7 @@ export function CashVoucherTab() {
     let list = [...vouchers];
     if (typeFilter !== "all") list = list.filter(v => v.voucher_type === typeFilter);
     if (statusFilter !== "all") list = list.filter(v => v.status === statusFilter);
+    if (projectFilter !== "all") list = list.filter(v => v.project_id === projectFilter);
     if (searchTerm.trim()) {
       const s = searchTerm.toLowerCase();
       list = list.filter(v =>
@@ -62,7 +67,7 @@ export function CashVoucherTab() {
       );
     }
     return list;
-  }, [vouchers, typeFilter, statusFilter, searchTerm]);
+  }, [vouchers, typeFilter, statusFilter, projectFilter, searchTerm]);
 
   // Totals
   const totalReceipt = filtered.filter(v => v.voucher_type === "receipt" && v.status === "confirmed").reduce((s, v) => s + v.amount, 0);
@@ -74,6 +79,7 @@ export function CashVoucherTab() {
     setFormAmount("");
     setFormMethod("cash");
     setFormAccountId("");
+    setFormProjectId("");
     setFormDesc("");
     setFormRef("");
   };
@@ -82,6 +88,14 @@ export function CashVoucherTab() {
     const amount = Number(formAmount);
     if (amount <= 0) return;
     const partnerName = formPartnerName.trim() || (partners.find((p: any) => p.id === formPartnerId)?.name || "Không xác định");
+    
+    // Auto-append project code tag for ledger reporting transparency
+    const proj = projects.find((p: any) => p.id === formProjectId);
+    const projTag = proj ? ` [${proj.code}]` : "";
+    const finalDesc = formDesc.trim() 
+      ? `${formDesc.trim()}${projTag}`
+      : `${formType === "receipt" ? "Thu tiền" : "Chi tiền"}${projTag}`;
+
     createVoucher.mutate({
       voucher_type: formType,
       partner_id: formPartnerId || null,
@@ -89,8 +103,9 @@ export function CashVoucherTab() {
       amount,
       payment_method: formMethod,
       account_id: formAccountId,
-      description: formDesc || (formType === "receipt" ? "Thu tiền" : "Chi tiền"),
+      description: finalDesc,
       reference: formRef || null,
+      project_id: formProjectId || null,
     });
     setCreateOpen(false);
     resetForm();
@@ -185,6 +200,16 @@ export function CashVoucherTab() {
               <option value="confirmed">Đã xác nhận</option>
               <option value="voided">Đã hủy</option>
             </select>
+            <select
+              value={projectFilter}
+              onChange={e => setProjectFilter(e.target.value)}
+              className="bg-background border rounded px-2 py-1 text-xs h-9 outline-none"
+            >
+              <option value="all">Tất cả dự án</option>
+              {projects.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Table */}
@@ -202,6 +227,7 @@ export function CashVoucherTab() {
                     <TableHead className="w-[110px]">Số phiếu</TableHead>
                     <TableHead>Loại</TableHead>
                     <TableHead>Đối tác</TableHead>
+                    <TableHead>Dự án</TableHead>
                     <TableHead>Diễn giải</TableHead>
                     <TableHead>Phương thức</TableHead>
                     <TableHead className="text-right">Số tiền</TableHead>
@@ -212,6 +238,7 @@ export function CashVoucherTab() {
                 <TableBody>
                   {filtered.map(v => {
                     const st = STATUS_MAP[v.status] || STATUS_MAP.draft;
+                    const proj = projects.find((p: any) => p.id === v.project_id);
                     return (
                       <TableRow key={v.id} className="group">
                         <TableCell className="font-mono font-semibold text-xs">{v.voucher_number}</TableCell>
@@ -226,8 +253,17 @@ export function CashVoucherTab() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm max-w-[160px] truncate">{v.partner_name}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{v.description}</TableCell>
+                        <TableCell className="text-sm max-w-[140px] truncate">{v.partner_name}</TableCell>
+                        <TableCell className="text-xs">
+                          {proj ? (
+                            <Badge variant="outline" className="text-[10px] bg-blue-50/50 text-blue-700 dark:bg-blue-900/10 dark:text-blue-400 border-blue-200">
+                              {proj.code}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">{v.description}</TableCell>
                         <TableCell className="text-xs">{PAYMENT_METHOD_LABELS[v.payment_method] || v.payment_method}</TableCell>
                         <TableCell className={`text-right font-mono font-semibold ${v.voucher_type === "receipt" ? "text-emerald-600" : "text-orange-600"}`}>
                           {v.voucher_type === "receipt" ? "+" : "−"}{fmt(v.amount)}đ
@@ -314,6 +350,21 @@ export function CashVoucherTab() {
                 placeholder="Hoặc nhập tên đối tác thủ công..."
                 className="text-sm mt-1"
               />
+            </div>
+
+            {/* Related Project */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Dự án liên quan (Tùy chọn)</label>
+              <select
+                value={formProjectId}
+                onChange={e => setFormProjectId(e.target.value)}
+                className="w-full bg-background border rounded px-3 py-2 outline-none text-sm h-10"
+              >
+                <option value="">-- Không liên kết dự án --</option>
+                {projects.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                ))}
+              </select>
             </div>
 
             {/* Amount + Method */}
@@ -484,6 +535,16 @@ export function CashVoucherTab() {
 
                     <div className="text-muted-foreground">Diễn giải:</div>
                     <div>{detailVoucher.description}</div>
+
+                    {detailVoucher.project_id && (() => {
+                      const p = projects.find((proj: any) => proj.id === detailVoucher.project_id);
+                      return p ? (
+                        <>
+                          <div className="text-muted-foreground">Dự án liên quan:</div>
+                          <div className="font-semibold text-blue-600 dark:text-blue-400">{p.code} - {p.name}</div>
+                        </>
+                      ) : null;
+                    })()}
 
                     {detailVoucher.reference && (
                       <>
