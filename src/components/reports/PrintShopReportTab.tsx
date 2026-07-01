@@ -47,6 +47,8 @@ import {
   Activity,
   ThumbsUp,
   PercentIcon,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import {
   printShopKpis,
@@ -206,6 +208,26 @@ export function PrintShopReportTab() {
     setSimPriceFactor(1.0);
     setSimCostFactor(1.0);
     setSimMktFactor(1.0);
+  };
+
+  const [capexList, setCapexList] = useState<PrintShopCapexItem[]>(() => {
+    const local = localStorage.getItem("erp-mini-printshop-capex");
+    return local ? JSON.parse(local) : printShopCapex;
+  });
+
+  const [fixedCostsList, setFixedCostsList] = useState<any[]>(() => {
+    const local = localStorage.getItem("erp-mini-printshop-fixed-costs");
+    return local ? JSON.parse(local) : printShopFixedCosts;
+  });
+
+  const saveCapex = (newList: PrintShopCapexItem[]) => {
+    setCapexList(newList);
+    localStorage.setItem("erp-mini-printshop-capex", JSON.stringify(newList));
+  };
+
+  const saveFixedCosts = (newList: any[]) => {
+    setFixedCostsList(newList);
+    localStorage.setItem("erp-mini-printshop-fixed-costs", JSON.stringify(newList));
   };
 
   const liveProducts = useMemo(() => {
