@@ -655,6 +655,17 @@ const POS = () => {
       return;
     }
 
+    // Check selling under cost warning
+    const hasSellingUnderCost = cart.some(item => 
+      item.unit_price > 0 && item.product.cost_price > 0 && item.unit_price < item.product.cost_price
+    );
+    if (hasSellingUnderCost) {
+      const confirmLoss = window.confirm("Cảnh báo: Có sản phẩm trong giỏ hàng có giá bán THẤP hơn giá vốn. Bạn có chắc chắn muốn tiếp tục thanh toán bán lỗ?");
+      if (!confirmLoss) {
+        return;
+      }
+    }
+
     if (!selectedWarehouse) {
       toast({
         variant: "destructive",

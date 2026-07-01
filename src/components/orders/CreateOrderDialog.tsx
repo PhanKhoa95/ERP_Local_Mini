@@ -278,6 +278,18 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
     }
     setValidationErrors([]);
 
+    // Check selling under cost warning
+    const hasSellingUnderCost = items.some(item => {
+      const prod = products.find(p => p.id === item.product_id);
+      return prod && item.unit_price > 0 && prod.cost_price > 0 && item.unit_price < prod.cost_price;
+    });
+    if (hasSellingUnderCost) {
+      const confirmLoss = window.confirm("Cảnh báo: Có sản phẩm trong đơn hàng có giá bán THẤP hơn giá vốn. Bạn có chắc chắn muốn tiếp tục tạo đơn hàng bán lỗ?");
+      if (!confirmLoss) {
+        return;
+      }
+    }
+
     const orderNumber = `ORD-${Date.now()}`;
 
     onSubmit({
