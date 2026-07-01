@@ -6,7 +6,7 @@ Kiểm thử toàn diện và đánh giá độ sẵn sàng vận hành của h�
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents\sentinel
-- Orchestrator: TBD
+- Orchestrator: 28490154-c906-42e2-86ff-c189b615577c
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
@@ -22,7 +22,7 @@ Kiểm thử toàn diện và đánh giá độ sẵn sàng vận hành của h�
   - TBD
 
 ## Project Status
-- **Phase**: not started
+- **Phase**: in progress
 
 ## Victory Audit Status
 - **Triggered**: no
