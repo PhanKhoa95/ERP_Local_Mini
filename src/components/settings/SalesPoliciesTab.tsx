@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, ShieldCheck, Loader2, RotateCcw, Coins, Truck, CreditCard, Headphones, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, Loader2, RotateCcw, Coins, Truck, CreditCard, Headphones, MoreHorizontal, Package, Save } from "lucide-react";
 import {
   useSalesPolicies,
   SEGMENT_LABELS,
@@ -34,6 +34,8 @@ import {
   type PolicyType,
   type SalesPolicyInsert,
 } from "@/hooks/useSalesPolicies";
+import { useProductCategories, type ProductCategory } from "@/hooks/useProductCategories";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 const POLICY_TYPE_ICONS: Record<PolicyType, React.ReactNode> = {
@@ -49,6 +51,8 @@ const SEGMENTS: PolicySegment[] = ["loyalty", "wholesale", "all"];
 
 export function SalesPoliciesTab() {
   const { policies, isLoading, createPolicy, updatePolicy, deletePolicy } = useSalesPolicies();
+  const { categories, updateCategory } = useProductCategories();
+  const [editingWarranty, setEditingWarranty] = useState<Record<string, number>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<SalesPolicy | null>(null);
@@ -226,6 +230,66 @@ export function SalesPoliciesTab() {
         })}
       </CardContent>
 
+      {/* Warranty by Category Section */}
+      <CardContent className="border-t pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Bảo hành theo ngành hàng
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Thời gian bảo hành mặc định cho sản phẩm thuộc từng danh mục
+            </p>
+          </div>
+        </div>
+
+        {categories.length === 0 ? (
+          <div className="text-xs text-muted-foreground text-center py-6 border border-dashed rounded-lg">
+            Chưa có danh mục. Tạo tại Cài đặt → Danh mục.
+          </div>
+        ) : (
+          <div className="max-h-[320px] overflow-y-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Danh mục</TableHead>
+                  <TableHead className="text-xs text-center w-[140px]">Bảo hành (tháng)</TableHead>
+                  <TableHead className="text-xs text-right w-[80px]">Lưu</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories
+                  .filter(c => !c.parent_id)
+                  .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+                  .map((cat) => {
+                    const children = categories.filter(c => c.parent_id === cat.id);
+                    return [
+                      <WarrantyRow
+                        key={cat.id}
+                        category={cat}
+                        editingWarranty={editingWarranty}
+                        setEditingWarranty={setEditingWarranty}
+                        updateCategory={updateCategory}
+                      />,
+                      ...children.map(child => (
+                        <WarrantyRow
+                          key={child.id}
+                          category={child}
+                          isChild
+                          editingWarranty={editingWarranty}
+                          setEditingWarranty={setEditingWarranty}
+                          updateCategory={updateCategory}
+                        />
+                      ))
+                    ];
+                  })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+
       {/* Policy Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
@@ -379,5 +443,81 @@ export function SalesPoliciesTab() {
         </AlertDialogContent>
       </AlertDialog>
     </Card>
+  );
+}
+
+function WarrantyRow({
+  category,
+  isChild,
+  editingWarranty,
+  setEditingWarranty,
+  updateCategory,
+}: {
+  category: ProductCategory;
+  isChild?: boolean;
+  editingWarranty: Record<string, number>;
+  setEditingWarranty: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  updateCategory: any;
+}) {
+  const currentVal = editingWarranty[category.id] ?? category.warranty_months ?? 3;
+  const isEdited = editingWarranty[category.id] !== undefined && editingWarranty[category.id] !== (category.warranty_months ?? 3);
+
+  const handleSave = async () => {
+    if (editingWarranty[category.id] === undefined) return;
+    await updateCategory.mutateAsync({
+      id: category.id,
+      name: category.name,
+      warranty_months: editingWarranty[category.id],
+    });
+    setEditingWarranty((prev) => {
+      const next = { ...prev };
+      delete next[category.id];
+      return next;
+    });
+  };
+
+  return (
+    <TableRow>
+      <TableCell className="text-xs">
+        <div className="flex items-center gap-2">
+          {isChild && <span className="text-muted-foreground ml-4">↳</span>}
+          <div
+            className="w-3 h-3 rounded-full shrink-0"
+            style={{ backgroundColor: category.color || "#3B82F6" }}
+          />
+          <span className={cn(isChild && "text-muted-foreground")}>{category.name}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <Input
+          type="number"
+          min={0}
+          max={120}
+          className="w-[80px] h-7 text-xs mx-auto text-center"
+          value={currentVal}
+          onChange={(e) =>
+            setEditingWarranty((prev) => ({
+              ...prev,
+              [category.id]: parseInt(e.target.value) || 0,
+            }))
+          }
+        />
+      </TableCell>
+      <TableCell className="text-right">
+        <Button
+          variant={isEdited ? "default" : "ghost"}
+          size="sm"
+          className="h-7 w-7 p-0"
+          disabled={!isEdited || updateCategory.isPending}
+          onClick={handleSave}
+        >
+          {updateCategory.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </TableCell>
+    </TableRow>
   );
 }
