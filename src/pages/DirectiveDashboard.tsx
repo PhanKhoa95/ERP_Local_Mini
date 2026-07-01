@@ -3,6 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { useDirectiveDashboard } from "@/hooks/useDirectiveDashboard";
 import { useDirectives } from "@/hooks/useDirectives";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { DirectiveProgressCard } from "@/components/directives/DirectiveProgressCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,10 +21,11 @@ import {
 } from "recharts";
 
 export default function DirectiveDashboard() {
+  const { startDate, endDate } = useGlobalDateFilter();
   const {
     directiveStats, taskStats, directivesWithProgress,
     orgUnitMetrics, timelineData, taskStatusDistribution, isLoading,
-  } = useDirectiveDashboard();
+  } = useDirectiveDashboard(startDate, endDate);
 
   const { transcribeToTasks, dispatchDirective, breakdownWbs } = useDirectives();
   const [inputText, setInputText] = useState("");

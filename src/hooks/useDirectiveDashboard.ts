@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "./useCompanyContext";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
@@ -15,7 +15,7 @@ export interface DirectiveTask {
   assignee_name: string | null;
   assignee_org_unit: string | null;
   completed_at: string | null;
-  source_type: string;
+  source_type: string | null;
 }
 
 export interface DirectiveWithTasks {
@@ -24,24 +24,24 @@ export interface DirectiveWithTasks {
   content: string | null;
   status: string;
   deadline: string | null;
-  created_at: string;
+  created_at: string | null;
   assigned_manager_id: string | null;
   assigned_manager_name: string | null;
-  escalation_count: number;
+  escalation_count: number | null;
   total_tasks: number;
   completed_tasks: number;
   overdue_tasks: number;
   tasks: DirectiveTask[];
 }
 
-interface OrgUnitMetrics {
+export interface OrgUnitMetrics {
   org_unit_name: string;
   total_tasks: number;
   completed_tasks: number;
   completion_rate: number;
 }
 
-export function useDirectiveDashboard() {
+export function useDirectiveDashboard(startDate?: string, endDate?: string) {
   const { companyId } = useCompanyContext();
   const queryClient = useQueryClient();
 
@@ -172,18 +172,39 @@ export function useDirectiveDashboard() {
   }, [companyId, queryClient]);
 
 
+  const filteredDirectives = useMemo(() => {
+    return (directives || []).filter((d: any) => {
+      if (!d.created_at) return true;
+      const dDateStr = d.created_at.split("T")[0];
+      if (startDate && dDateStr < startDate) return false;
+      if (endDate && dDateStr > endDate) return false;
+      return true;
+    });
+  }, [directives, startDate, endDate]);
+
+  const filteredTasks = useMemo(() => {
+    return (tasks || []).filter((t: any) => {
+      if (!t.created_at) return true;
+      const tDateStr = t.created_at.split("T")[0];
+      if (startDate && tDateStr < startDate) return false;
+      if (endDate && tDateStr > endDate) return false;
+      return true;
+    });
+  }, [tasks, startDate, endDate]);
+
+
   // Compute directive stats
   const directiveStats = {
-    total: directives?.length || 0,
-    draft: directives?.filter(d => d.status === "draft").length || 0,
-    dispatched: directives?.filter(d => d.status === "dispatched").length || 0,
-    inProgress: directives?.filter(d => d.status === "in_progress").length || 0,
-    completed: directives?.filter(d => d.status === "completed").length || 0,
+    total: filteredDirectives.length,
+    draft: filteredDirectives.filter(d => d.status === "draft").length,
+    dispatched: filteredDirectives.filter(d => d.status === "dispatched").length,
+    inProgress: filteredDirectives.filter(d => d.status === "in_progress").length,
+    completed: filteredDirectives.filter(d => d.status === "completed").length,
   };
 
   // Compute task stats
   const now = new Date();
-  const allTasks = tasks || [];
+  const allTasks = filteredTasks;
   const taskStats = {
     total: allTasks.length,
     completed: allTasks.filter(t => t.status === "done").length,
@@ -192,7 +213,7 @@ export function useDirectiveDashboard() {
   };
 
   // Directives with task progress and assignee details
-  const directivesWithProgress: DirectiveWithTasks[] = (directives || []).map(d => {
+  const directivesWithProgress: DirectiveWithTasks[] = filteredDirectives.map(d => {
     const dTasks = allTasks.filter(t => t.directive_id === d.id);
     const mappedTasks: DirectiveTask[] = dTasks.map((t: any) => ({
       id: t.id,
@@ -262,7 +283,7 @@ export function useDirectiveDashboard() {
       const dateStr = d.toISOString().slice(0, 10);
       days.push({
         date: d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }),
-        created: (directives || []).filter(dir => dir.created_at.slice(0, 10) === dateStr).length,
+        created: filteredDirectives.filter(dir => dir.created_at?.slice(0, 10) === dateStr).length,
         completed: allTasks.filter(t => t.status === "done" && t.completed_at?.slice(0, 10) === dateStr).length,
       });
     }

@@ -10,8 +10,8 @@ import { useContracts, SmartContract } from "@/hooks/useContracts";
 import { ContractDialog } from "@/components/contracts/ContractDialog";
 import { ContractSignDialog } from "@/components/contracts/ContractSignDialog";
 import { ContractMilestones } from "@/components/contracts/ContractMilestones";
-import { Plus, Search, FileSignature, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 
 const statusMap: Record<string, { label: string; color: string }> = {
   draft: { label: "Nháp", color: "bg-muted text-muted-foreground" },
@@ -34,9 +34,16 @@ export default function Contracts() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
+  const { startDate, endDate } = useGlobalDateFilter();
+
   const filtered = contracts.filter(c => {
     if (search && !c.title.toLowerCase().includes(search.toLowerCase()) && !c.contract_number.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    if (c.created_at) {
+      const cDateStr = c.created_at.split("T")[0];
+      if (startDate && cDateStr < startDate) return false;
+      if (endDate && cDateStr > endDate) return false;
+    }
     return true;
   });
 
