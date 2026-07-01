@@ -154,12 +154,7 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await priceInput.fill("11000000");
     await page.waitForTimeout(500);
 
-    // Select sales channel
-    const channelSelect = page.locator('button:has-text("Chọn kênh bán hàng *")').first();
-    await channelSelect.click();
-    await page.click('div[role="presentation"] >> text=Cửa hàng bán lẻ');
-
-    // Click "Thanh toán" button
+    // Click "Thanh toán" button (Channel is auto-selected on POS load)
     await page.click('button:has-text("Thanh toán (")');
 
     // Wait for the thăng hạng VIP toast & checkout success toast!
