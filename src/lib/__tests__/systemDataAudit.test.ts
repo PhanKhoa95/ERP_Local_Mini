@@ -43,6 +43,8 @@ const cleanSnapshot: SystemAuditSnapshot = {
       material: { id: "fabric", sku: "NVL001", name: "Fabric", cost_price: 30 },
     },
   ],
+  memberships: [],
+  membershipTransactions: [],
 };
 
 describe("system data audit", () => {

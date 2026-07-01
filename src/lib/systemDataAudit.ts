@@ -303,11 +303,11 @@ async function loadSupabaseSnapshot(companyId: string): Promise<SystemAuditSnaps
         product:products!product_bom_product_id_fkey(id, company_id, sku, name, cost_price, is_service),
         material:products!product_bom_material_id_fkey(id, company_id, sku, name, cost_price, stock_quantity, is_service)
       `),
-    supabase
+    (supabase as any)
       .from("memberships")
       .select("id, partner_id, card_number, tier, balance, points, status, notes, partners!inner(company_id)")
       .eq("partners.company_id", companyId),
-    supabase
+    (supabase as any)
       .from("membership_transactions")
       .select("id, membership_id, transaction_type, amount, points_delta, description, created_at, memberships!inner(partners!inner(company_id))")
       .eq("memberships.partners.company_id", companyId),
