@@ -47,16 +47,17 @@ Coordinate static verification, unit/integration testing (Vitest), end-to-end te
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
+| worker_static_verification | teamwork_preview_worker | Static Verification | in-progress | 3e55fb4d-3482-4b03-8bb9-8ddae4ba1492 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
+- Spawn count: 1 / 16
 - Pending subagents: none
 - Predecessor: 58c01fbe-bab5-42b8-9f0a-edeca380d8af
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: not started
+- Heartbeat cron: task-25
 - Safety timer: none
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing

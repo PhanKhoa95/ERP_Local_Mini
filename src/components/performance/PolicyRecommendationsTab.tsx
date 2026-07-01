@@ -136,7 +136,7 @@ export function PolicyRecommendationsTab() {
       return;
     }
 
-    let updatedPolicies = [...policies];
+    const updatedPolicies = [...policies];
     if (editingIndex !== null) {
       updatedPolicies[editingIndex] = formData;
     } else {

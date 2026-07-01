@@ -9,7 +9,7 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|---|---|---|---|
-| 1 | Static Verification | Run typecheck and lint checks. | None | PLANNED |
+| 1 | Static Verification | Run typecheck and lint checks. | None | IN_PROGRESS (3e55fb4d-3482-4b03-8bb9-8ddae4ba1492) |
 | 2 | Unit & Integration | Run Vitest tests suite. | None | PLANNED |
 | 3 | Playwright E2E | Run Playwright browser tests. | None | PLANNED |
 | 4 | Production Build | Run Vite build for production. | None | PLANNED |

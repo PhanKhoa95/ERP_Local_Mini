@@ -63,7 +63,9 @@ export function serializePartnerMetadata(partner: any, existingNotes?: string | 
   if (existingNotes && existingNotes.trim().startsWith("{")) {
     try {
       existingMeta = JSON.parse(existingNotes);
-    } catch (e) {}
+    } catch (e) {
+      // Ignored
+    }
   }
 
   const meta = {
