@@ -51,7 +51,7 @@ Coordinate static verification, unit/integration testing (Vitest), end-to-end te
 | worker_unit_testing | teamwork_preview_worker | Unit and Integration Tests | completed | b6ec9f8b-82ce-40fa-86e5-79cc404ce673 |
 | worker_e2e_testing | teamwork_preview_worker | Playwright E2E Tests | completed | d347a20f-3aff-4ecb-ad6e-6cbfe6cc7a81 |
 | worker_production_build | teamwork_preview_worker | Production Build | completed | bacc47eb-5119-4433-9acf-e3b6c235bba8 |
-| forensic_auditor | teamwork_preview_auditor | Forensic Integrity Audit | in-progress | c2fa1992-4aa9-43ab-a082-522edb8b28e6 |
+| forensic_auditor | teamwork_preview_auditor | Forensic Integrity Audit | completed | c2fa1992-4aa9-43ab-a082-522edb8b28e6 |
 
 ## Succession Status
 - Succession required: no
@@ -61,7 +61,7 @@ Coordinate static verification, unit/integration testing (Vitest), end-to-end te
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: task-25
+- Heartbeat cron: stopped
 - Safety timer: none
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing
