@@ -110,6 +110,7 @@ export function useRevenueReport(dateRange: DateRange) {
           ...data,
         })),
         channelChart: Object.values(channelData),
+        orders,
       };
     },
   });
