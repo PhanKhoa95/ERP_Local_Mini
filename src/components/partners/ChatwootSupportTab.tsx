@@ -36,15 +36,14 @@ interface ChatwootMessage {
   timestamp: string;
 }
 
-// Native CSKH Database Alignment (cskh_conversations table schema)
 interface ChatwootConversation {
-  id: string; // Maps to public.cskh_conversations.id
-  customerName: string; // Maps to public.cskh_conversations.customer_name
-  customerPhone: string; // Maps to public.cskh_conversations.customer_phone
-  customerAddress: string; // Maps to public.cskh_conversations.customer_address
-  lastMessage: string; // Derived from last cskh_messages content
-  status: "open" | "snoozed" | "resolved"; // Maps to public.cskh_conversations.status
-  unread: boolean; // Unread message indicator state
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  lastMessage: string;
+  status: "open" | "snoozed" | "resolved";
+  unread: boolean;
   messages: ChatwootMessage[];
 }
 
