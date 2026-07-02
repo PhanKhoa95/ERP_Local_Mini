@@ -3,6 +3,7 @@ import {
   MessageSquare, 
   Send, 
   Bot, 
+  Brain,
   Sparkles, 
   Phone, 
   MapPin, 
