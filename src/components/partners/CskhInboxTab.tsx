@@ -62,6 +62,8 @@ interface Conversation {
   classification?: "Khách thường" | "Khách VIP" | "Khách sỉ" | "Khách khó tính";
   currentEmotion?: "Lo lắng" | "Vui vẻ" | "Bình thường" | "Giận dữ";
   internalNotes?: string;
+  chatStyle?: string;
+  onboardingLog?: string;
 }
 
 interface CustomerMemory {
@@ -119,6 +121,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       pronoun: "anh",
       classification: "Khách VIP",
       currentEmotion: "Vui vẻ",
+      chatStyle: "Lịch sự 🌸",
+      onboardingLog: "🤖 AI Onboarding: Đã đoán danh xưng (Anh) qua tên chứa đệm 'Văn', cách trò chuyện lịch sự.",
       internalNotes: "Khách quen quan tâm các mẫu túi da thật, chuộng giao hàng COD nội thành.",
       messages: [
         { id: "m1", sender: "customer", senderName: "Lê Văn Cường", content: "Shop ơi, mẫu túi đeo chéo đen còn hàng ở chi nhánh Hà Nội không?", timestamp: "10:30" },
@@ -131,7 +135,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       customerName: "Nguyễn Thị Mai",
       customerPhone: "0912345678",
       customerAddress: "45 Lê Lợi, Quận Hải Châu, Đà Nẵng",
-      lastMessage: "Báo giá sỉ mẫu ví da nam nhé shop.",
+      lastMessage: "Sản phẩm bị lỗi hỏng khóa rồi, shop đổi cho tôi hoặc gặp nhân viên xử lý gấp!",
       channel: "facebook",
       status: "open",
       unread: true,
@@ -139,8 +143,10 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       needsHuman: true,
       autopilotEnabled: false,
       pronoun: "chị",
-      classification: "Khách sỉ",
+      classification: "Khách khó tính",
       currentEmotion: "Lo lắng",
+      chatStyle: "Nóng vội 🔔",
+      onboardingLog: "🤖 AI Onboarding: Đã đoán danh xưng (Chị) qua tên chứa đệm 'Thị'. Giọng điệu khắt khe nóng vội (yêu cầu gấp, báo lỗi).",
       internalNotes: "Muốn đặt số lượng lớn ví da, yêu cầu bảo hành kỹ càng và giá sỉ ưu đãi.",
       messages: [
         { id: "m4", sender: "customer", senderName: "Nguyễn Thị Mai", content: "Sản phẩm bị lỗi hỏng khóa rồi, shop đổi cho tôi hoặc gặp nhân viên xử lý gấp!", timestamp: "11:02" },
@@ -216,6 +222,17 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     // Load orders
     const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
     if (savedOrders) setOrders(JSON.parse(savedOrders));
+
+    // Default Webhook simulator JSON payload
+    setWebhookPayload(JSON.stringify({
+      sender: {
+        name: "Lê Thị Lan",
+        phone: "0934567890"
+      },
+      message: {
+        text: "Dạ shop ơi, em muốn hỏi mẫu ví da nam có giá sỉ là bao nhiêu vậy ạ?"
+      }
+    }, null, 2));
   }, []);
 
   const saveConfig = (newCfg: typeof config) => {
@@ -266,7 +283,50 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     o => o.customer_phone === activeConv?.customerPhone
   );
 
-  // Send message handler (supports role simulation)
+  // Active Customer Sentiment
+  const activeSentiment = sentiments.find(
+    s => s.customerPhone === activeConv?.customerPhone
+  );
+
+  // AI First-time Onboarding Profiler helper
+  const profileNewCustomer = (name: string, message: string) => {
+    const lowerName = name.toLowerCase();
+    const lowerMsg = message.toLowerCase();
+    
+    // Guess pronoun
+    let pronoun: "anh" | "chị" | "bạn" = "bạn";
+    if (lowerName.includes("văn") || lowerName.includes("cường") || lowerName.includes("nam") || lowerName.includes("phong") || lowerName.includes("hoàng") || lowerName.includes("đăng")) {
+      pronoun = "anh";
+    } else if (lowerName.includes("thị") || lowerName.includes("mai") || lowerName.includes("lan") || lowerName.includes("vy") || lowerName.includes("hương") || lowerName.includes("ngọc")) {
+      pronoun = "chị";
+    }
+
+    // Determine chat tone style
+    let chatStyle = "Trực diện ⚡";
+    let classification: "Khách thường" | "Khách VIP" | "Khách sỉ" | "Khách khó tính" = "Khách thường";
+    let currentEmotion: "Lo lắng" | "Vui vẻ" | "Bình thường" | "Giận dữ" = "Bình thường";
+
+    if (lowerMsg.includes("dạ") || lowerMsg.includes("ạ") || lowerMsg.includes("làm ơn") || lowerMsg.includes("cảm ơn") || lowerMsg.includes("shop ơi")) {
+      chatStyle = "Lịch sự 🌸";
+    } else if (lowerMsg.includes("lỗi") || lowerMsg.includes("hỏng") || lowerMsg.includes("rách") || lowerMsg.includes("gấp") || lowerMsg.includes("tại sao") || lowerMsg.includes("đền tiền")) {
+      chatStyle = "Nóng vội 🔔";
+      classification = "Khách khó tính";
+      currentEmotion = "Lo lắng";
+    }
+
+    const pronounLabel = pronoun === "anh" ? "Anh" : pronoun === "chị" ? "Chị" : "Bạn";
+    const onboardingLog = `🤖 AI Onboarding: Đã tự động nhận diện khách hàng qua tên (đoán Xưng hô: ${pronounLabel}) và Cách nói chuyện (${chatStyle.split(" ")[0]}).`;
+
+    return {
+      pronoun,
+      chatStyle,
+      classification,
+      currentEmotion,
+      onboardingLog
+    };
+  };
+
+  // Send message handler (supports role simulation & onboarding profiling)
   const handleSendMessage = () => {
     if (!replyText.trim()) return;
     
@@ -281,6 +341,12 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
     };
 
+    // If customer sends a message and it's their first or we want to trigger profiling
+    let profiledInfo = {};
+    if (isCustomer) {
+      profiledInfo = profileNewCustomer(activeConv.customerName, messageContent);
+    }
+
     let updatedConvs = conversations.map(c => {
       if (c.id === activeConvId) {
         return {
@@ -288,7 +354,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           lastMessage: messageContent,
           unread: isCustomer,
           needsHuman: isCustomer ? c.needsHuman : false,
-          messages: [...c.messages, newMsg]
+          messages: [...c.messages, newMsg],
+          ...profiledInfo
         };
       }
       return c;
@@ -300,13 +367,15 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
     toast({
       title: isCustomer ? "Khách gửi tin nhắn" : "Tin nhắn đã gửi",
-      description: isCustomer ? "Đã giả lập tin nhắn khách hàng thành công." : "Đã phản hồi trực tiếp tới khách hàng."
+      description: isCustomer ? "Đã giả lập tin nhắn khách hàng và chạy phân tích Onboarding AI." : "Đã phản hồi trực tiếp tới khách hàng."
     });
 
     // If sent as customer and autopilot is enabled
     if (isCustomer && config.aiAutoReply) {
       const isComplex = /lỗi|hỏng|rách|đền tiền|hoàn tiền|khiếu nại|gặp nhân viên|chất lượng/i.test(messageContent);
-      const activePronoun = activeConv.pronoun || "anh";
+      
+      // Use pronoun from newly profiled info or fallback
+      const activePronoun = (profiledInfo as any).pronoun || activeConv.pronoun || "anh";
       const greeting = activePronoun === "anh" ? "anh" : activePronoun === "chị" ? "chị" : "bạn";
 
       setTimeout(() => {
@@ -321,7 +390,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             id: `m-sys-${Date.now()}`,
             sender: "bot",
             senderName: "Hệ thống AI",
-            content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và báo động nhân viên can thiệp.",
+            content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và báo động yêu cầu nhân viên can thiệp.",
             timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
           };
           messagesList.push(sysMsg);
@@ -587,8 +656,13 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       logs.push(`${timestamp()} [Webhook] Xác thực Verify Token... Hợp lệ!`);
       logs.push(`${timestamp()} [AI Engine] Đang phân tích hội thoại và nội dung chat...`);
 
+      // Run AI First-time Onboarding Profiler
+      const profilingResult = profileNewCustomer(senderName, messageText);
+      logs.push(`${timestamp()} [AI Onboarding] Tự động phân tích Tên & Giọng điệu khách hàng lần đầu...`);
+      logs.push(`${timestamp()} [AI Onboarding] Cấu hình Danh xưng: ${profilingResult.pronoun.toUpperCase()} | Giọng điệu: ${profilingResult.chatStyle}`);
+
       // Check for human escalation keywords
-      const isComplex = /lỗi|hỏng|rách|đền tiền|hoàn tiền|khiếu nại|gặp nhân viên|chất lượng/i.test(messageText);
+      const isComplex = profilingResult.chatStyle.includes("Nóng vội");
 
       // Search existing or create conversation
       let existConv = conversations.find(c => c.customerPhone === senderPhone);
@@ -614,10 +688,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         currentMessages.push(sysMsg);
         logs.push(`${timestamp()} [Escalation Engine] Phát hiện khiếu nại phức tạp. Đang báo động nhân viên...`);
       } else if (config.aiAutoReply && !isComplex) {
-        // AI Auto Reply (Autopilot)
+        // AI Auto Reply (Autopilot) matching pronoun
+        const greeting = profilingResult.pronoun === "anh" ? "anh" : profilingResult.pronoun === "chị" ? "chị" : "bạn";
         const botReplyText = messageText.includes("ví da") 
-          ? `Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
-          : `Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+          ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${profilingResult.pronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+          : `Cảm ơn ${greeting} đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, ${greeting} cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
         
         const botMsg: Message = {
           id: `m-bot-${Date.now()}`,
@@ -639,7 +714,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               unread: true,
               needsHuman: isComplex ? true : c.needsHuman,
               autopilotEnabled: isComplex ? false : c.autopilotEnabled,
-              messages: currentMessages
+              messages: currentMessages,
+              ...profilingResult
             };
           }
           return c;
@@ -659,10 +735,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           tags: isComplex ? ["Cần nhân viên"] : ["Mới từ Webhook"],
           needsHuman: isComplex,
           autopilotEnabled: !isComplex,
-          pronoun: "anh",
-          classification: "Khách thường",
-          currentEmotion: isComplex ? "Lo lắng" : "Bình thường",
-          messages: currentMessages
+          messages: currentMessages,
+          ...profilingResult
         };
         saveConversations([newConv, ...conversations]);
         setActiveConvId(newConv.id);
@@ -1106,7 +1180,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
         {/* Message Input Box */}
         <div className="p-3 border-t bg-background/50 flex flex-col gap-2">
-          {/* Role selection tab */}
           <div className="flex items-center justify-between text-[10px] text-muted-foreground border-b pb-1.5 mb-0.5">
             <span className="font-semibold">Vai trò gửi tin nhắn (Thử nghiệm live):</span>
             <div className="flex gap-1.5">
@@ -1175,6 +1248,13 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           </CardHeader>
           
           <CardContent className="p-4 space-y-3">
+            {/* AI Onboarding log warning card */}
+            {activeConv.onboardingLog && (
+              <div className="p-2 border border-blue-200 bg-blue-500/5 text-blue-600 dark:text-blue-400 text-[10px] rounded-lg leading-relaxed">
+                {activeConv.onboardingLog}
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label className="text-[10px] text-muted-foreground font-semibold">Họ và tên</Label>
               <Input 
@@ -1206,6 +1286,14 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 <option value="Khách sỉ">Khách sỉ</option>
                 <option value="Khách khó tính">Khách khó tính</option>
               </select>
+            </div>
+
+            {/* AI Chat Style Badge display */}
+            <div className="space-y-1 flex items-center justify-between border-b pb-2">
+              <Label className="text-[10px] text-muted-foreground font-semibold">Giọng điệu chat (AI Profile):</Label>
+              <Badge variant="outline" className="text-[9px] font-bold px-2 py-0.5">
+                {activeConv.chatStyle || "Chưa xác định"}
+              </Badge>
             </div>
 
             <div className="space-y-1">
