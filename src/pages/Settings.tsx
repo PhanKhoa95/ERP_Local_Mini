@@ -28,7 +28,6 @@ import { CustomerGroupsTab } from "@/components/settings/CustomerGroupsTab";
 import { CategoriesTab } from "@/components/settings/CategoriesTab";
 import { EmailPreferencesTab } from "@/components/settings/EmailPreferencesTab";
 import { AISettingsTab } from "@/components/settings/AISettingsTab";
-import { ChatwootSupportTab } from "@/components/partners/ChatwootSupportTab";
 import { CompanyInfoSection } from "@/components/settings/CompanyInfoSection";
 import { BackupTab } from "@/components/settings/BackupTab";
 import { PermissionPoliciesTab } from "@/components/settings/PermissionPoliciesTab";
@@ -314,8 +313,7 @@ const Settings = () => {
         icon: MessageSquare,
         items: [
           { label: "Tin nhắn tự động", tab: "auto_messages", desc: "Tự động gửi hoá đơn, CSKH qua Messenger & SMS" },
-          { label: "Cấu hình Email", tab: "email", desc: "Cấu hình mail server gửi hóa đơn" },
-          { label: "Cấu hình Chatwoot", tab: "chatwoot", desc: "Tích hợp kênh hỗ trợ đa kênh (Zalo OA, Messenger, Live Chat Website)" }
+          { label: "Cấu hình Email", tab: "email", desc: "Cấu hình mail server gửi hóa đơn" }
         ]
       },
       {
@@ -423,10 +421,6 @@ const Settings = () => {
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Kênh bán</span>
             </TabsTrigger>
-             <TabsTrigger value="chatwoot" className="gap-2">
-               <MessageSquare className="h-4 w-4 text-indigo-500" />
-               <span className="hidden sm:inline">Cấu hình Chatwoot</span>
-             </TabsTrigger>
             <TabsTrigger value="vouchers" className="gap-2">
               <Ticket className="h-4 w-4" />
               <span className="hidden sm:inline">Voucher</span>
@@ -932,10 +926,6 @@ const Settings = () => {
 
           <TabsContent value="event_sync">
             <EventSyncTab />
-          </TabsContent>
-
-          <TabsContent value="chatwoot">
-            <ChatwootSupportTab mode="settings" />
           </TabsContent>
           </Tabs>
         )}
