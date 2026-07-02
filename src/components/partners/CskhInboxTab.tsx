@@ -308,13 +308,13 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         } else {
           // Normal AI Auto Reply
           const botReplyText = messageContent.includes("ví da")
-            ? `[Bot AI] Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
-            : `[Bot AI] Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+            ? `Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+            : `Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
 
           const botMsg: Message = {
             id: `m-bot-${Date.now()}`,
             sender: "bot",
-            senderName: "Bot AI Assistant",
+            senderName: "Tư vấn viên",
             content: botReplyText,
             timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
           };
@@ -622,13 +622,13 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       } else if (config.aiAutoReply && !isComplex) {
         // AI Auto Reply (Autopilot)
         const botReplyText = messageText.includes("ví da") 
-          ? `[Bot AI] Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
-          : `[Bot AI] Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+          ? `Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+          : `Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
         
         const botMsg: Message = {
           id: `m-bot-${Date.now()}`,
           sender: "bot",
-          senderName: "Bot AI Assistant",
+          senderName: "Tư vấn viên",
           content: botReplyText,
           timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
         };
