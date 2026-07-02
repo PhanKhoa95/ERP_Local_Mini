@@ -593,6 +593,21 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
             return c;
           });
           saveConversations(updated);
+
+          // Simulate addReaction SDK trigger if enabled
+          const reactionFeat = apiFeatures.find(f => f.sdk === "addReaction");
+          if (reactionFeat && reactionFeat.enabled) {
+            const [success, fail] = reactionFeat.count.split(" / ").map(Number);
+            const updatedFeatures = apiFeatures.map(f => {
+              if (f.sdk === "addReaction") {
+                return { ...f, count: `${success + 1} / ${fail}`, rate: "100%" };
+              }
+              return f;
+            });
+            setApiFeatures(updatedFeatures);
+            localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
+            console.log("🤖 [Zalo SDK] addReaction: Tự động thả cảm xúc (tim/like) vào tin nhắn của khách.");
+          }
         }
 
         // Live Auto-Closer Order Creation
