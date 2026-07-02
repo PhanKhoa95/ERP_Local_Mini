@@ -70,6 +70,7 @@ interface Conversation {
   internalNotes?: string;
   chatStyle?: string;
   onboardingLog?: string;
+  cskhStage?: "new" | "consulting" | "quoted" | "closed_won" | "post_purchase";
 }
 
 interface CustomerMemory {
@@ -2053,7 +2054,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
                     Chưa có đơn hàng nào của khách hàng này.
                   </div>
                 ) : (
-                  activeCustomerOrders.map((ord) => {
+                  activeCustomerOrders.map((ord: any) => {
                     const isDraft = ord.notes?.includes("dang dở");
                     return (
                       <div 
