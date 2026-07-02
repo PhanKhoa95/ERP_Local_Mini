@@ -2138,34 +2138,24 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
               <Label className="text-[10px] text-muted-foreground font-semibold flex items-center justify-between">
                 <span>Quy trình CSKH</span>
                 <span className="font-bold text-primary text-[10px]">
-                  {editCskhStage === "new" && "Tiếp cận 🆕"}
-                  {editCskhStage === "consulting" && "Đang tư vấn 💬"}
-                  {editCskhStage === "quoted" && "Báo giá 💰"}
-                  {editCskhStage === "closed_won" && "Chốt đơn 🎉"}
-                  {editCskhStage === "post_purchase" && "Chăm sóc ❤️"}
+                  {cskhStages.find(s => s.id === editCskhStage)?.label || editCskhStage} {cskhStages.find(s => s.id === editCskhStage)?.icon}
                 </span>
               </Label>
               
               {/* Stepper visual bar */}
               <div className="flex items-center justify-between gap-1 mt-1">
-                {[
-                  { stage: "new", label: "Mới" },
-                  { stage: "consulting", label: "Tư vấn" },
-                  { stage: "quoted", label: "Báo giá" },
-                  { stage: "closed_won", label: "Chốt" },
-                  { stage: "post_purchase", label: "CSKH" }
-                ].map((item, index) => {
-                  const stages = ["new", "consulting", "quoted", "closed_won", "post_purchase"];
-                  const currentIdx = stages.indexOf(editCskhStage);
-                  const itemIdx = stages.indexOf(item.stage);
+                {cskhStages.map((item, index) => {
+                  const stageIds = cskhStages.map(s => s.id);
+                  const currentIdx = stageIds.indexOf(editCskhStage);
+                  const itemIdx = stageIds.indexOf(item.id);
                   const isCompleted = itemIdx < currentIdx;
-                  const isActive = item.stage === editCskhStage;
+                  const isActive = item.id === editCskhStage;
                   
                   return (
-                    <div key={item.stage} className="flex-1 flex flex-col items-center relative">
+                    <div key={item.id} className="flex-1 flex flex-col items-center relative">
                       {/* Step node */}
                       <button
-                        onClick={() => setEditCskhStage(item.stage as any)}
+                        onClick={() => setEditCskhStage(item.id as any)}
                         className={cn(
                           "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold transition-all border",
                           isActive 
