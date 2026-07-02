@@ -1100,7 +1100,53 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 Áp dụng câu trả lời
               </Button>
             </div>
-            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 i      {/* Column 3: CRM Profile Details (Match layout reference: Left Panel - White/Adaptive styling) */}
+            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 italic">{aiSuggestedReply}</p>
+          </div>
+        )}
+
+        {/* Message Input Box */}
+        <div className="p-3 border-t bg-background/50 flex flex-col gap-2">
+          {/* Role selection tab */}
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-b pb-1.5 mb-0.5">
+            <span className="font-semibold">Vai trò gửi tin nhắn (Thử nghiệm live):</span>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setChatRole("agent")}
+                className={cn(
+                  "px-2 py-0.5 rounded transition-colors text-[9px] font-bold",
+                  chatRole === "agent" ? "bg-primary text-primary-foreground" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-foreground"
+                )}
+              >
+                Nhân viên (Shop)
+              </button>
+              <button
+                onClick={() => setChatRole("customer")}
+                className={cn(
+                  "px-2 py-0.5 rounded transition-colors text-[9px] font-bold",
+                  chatRole === "customer" ? "bg-indigo-500 text-white" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-foreground"
+                )}
+              >
+                Khách hàng
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Input 
+              placeholder={chatRole === "agent" ? "Nhập tin nhắn phản hồi của nhân viên..." : "Nhập tin nhắn giả lập của khách hàng gửi..."}
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+              className="h-8.5 text-xs bg-background"
+            />
+            <Button onClick={handleSendMessage} size="icon" className="h-8.5 w-8.5 flex-shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Column 3: CRM Profile Details (Match layout reference: Left Panel - White/Adaptive styling) */}
       <div className="xl:col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4 h-full overflow-y-auto">
         <Card className="border-border bg-card text-card-foreground shadow-sm flex flex-col justify-between">
           <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
@@ -1357,47 +1403,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                   <span className="text-muted-foreground font-mono">12:32 25-06</span>
                   <div className="flex items-center gap-1">
                     <span className="text-foreground">Bình thường 😐</span>
-                    <span className="w-1.5 h-3 bg-slate-400 rounded-sm" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>x]">02-07</text>
-                </svg>
-              </div>
-            </div>
-
-            {/* Lịch sử thay đổi cảm xúc list (Match layout reference: Right Panel Bottom) */}
-            <div className="border-t border-slate-800 pt-3.5 space-y-2">
-              <Label className="text-[10px] font-bold text-slate-300">Lịch sử thay đổi</Label>
-              <div className="space-y-1 text-[9px] bg-slate-950/40 p-2 rounded border border-slate-800/80 divide-y divide-slate-800/40">
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-slate-400 font-mono">15:41 02-07</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-200">Lo lắng 😰</span>
-                    <span className="w-1.5 h-3 bg-amber-500 rounded-sm" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-slate-400 font-mono">15:39 02-07</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-200">Bình thường 😐</span>
-                    <span className="w-1.5 h-3 bg-slate-400 rounded-sm" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-slate-400 font-mono">15:38 02-07</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-200">Vui vẻ 😊</span>
-                    <span className="w-1.5 h-3 bg-emerald-500 rounded-sm" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-slate-400 font-mono">12:32 25-06</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-slate-200">Bình thường 😐</span>
                     <span className="w-1.5 h-3 bg-slate-400 rounded-sm" />
                   </div>
                 </div>
