@@ -861,6 +861,21 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
       logs.push(`${timestamp()} [Webhook] Xác thực Verify Token... Hợp lệ!`);
       logs.push(`${timestamp()} [AI Engine] Đang phân tích hội thoại và nội dung chat...`);
 
+      // Run Zalo SDK acceptFriendRequest if enabled
+      const friendFeat = apiFeatures.find(f => f.sdk === "acceptFriendRequest");
+      if (friendFeat && friendFeat.enabled) {
+        const [success, fail] = friendFeat.count.split(" / ").map(Number);
+        const updatedFeatures = apiFeatures.map(f => {
+          if (f.sdk === "acceptFriendRequest") {
+            return { ...f, count: `${success + 1} / ${fail}` };
+          }
+          return f;
+        });
+        setApiFeatures(updatedFeatures);
+        localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
+        logs.push(`${timestamp()} [Zalo SDK] acceptFriendRequest: Tự động gửi lời mời/đồng ý kết bạn với ${senderName}.`);
+      }
+
       // Run AI First-time Onboarding Profiler
       const profilingResult = profileNewCustomer(senderName, messageText);
       logs.push(`${timestamp()} [AI Onboarding] Tự động phân tích Tên & Giọng điệu khách hàng lần đầu...`);
@@ -904,6 +919,36 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
         };
         currentMessages.push(botMsg);
         logs.push(`${timestamp()} [AI Autopilot] Tự động soạn thảo và gửi câu trả lời thành công.`);
+
+        // Run Zalo SDK addQuickMessage if enabled
+        const quickFeat = apiFeatures.find(f => f.sdk === "addQuickMessage");
+        if (quickFeat && quickFeat.enabled) {
+          const [success, fail] = quickFeat.count.split(" / ").map(Number);
+          const updatedFeatures = apiFeatures.map(f => {
+            if (f.sdk === "addQuickMessage") {
+              return { ...f, count: `${success + 1} / ${fail}` };
+            }
+            return f;
+          });
+          setApiFeatures(updatedFeatures);
+          localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
+          logs.push(`${timestamp()} [Zalo SDK] addQuickMessage: Đã tạo và lưu tin nhắn trả lời nhanh mẫu ví da.`);
+        }
+
+        // Run Zalo SDK addReaction if enabled
+        const reactFeat = apiFeatures.find(f => f.sdk === "addReaction");
+        if (reactFeat && reactFeat.enabled) {
+          const [success, fail] = reactFeat.count.split(" / ").map(Number);
+          const updatedFeatures = apiFeatures.map(f => {
+            if (f.sdk === "addReaction") {
+              return { ...f, count: `${success + 1} / ${fail}`, rate: "100%" };
+            }
+            return f;
+          });
+          setApiFeatures(updatedFeatures);
+          localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
+          logs.push(`${timestamp()} [Zalo SDK] addReaction: Tự động thả cảm xúc (tim/like) vào tin nhắn của khách.`);
+        }
       }
 
       if (existConv) {
