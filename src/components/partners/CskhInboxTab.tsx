@@ -260,13 +260,13 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [aiSuggestedReply, setAiSuggestedReply] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   
-  // Editable Active CRM Fields
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editClassification, setEditClassification] = useState<any>("Khách thường");
   const [editPronoun, setEditPronoun] = useState<any>("anh");
   const [editEmotion, setEditEmotion] = useState<any>("Bình thường");
   const [editNotes, setEditNotes] = useState("");
+  const [editCskhStage, setEditCskhStage] = useState<any>("new");
 
   // Webhook Simulator State
   const [selectedWebhookChannel, setSelectedWebhookChannel] = useState<"zalo" | "facebook">("zalo");
@@ -374,6 +374,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       setEditPronoun(activeConv.pronoun || "anh");
       setEditEmotion(activeConv.currentEmotion || "Bình thường");
       setEditNotes(activeConv.internalNotes || "");
+      setEditCskhStage((activeConv as any).cskhStage || "new");
     }
   }, [activeConvId, conversations]);
 
@@ -652,10 +653,20 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           };
           localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...currentOrders]));
           setOrders([newOrder, ...currentOrders]);
+
+          // Automatically advance CSKH stage to Chốt đơn
+          const updatedConvs = conversations.map(c => {
+            if (c.id === activeConvId) {
+              return { ...c, cskhStage: "closed_won" as const };
+            }
+            return c;
+          });
+          saveConversations(updatedConvs);
+          setEditCskhStage("closed_won");
           
           toast({
             title: "Tự động chốt đơn thành công! 🛍️",
-            description: `Hệ thống phát hiện đủ SĐT & Địa chỉ, đã tự tạo đơn ${orderId}.`
+            description: `Hệ thống phát hiện đủ SĐT & Địa chỉ, đã tự tạo đơn ${orderId} và chuyển trạng thái chốt đơn.`
           });
         }
       }, 1000);
@@ -673,7 +684,8 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           classification: editClassification,
           pronoun: editPronoun,
           currentEmotion: editEmotion,
-          internalNotes: editNotes
+          internalNotes: editNotes,
+          cskhStage: editCskhStage
         };
       }
       return c;
@@ -681,7 +693,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
     saveConversations(updated);
     toast({
       title: "Cập nhật thành công! 💾",
-      description: "Hồ sơ đối tác và thông tin xưng hô đã được cập nhật thành công."
+      description: "Hồ sơ đối tác, quy trình CSKH và thông tin xưng hô đã được cập nhật."
     });
   };
 
@@ -1777,6 +1789,59 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           </CardHeader>
           
           <CardContent className="p-4 space-y-3">
+            {/* Quy trình CSKH Stepper */}
+            <div className="space-y-1.5 border-b border-border pb-3">
+              <Label className="text-[10px] text-muted-foreground font-semibold flex items-center justify-between">
+                <span>Quy trình CSKH</span>
+                <span className="font-bold text-primary text-[10px]">
+                  {editCskhStage === "new" && "Tiếp cận 🆕"}
+                  {editCskhStage === "consulting" && "Đang tư vấn 💬"}
+                  {editCskhStage === "quoted" && "Báo giá 💰"}
+                  {editCskhStage === "closed_won" && "Chốt đơn 🎉"}
+                  {editCskhStage === "post_purchase" && "Chăm sóc ❤️"}
+                </span>
+              </Label>
+              
+              {/* Stepper visual bar */}
+              <div className="flex items-center justify-between gap-1 mt-1">
+                {[
+                  { stage: "new", label: "Mới" },
+                  { stage: "consulting", label: "Tư vấn" },
+                  { stage: "quoted", label: "Báo giá" },
+                  { stage: "closed_won", label: "Chốt" },
+                  { stage: "post_purchase", label: "CSKH" }
+                ].map((item, index) => {
+                  const stages = ["new", "consulting", "quoted", "closed_won", "post_purchase"];
+                  const currentIdx = stages.indexOf(editCskhStage);
+                  const itemIdx = stages.indexOf(item.stage);
+                  const isCompleted = itemIdx < currentIdx;
+                  const isActive = item.stage === editCskhStage;
+                  
+                  return (
+                    <div key={item.stage} className="flex-1 flex flex-col items-center relative">
+                      {/* Step node */}
+                      <button
+                        onClick={() => setEditCskhStage(item.stage as any)}
+                        className={cn(
+                          "h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold transition-all border",
+                          isActive 
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : isCompleted
+                              ? "bg-emerald-500 text-white border-emerald-500"
+                              : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                        )}
+                        title={item.label}
+                      >
+                        {isCompleted ? "✓" : index + 1}
+                      </button>
+                      <span className="text-[8px] text-muted-foreground mt-1 scale-90 origin-center truncate max-w-full">
+                        {item.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
             {activeConv.onboardingLog && (
               <div className="p-2 border border-blue-200 bg-blue-500/5 text-blue-600 dark:text-blue-400 text-[10px] rounded-lg leading-relaxed">
                 {activeConv.onboardingLog}
