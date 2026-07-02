@@ -204,7 +204,7 @@ export function ZaloPersonalTab() {
       {/* Top row: Multi-Account Manager & Group settings list */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         
-        {/* Accounts List (Col span 5) */}
+        {/* Accounts List */}
         <Card className="xl:col-span-5 border border-border shadow-none">
           <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
             <div>
@@ -253,7 +253,7 @@ export function ZaloPersonalTab() {
           </CardContent>
         </Card>
 
-        {/* Zalo Group Settings Moderation (Col span 7) */}
+        {/* Zalo Group Settings Moderation */}
         <Card className="xl:col-span-7 border border-border shadow-none">
           <CardHeader className="p-4 border-b">
             <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
@@ -333,7 +333,7 @@ export function ZaloPersonalTab() {
           <CardContent className="p-4 space-y-4">
             <div className="space-y-1">
               <div className="flex justify-between items-center">
-                <Label className="font-semibold text-muted-foreground">Nội dung tin nhắn (Hỗ trợ cấu trúc SpinTax)</Label>
+                <Label className="font-semibold text-muted-foreground">Nội dung tin nhắn (SpinTax)</Label>
                 <span className="text-[9px] text-muted-foreground font-mono">Ví dụ: Chào &#123;bạn|anh|chị&#125;</span>
               </div>
               <textarea
@@ -465,17 +465,31 @@ export function ZaloPersonalTab() {
         </Card>
       </div>
 
-      {/* Bot Activity Console terminal */}
+      {/* Bot Activity Console */}
       <Card className="border border-border shadow-none">
         <CardHeader className="p-4 border-b">
           <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-            <ClipboardList className="h-4 w-4 text-slate-500 animate-pulse" />
+            <ClipboardList className="h-4 w-4 text-slate-500" />
             Bảng điều khiển & log hoạt động của Bot (Bot Console Logs)
           </CardTitle>
           <CardDescription className="text-[10px] mt-0.5">Cập nhật hoạt động quét nhóm chat, xóa link spam, tự trả lời theo giây</CardDescription>
         </CardHeader>
         <CardContent className="p-3">
-          <div className="h-44 p-3.5 border rounded bg-slate-950 dark:bg-slate-900 font-mono text-[10p      {/* QR Code login simulator dialog */}
+          <div className="h-44 p-3.5 border rounded bg-slate-950 dark:bg-slate-900 font-mono text-[10px] text-blue-400 overflow-y-auto leading-relaxed shadow-inner">
+            {logs.length === 0 ? (
+              <span className="text-muted-foreground/45 italic block mt-12 text-center">[ Chưa có hoạt động nào phát sinh. Kích hoạt QR hoặc chạy chiến dịch để xem log ]</span>
+            ) : (
+              logs.map((log, index) => (
+                <div key={index} className="mb-1.5 last:mb-0 hover:bg-slate-900/50 py-0.5 rounded px-1 transition-colors">
+                  <span className="text-emerald-500">&gt;&gt;&gt;</span> {log}
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* QR Code login simulator dialog */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="w-full max-w-sm border border-border shadow-xl bg-background overflow-hidden">
@@ -557,34 +571,6 @@ export function ZaloPersonalTab() {
                   setShowQRModal(false);
                   setQrProgress(0);
                   setIsScanning(false);
-                }}
-                className="w-full h-8 text-xs font-semibold mt-2"
-              >
-                Hủy bỏ
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
-  );
-}    </div>
-      )}
-    </div>
-  );
-}...</p>
-                  <div className="w-24 bg-slate-700 h-1 rounded-full mt-2 overflow-hidden">
-                    <div className="bg-blue-400 h-full transition-all duration-300" style={{ width: `${qrProgress}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowQRModal(false);
-                  setQrProgress(0);
                 }}
                 className="w-full h-8 text-xs font-semibold mt-2"
               >
