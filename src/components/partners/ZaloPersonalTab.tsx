@@ -524,8 +524,12 @@ export function ZaloPersonalTab() {
 
               {/* QR Simulator box */}
               <div className="relative border p-3.5 rounded-lg bg-white mt-2 flex flex-col items-center">
-                <div className="w-40 h-40 bg-slate-100 flex items-center justify-center border-dashed border-2 rounded">
-                  <QrCode className="w-24 h-24 text-slate-800" />
+                <div className="w-40 h-40 flex items-center justify-center border rounded overflow-hidden p-1 bg-white">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://zalo.me/${newAccPhone || "0988776655"}`}
+                    alt="Zalo QR Code"
+                    className="w-36 h-36 object-contain"
+                  />
                 </div>
                 {isScanning && (
                   <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center text-white p-3 text-[10px] font-semibold">
