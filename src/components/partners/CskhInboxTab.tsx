@@ -118,6 +118,7 @@ interface APIFeature {
   count: string;
   rate?: string;
   enabled: boolean;
+  channels: ("zalo" | "facebook" | "telegram" | "web")[];
 }
 
 export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) {
