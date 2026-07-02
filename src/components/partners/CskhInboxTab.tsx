@@ -1100,105 +1100,60 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 Áp dụng câu trả lời
               </Button>
             </div>
-            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 italic">{aiSuggestedReply}</p>
-          </div>
-        )}
-
-        {/* Message Input Box */}
-        <div className="p-3 border-t bg-background/50 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-b pb-1.5 mb-0.5">
-            <span className="font-semibold">Vai trò gửi tin nhắn (Thử nghiệm live):</span>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setChatRole("agent")}
-                className={cn(
-                  "px-2 py-0.5 rounded transition-colors text-[9px] font-bold",
-                  chatRole === "agent" ? "bg-primary text-primary-foreground" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-foreground"
-                )}
-              >
-                Nhân viên (Shop)
-              </button>
-              <button
-                onClick={() => setChatRole("customer")}
-                className={cn(
-                  "px-2 py-0.5 rounded transition-colors text-[9px] font-bold",
-                  chatRole === "customer" ? "bg-indigo-500 text-white" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-foreground"
-                )}
-              >
-                Khách hàng
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Input 
-              placeholder={chatRole === "agent" ? "Nhập tin nhắn phản hồi của nhân viên..." : "Nhập tin nhắn giả lập của khách hàng gửi..."}
-              value={replyText}
-              onChange={e => setReplyText(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSendMessage()}
-              className="h-8.5 text-xs bg-background"
-            />
-            <Button onClick={handleSendMessage} size="icon" className="h-8.5 w-8.5 flex-shrink-0">
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Column 3: CRM Profile Details (Match layout reference: Left Panel) */}
+            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 i      {/* Column 3: CRM Profile Details (Match layout reference: Left Panel - White/Adaptive styling) */}
       <div className="xl:col-span-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4 h-full overflow-y-auto">
-        <Card className="border-border/45 bg-slate-900/90 text-slate-100 backdrop-blur-md shadow-xl flex flex-col justify-between">
-          <CardHeader className="p-4 border-b border-slate-800 flex flex-row items-center justify-between">
+        <Card className="border-border bg-card text-card-foreground shadow-sm flex flex-col justify-between">
+          <CardHeader className="p-4 border-b border-border flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-sm border border-primary/30">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-sm border border-primary/20">
                 {editName.charAt(0) || "K"}
               </div>
               <div>
-                <CardTitle className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                <CardTitle className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   {editName}
                 </CardTitle>
                 <div className="flex gap-1.5 mt-1">
-                  <Badge variant="secondary" className="text-[8px] px-1.5 py-0 bg-slate-800 text-slate-300 border-none uppercase font-bold">
+                  <Badge variant="secondary" className="text-[8px] px-1.5 py-0 bg-secondary text-secondary-foreground border-none uppercase font-bold">
                     {editClassification}
                   </Badge>
                   <Badge className={cn(
                     "text-[8px] px-1.5 py-0 font-bold border-none",
-                    editEmotion === "Vui vẻ" ? "bg-emerald-500/20 text-emerald-400" : editEmotion === "Lo lắng" ? "bg-amber-500/20 text-amber-400" : "bg-slate-800 text-slate-300"
+                    editEmotion === "Vui vẻ" ? "bg-emerald-500/10 text-emerald-600" : editEmotion === "Lo lắng" ? "bg-amber-500/10 text-amber-600" : "bg-secondary text-secondary-foreground"
                   )}>
                     {editEmotion.toUpperCase()}
                   </Badge>
                 </div>
               </div>
             </div>
-            <span className="text-[9px] text-slate-400">Nhóm: Nhắc Việc</span>
+            <span className="text-[9px] text-muted-foreground">Nhóm: Nhắc Việc</span>
           </CardHeader>
           
           <CardContent className="p-4 space-y-3">
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-300 font-semibold">Họ và tên</Label>
+              <Label className="text-[10px] text-muted-foreground font-semibold">Họ và tên</Label>
               <Input 
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
-                className="h-8 text-xs bg-slate-950 border-slate-800 text-slate-100 focus:border-primary" 
+                className="h-8 text-xs bg-background border-border text-foreground focus-visible:ring-primary" 
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-300 font-semibold">Số điện thoại</Label>
+              <Label className="text-[10px] text-muted-foreground font-semibold">Số điện thoại</Label>
               <Input 
                 value={editPhone}
                 placeholder="Chưa cập nhật SĐT"
                 onChange={e => setEditPhone(e.target.value)}
-                className="h-8 text-xs bg-slate-950 border-slate-800 text-slate-100 focus:border-primary font-mono" 
+                className="h-8 text-xs bg-background border-border text-foreground focus-visible:ring-primary font-mono" 
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-300 font-semibold">Phân loại</Label>
+              <Label className="text-[10px] text-muted-foreground font-semibold">Phân loại</Label>
               <select 
                 value={editClassification}
                 onChange={e => setEditClassification(e.target.value as any)}
-                className="w-full rounded-md h-8 text-xs bg-slate-950 border border-slate-800 text-slate-100 p-1.5 focus:border-primary"
+                className="w-full rounded-md h-8 text-xs bg-background border border-border text-foreground p-1.5 focus:ring-1 focus:ring-primary"
               >
                 <option value="Khách thường">Khách thường</option>
                 <option value="Khách VIP">Khách VIP</option>
@@ -1208,11 +1163,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-300 font-semibold">Danh xưng / Xưng hô</Label>
+              <Label className="text-[10px] text-muted-foreground font-semibold">Danh xưng / Xưng hô</Label>
               <select 
                 value={editPronoun}
                 onChange={e => setEditPronoun(e.target.value as any)}
-                className="w-full rounded-md h-8 text-xs bg-slate-950 border border-slate-800 text-slate-100 p-1.5 focus:border-primary"
+                className="w-full rounded-md h-8 text-xs bg-background border border-border text-foreground p-1.5 focus:ring-1 focus:ring-primary"
               >
                 <option value="anh">Anh (Bot gọi Anh, xưng em)</option>
                 <option value="chị">Chị (Bot gọi Chị, xưng em)</option>
@@ -1221,11 +1176,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-300 font-semibold">Cảm xúc hiện tại (AI tự nhận diện / Tự cấu hình)</Label>
+              <Label className="text-[10px] text-muted-foreground font-semibold">Cảm xúc hiện tại (AI tự nhận diện / Tự cấu hình)</Label>
               <select 
                 value={editEmotion}
                 onChange={e => setEditEmotion(e.target.value as any)}
-                className="w-full rounded-md h-8 text-xs bg-slate-950 border border-slate-800 text-slate-100 p-1.5 focus:border-primary"
+                className="w-full rounded-md h-8 text-xs bg-background border border-border text-foreground p-1.5 focus:ring-1 focus:ring-primary"
               >
                 <option value="Bình thường">Bình thường 😐</option>
                 <option value="Vui vẻ">Vui vẻ 😊</option>
@@ -1235,11 +1190,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-300 font-semibold">Ghi chú nội bộ</Label>
+              <Label className="text-[10px] text-muted-foreground font-semibold">Ghi chú nội bộ</Label>
               <Textarea 
                 value={editNotes}
                 onChange={e => setEditNotes(e.target.value)}
-                className="h-16 text-xs bg-slate-950 border-slate-800 text-slate-100 focus:border-primary p-2"
+                className="h-16 text-xs bg-background border-border text-foreground focus-visible:ring-primary p-2"
                 placeholder="Test notes"
               />
             </div>
@@ -1254,10 +1209,10 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         </Card>
 
         {/* Right Panel: Bot Memories & Emotion Waves Chart */}
-        <Card className="border-border/45 bg-slate-900/90 text-slate-100 backdrop-blur-md shadow-xl">
-          <CardHeader className="p-4 border-b border-slate-800">
-            <CardTitle className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-              <Brain className="h-4 w-4 text-emerald-400" />
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
+          <CardHeader className="p-4 border-b border-border">
+            <CardTitle className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Brain className="h-4 w-4 text-emerald-500" />
               Ghi nhớ dài hạn của Bot
             </CardTitle>
           </CardHeader>
@@ -1270,7 +1225,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 value={newMemoryText}
                 onChange={e => setNewMemoryText(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddMemoryFact()}
-                className="h-8 text-xs bg-slate-950 border-slate-800 text-slate-100 focus:border-primary"
+                className="h-8 text-xs bg-background border-border text-foreground focus-visible:ring-primary"
               />
               <Button 
                 onClick={handleAddMemoryFact}
@@ -1284,7 +1239,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             {/* Memories List */}
             <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
               {memories.filter(m => m.customerPhone === activeConv.customerPhone).length === 0 ? (
-                <div className="text-center py-4 text-slate-500 italic text-[10px] border border-dashed border-slate-800 rounded bg-slate-950/30">
+                <div className="text-center py-4 text-muted-foreground italic text-[10px] border border-dashed border-border rounded bg-muted/20">
                   Chưa có ghi nhớ nào.
                 </div>
               ) : (
@@ -1293,17 +1248,17 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                   .map((mem) => (
                     <div 
                       key={mem.id}
-                      className="p-2 border border-slate-800 rounded bg-slate-950/40 text-[10px] flex items-center justify-between hover:bg-slate-950/80 transition-colors"
+                      className="p-2 border border-border rounded bg-muted/10 text-[10px] flex items-center justify-between hover:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-200">{mem.fact}</span>
-                        <Badge variant="outline" className="text-[7px] px-1 bg-blue-500/10 text-blue-400 border-blue-500/30 font-bold flex-shrink-0">
+                        <span className="text-foreground">{mem.fact}</span>
+                        <Badge variant="outline" className="text-[7px] px-1 bg-blue-500/10 text-blue-500 border-blue-500/20 font-bold flex-shrink-0">
                           Quan trọng
                         </Badge>
                       </div>
                       <button 
                         onClick={() => handleDeleteMemoryFact(mem.id)}
-                        className="text-slate-400 hover:text-red-400 transition-colors"
+                        className="text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -1313,26 +1268,26 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             </div>
 
             {/* Neon Sentiment wave chart */}
-            <div className="border-t border-slate-800 pt-3.5 space-y-2">
-              <Label className="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+            <div className="border-t border-border pt-3.5 space-y-2">
+              <Label className="text-[10px] font-bold text-foreground flex items-center gap-1">
                 <Heart className="h-3.5 w-3.5 text-pink-500 animate-pulse" /> Biểu đồ Biến động Tâm lý khách hàng
               </Label>
-              <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2 relative">
+              <div className="bg-slate-50/80 dark:bg-slate-950/80 border border-border rounded-lg p-2 relative">
                 {/* SVG Sentiment Wave Chart */}
                 <svg viewBox="0 0 300 120" className="w-full h-24 overflow-visible">
                   {/* Glow filter */}
                   <defs>
                     <linearGradient id="chartGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#ec4899" stopOpacity="0.4" />
+                      <stop offset="0%" stopColor="#ec4899" stopOpacity="0.3" />
                       <stop offset="100%" stopColor="#ec4899" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
 
                   {/* Horizontal dotted guide lines */}
-                  <line x1="40" y1="15" x2="290" y2="15" stroke="#334155" strokeDasharray="2 3" />
-                  <line x1="40" y1="45" x2="290" y2="45" stroke="#334155" strokeDasharray="2 3" />
-                  <line x1="40" y1="75" x2="290" y2="75" stroke="#334155" strokeDasharray="2 3" />
-                  <line x1="40" y1="105" x2="290" y2="105" stroke="#334155" strokeDasharray="2 3" />
+                  <line x1="40" y1="15" x2="290" y2="15" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeDasharray="2 3" />
+                  <line x1="40" y1="45" x2="290" y2="45" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeDasharray="2 3" />
+                  <line x1="40" y1="75" x2="290" y2="75" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeDasharray="2 3" />
+                  <line x1="40" y1="105" x2="290" y2="105" stroke="#e2e8f0" className="dark:stroke-slate-800" strokeDasharray="2 3" />
 
                   {/* Y Axis Labels */}
                   <text x="5" y="18" fill="#10b981" className="text-[8px] font-bold">Vui</text>
@@ -1345,9 +1300,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                     d="M 60 75 L 110 45 L 160 15 L 210 75 L 260 45" 
                     fill="none" 
                     stroke="#ec4899" 
-                    strokeWidth="2.5" 
+                    strokeWidth="2" 
                     strokeLinecap="round"
-                    className="drop-shadow-[0_0_6px_#ec4899]"
+                    className="drop-shadow-[0_0_4px_#ec4899]"
                   />
                   
                   {/* Area fill */}
@@ -1357,11 +1312,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                   />
 
                   {/* Dot points */}
-                  <circle cx="60" cy="75" r="4.5" fill="#f59e0b" stroke="#0f172a" strokeWidth="1.5" />
-                  <circle cx="110" cy="45" r="4.5" fill="#a855f7" stroke="#0f172a" strokeWidth="1.5" />
-                  <circle cx="160" cy="15" r="4.5" fill="#10b981" stroke="#0f172a" strokeWidth="1.5" />
-                  <circle cx="210" cy="75" r="4.5" fill="#f59e0b" stroke="#0f172a" strokeWidth="1.5" />
-                  <circle cx="260" cy="45" r="4.5" fill="#a855f7" stroke="#0f172a" strokeWidth="1.5" />
+                  <circle cx="60" cy="75" r="4" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx="110" cy="45" r="4" fill="#a855f7" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx="160" cy="15" r="4" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx="210" cy="75" r="4" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx="260" cy="45" r="4" fill="#a855f7" stroke="#ffffff" strokeWidth="1.5" />
 
                   {/* Dot labels */}
                   <text x="50" y="118" fill="#64748b" className="text-[7px]">15:38</text>
@@ -1369,6 +1324,47 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                   <text x="150" y="118" fill="#64748b" className="text-[7px]">15:41</text>
                   <text x="200" y="118" fill="#64748b" className="text-[7px]">15:42</text>
                   <text x="250" y="118" fill="#64748b" className="text-[7px]">02-07</text>
+                </svg>
+              </div>
+            </div>
+
+            {/* Lịch sử thay đổi cảm xúc list (Match layout reference: Right Panel Bottom) */}
+            <div className="border-t border-border pt-3.5 space-y-2">
+              <Label className="text-[10px] font-bold text-foreground">Lịch sử thay đổi</Label>
+              <div className="space-y-1 text-[9px] bg-muted/10 p-2 rounded border border-border divide-y divide-border">
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-muted-foreground font-mono">15:41 02-07</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-foreground">Lo lắng 😰</span>
+                    <span className="w-1.5 h-3 bg-amber-500 rounded-sm" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-muted-foreground font-mono">15:39 02-07</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-foreground">Bình thường 😐</span>
+                    <span className="w-1.5 h-3 bg-slate-400 rounded-sm" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-muted-foreground font-mono">15:38 02-07</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-foreground">Vui vẻ 😊</span>
+                    <span className="w-1.5 h-3 bg-emerald-500 rounded-sm" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-muted-foreground font-mono">12:32 25-06</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-foreground">Bình thường 😐</span>
+                    <span className="w-1.5 h-3 bg-slate-400 rounded-sm" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>x]">02-07</text>
                 </svg>
               </div>
             </div>
