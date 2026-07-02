@@ -21,6 +21,7 @@ import { useProductCategories } from "@/hooks/useProductCategories";
 import { ProductDetailDialog } from "@/components/orders/ProductDetailDialog";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/orderControl";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { asJson, calculateOrderQualityScore, recordRawEvent } from "@/lib/dataHub";
 
 type Product = Tables<"products">;
@@ -90,10 +91,53 @@ export default function PublicOrder() {
   const { shippingZones, calculateShippingFee } = useShippingZones();
   const { activeCategories } = useProductCategories();
 
+  const isLocalDev = typeof window !== "undefined" && (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname.startsWith("192.168.") ||
+    window.location.hostname.startsWith("10.") ||
+    window.location.hostname.startsWith("172.") ||
+    import.meta.env.DEV
+  );
+
+  const fetchLocalDemoData = async () => {
+    try {
+      const res = await fetch("/api/local-demo-data");
+      if (!res.ok) return null;
+      const result = await res.json();
+      const data = result.data || {};
+      
+      const products = data["erp-mini-local-demo-products"] ? JSON.parse(data["erp-mini-local-demo-products"]) : [];
+      const stock = data["erp-mini-local-demo-warehouse-stock"] ? JSON.parse(data["erp-mini-local-demo-warehouse-stock"]) : [];
+      const warehouses = data["erp-mini-local-demo-warehouses"] ? JSON.parse(data["erp-mini-local-demo-warehouses"]) : [];
+      
+      let shopSettings = [];
+      if (data["erp-mini-local-demo-shop-settings"]) {
+        try {
+          shopSettings = JSON.parse(data["erp-mini-local-demo-shop-settings"]);
+        } catch {
+          shopSettings = [];
+        }
+      }
+
+      return { products, stock, warehouses, shopSettings };
+    } catch (err) {
+      console.error("Failed to fetch local demo data:", err);
+      return null;
+    }
+  };
+
   // Fetch products
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["public-products"],
+    queryKey: ["public-products", isLocalDev],
     queryFn: async () => {
+      if (isLocalDev) {
+        const localData = await fetchLocalDemoData();
+        if (localData) {
+          return localData.products.filter((p: any) => p.is_active !== false && p.stock_quantity > 0) as Product[];
+        }
+      }
+      
       const { data, error } = await supabase
         .from("products")
         .select("*")
@@ -107,9 +151,26 @@ export default function PublicOrder() {
 
   // Fetch warehouses with stock
   const { data: warehousesWithStock = [] } = useQuery({
-    queryKey: ["public-warehouses-stock", selectedProduct?.id],
+    queryKey: ["public-warehouses-stock", selectedProduct?.id, isLocalDev],
     queryFn: async () => {
       if (!selectedProduct) return [];
+      
+      if (isLocalDev) {
+        const localData = await fetchLocalDemoData();
+        if (localData) {
+          const productStock = localData.stock.filter((s: any) => s.product_id === selectedProduct.id && s.quantity > 0);
+          return productStock.map((s: any) => {
+            const wh = localData.warehouses.find((w: any) => w.id === s.warehouse_id);
+            return wh ? {
+              id: wh.id,
+              name: wh.name,
+              address: wh.address || null,
+              phone: wh.phone || null,
+              quantity: s.quantity,
+            } : null;
+          }).filter(Boolean) as WarehouseInfo[];
+        }
+      }
       
       const { data: stockData, error: stockError } = await supabase
         .from("warehouse_stock")
@@ -137,8 +198,13 @@ export default function PublicOrder() {
 
   // Fetch shop settings
   const { data: bankInfo } = useQuery({
-    queryKey: ["shop_settings", "bank_info"],
+    queryKey: ["shop_settings", "bank_info", isLocalDev],
     queryFn: async () => {
+      if (isLocalDev) {
+        const localData = await fetchLocalDemoData();
+        const found = localData?.shopSettings?.find((s: any) => s.key === "bank_info");
+        if (found) return found.value as BankInfo;
+      }
       const { data, error } = await supabase
         .from("shop_settings")
         .select("value")
@@ -150,8 +216,13 @@ export default function PublicOrder() {
   });
 
   const { data: shopInfo } = useQuery({
-    queryKey: ["shop_settings", "shop_info"],
+    queryKey: ["shop_settings", "shop_info", isLocalDev],
     queryFn: async () => {
+      if (isLocalDev) {
+        const localData = await fetchLocalDemoData();
+        const found = localData?.shopSettings?.find((s: any) => s.key === "shop_info");
+        if (found) return found.value as ShopInfo;
+      }
       const { data, error } = await supabase
         .from("shop_settings")
         .select("value")
@@ -200,7 +271,7 @@ export default function PublicOrder() {
   const createOrderMutation = useMutation({
     mutationFn: async () => {
       const orderNum = `PO${Date.now().toString().slice(-8)}`;
-      const storefrontCompanyId = cart.find(item => item.product.company_id)?.product.company_id || null;
+      const storefrontCompanyId = cart.find(item => item.product.company_id)?.product.company_id || "demo";
       
       // Build shipping address and notes
       let shippingAddress = `${customerInfo.name} - ${customerInfo.phone}\n`;
@@ -219,12 +290,91 @@ export default function PublicOrder() {
       if (customerInfo.notes) {
         notes += `\n${customerInfo.notes}`;
       }
+
+      if (isLocalDev) {
+        // Fetch current local data from the dev server
+        const getRes = await fetch("/api/local-demo-data");
+        const getResult = await getRes.json();
+        const serverData = getResult.data || {};
+        
+        // Parse existing orders
+        const localOrders = serverData["erp-mini-local-demo-orders"] 
+          ? JSON.parse(serverData["erp-mini-local-demo-orders"]) 
+          : [];
+          
+        const orderId = `local-ord-${Date.now()}`;
+        const newOrder = {
+          id: orderId,
+          order_number: orderNum,
+          company_id: storefrontCompanyId,
+          source_type: "public_store",
+          order_type: "b2c",
+          status: "pending",
+          customer_name: customerInfo.name,
+          customer_phone: normalizePhone(customerInfo.phone),
+          customer_address: allPickupItems ? shippingAddress : `${customerInfo.address}, ${customerInfo.province}`,
+          shipping_province: allPickupItems ? null : customerInfo.province,
+          payment_method: paymentMethod === "cod" ? "cod" : "bank_transfer",
+          subtotal: cartSubtotal,
+          shipping_fee: shippingFee,
+          voucher_id: appliedVoucher?.id || null,
+          voucher_discount: voucherDiscount,
+          discount: voucherDiscount,
+          total: cartTotal,
+          shipping_address: shippingAddress,
+          notes: notes,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          order_items: cart.map(item => ({
+            id: `local-item-${Math.random()}`,
+            order_id: orderId,
+            product_id: item.product.id,
+            quantity: item.quantity,
+            unit_price: item.product.selling_price || 0,
+            total: (item.product.selling_price || 0) * item.quantity,
+            products: {
+              id: item.product.id,
+              name: item.product.name,
+              sku: item.product.sku,
+            }
+          }))
+        };
+        
+        localOrders.unshift(newOrder);
+        serverData["erp-mini-local-demo-orders"] = JSON.stringify(localOrders);
+        
+        // Push back to server
+        const postRes = await fetch("/api/local-demo-data", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data: serverData }),
+        });
+        
+        if (!postRes.ok) throw new Error("Không thể gửi đơn hàng lên local server");
+        
+        // Also update local storage if client is matching local (to sync UI instantly if checkout is done on the host machine)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(localOrders));
+        }
+
+        return { 
+          orderNum, 
+          total: cartTotal, 
+          items: cart.map(item => ({
+            product: item.product,
+            quantity: item.quantity,
+            total: (item.product.selling_price || 0) * item.quantity,
+          })) 
+        };
+      }
       
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .insert({
           order_number: orderNum,
-          company_id: storefrontCompanyId,
+          company_id: storefrontCompanyId === "demo" ? null : storefrontCompanyId,
           source_type: "public_store",
           order_type: "b2c",
           status: "pending",
@@ -246,7 +396,7 @@ export default function PublicOrder() {
         .single();
       
       if (orderError) throw orderError;
-
+ 
       const items = cart.map(item => ({
         order_id: orderData.id,
         product_id: item.product.id,
@@ -254,14 +404,14 @@ export default function PublicOrder() {
         unit_price: item.product.selling_price || 0,
         total: (item.product.selling_price || 0) * item.quantity,
       }));
-
+ 
       const { error: itemsError } = await supabase
         .from("order_items")
         .insert(items);
-
+ 
       if (itemsError) throw itemsError;
-
-      if (storefrontCompanyId) {
+ 
+      if (storefrontCompanyId && storefrontCompanyId !== "demo") {
         await recordRawEvent({
           company_id: storefrontCompanyId,
           source_type: "public_store",
@@ -304,12 +454,12 @@ export default function PublicOrder() {
           processed_at: new Date().toISOString(),
         });
       }
-
+ 
       // Apply voucher usage
       if (appliedVoucher) {
         await applyVoucher(appliedVoucher.id);
       }
-
+ 
       return { orderNum, total: cartTotal, items: cart.map(item => ({
         product: item.product,
         quantity: item.quantity,

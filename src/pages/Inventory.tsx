@@ -41,6 +41,7 @@ import { ProductImportDialog } from "@/components/inventory/ProductImportDialog"
 import { BomDialog } from "@/components/products/BomDialog";
 import { ProductVariantsDialog } from "@/components/products/ProductVariantsDialog";
 import { UnitConversionsDialog } from "@/components/products/UnitConversionsDialog";
+import { ProductStockHistoryDialog } from "@/components/inventory/ProductStockHistoryDialog";
 import { exportProductsToExcel, exportInventoryToExcel } from "@/lib/exportExcel";
 import {
   AlertDialog,
@@ -81,6 +82,8 @@ const Inventory = () => {
   const [variantsProduct, setVariantsProduct] = useState<any>(null);
   const [uomDialogOpen, setUomDialogOpen] = useState(false);
   const [uomProduct, setUomProduct] = useState<any>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState<any>(null);
 
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -126,14 +129,32 @@ const Inventory = () => {
   const { startDate, endDate } = useGlobalDateFilter();
 
   const filteredTransactions = useMemo(() => {
+    const typeFilter = searchParams.get("type");
     return transactions.filter((tx: any) => {
       if (!tx.created_at) return true;
       const txDateStr = tx.created_at.split("T")[0];
       if (startDate && txDateStr < startDate) return false;
       if (endDate && txDateStr > endDate) return false;
+
+      if (typeFilter === "in") {
+        return tx.quantity > 0;
+      }
+      if (typeFilter === "out") {
+        return tx.quantity < 0;
+      }
+      if (typeFilter === "damaged") {
+        const notes = (tx.notes || "").toLowerCase();
+        return tx.quantity < 0 && (
+          notes.includes("hỏng") || 
+          notes.includes("lỗi") || 
+          notes.includes("hao hụt") || 
+          notes.includes("damaged") || 
+          notes.includes("hủy")
+        );
+      }
       return true;
     });
-  }, [transactions, startDate, endDate]);
+  }, [transactions, startDate, endDate, searchParams]);
 
   // Filter products - exclude service items from stock calculations
   const physicalProducts = products.filter(p => p.is_service !== true);
@@ -147,6 +168,7 @@ const Inventory = () => {
   };
 
   const filteredProducts = useMemo(() => {
+    const filterParam = searchParams.get("filter");
     return products.filter((p) => {
       // Search filter
       const matchesSearch = 
@@ -163,10 +185,21 @@ const Inventory = () => {
         stockFilter === status ||
         (stockFilter === "physical" && !p.is_service) ||
         (stockFilter === "service" && p.is_service);
+
+      if (filterParam === "combo") {
+        const nameLower = p.name.toLowerCase();
+        const isComboName = nameLower.includes("combo") || nameLower.includes("bộ") || nameLower.includes("set");
+        // Giả lập/check thêm nếu sản phẩm có định mức BOM
+        return matchesSearch && matchesCategory && matchesStock && isComboName;
+      }
+
+      if (filterParam === "bom") {
+        return matchesSearch && matchesCategory && matchesStock && productsWithBom.includes(p.id);
+      }
       
       return matchesSearch && matchesCategory && matchesStock;
     });
-  }, [products, searchQuery, selectedCategory, stockFilter]);
+  }, [products, searchQuery, selectedCategory, stockFilter, searchParams]);
 
   const normalCount = physicalProducts.filter((p) => getStockStatus(p.stock_quantity || 0, p.min_stock || 0) === "normal").length;
   const lowCount = physicalProducts.filter((p) => getStockStatus(p.stock_quantity || 0, p.min_stock || 0) === "low").length;
@@ -188,20 +221,21 @@ const Inventory = () => {
   };
 
   const handleSubmit = async (data: any) => {
-    const { conversions, ...productData } = data;
+    const { conversions, is_combo, combo_items, ...productData } = data;
+    let savedProduct;
     if (editingProduct) {
-      await updateProduct.mutateAsync(productData);
+      savedProduct = await updateProduct.mutateAsync({ id: editingProduct.id, ...productData });
     } else {
-      const newProd = await createProduct.mutateAsync(productData);
-      if (newProd && conversions && conversions.length > 0) {
+      savedProduct = await createProduct.mutateAsync(productData);
+      if (savedProduct && conversions && conversions.length > 0) {
         const LOCAL_CONVERSIONS_KEY = "erp-mini-local-unit-conversions";
         const allConversions = JSON.parse(localStorage.getItem(LOCAL_CONVERSIONS_KEY) || "[]");
         conversions.forEach((c: any) => {
           allConversions.push({
             id: `conv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            product_id: newProd.id,
+            product_id: savedProduct.id,
             from_unit: c.from_unit,
-            to_unit: newProd.unit || "cái",
+            to_unit: savedProduct.unit || "cái",
             factor: Number(c.factor),
             is_active: true
           });
@@ -210,6 +244,21 @@ const Inventory = () => {
         queryClient.invalidateQueries({ queryKey: ["unit-conversions"] });
       }
     }
+
+    if (savedProduct || editingProduct) {
+      const targetId = editingProduct ? editingProduct.id : savedProduct.id;
+      const rawCombos = localStorage.getItem("erp-mini-local-demo-combos");
+      const combos = rawCombos ? JSON.parse(rawCombos) : [];
+      const filtered = combos.filter((c: any) => c.id !== targetId);
+      if (is_combo) {
+        filtered.push({
+          id: targetId,
+          items: combo_items || []
+        });
+      }
+      localStorage.setItem("erp-mini-local-demo-combos", JSON.stringify(filtered));
+    }
+
     setDialogOpen(false);
     setEditingProduct(null);
   };
@@ -308,107 +357,154 @@ const Inventory = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-            <TabsList className="w-full lg:w-auto">
-              <TabsTrigger value="products" className="gap-2 flex-1 lg:flex-none">
+          <div className="flex justify-between items-center mb-4">
+            <TabsList className="w-full sm:w-auto flex flex-wrap h-auto p-1 gap-1">
+              <TabsTrigger value="products" className="gap-2 px-4 py-2 text-xs flex-1 sm:flex-none">
                 <Package className="h-4 w-4" />
-                <span className="hidden sm:inline">Sản phẩm</span>
+                <span>Sản phẩm</span>
               </TabsTrigger>
-              <TabsTrigger value="transactions" className="gap-2 flex-1 lg:flex-none">
+              <TabsTrigger value="transactions" className="gap-2 px-4 py-2 text-xs flex-1 sm:flex-none">
                 <History className="h-4 w-4" />
-                <span className="hidden sm:inline">Lịch sử nhập xuất</span>
+                <span>Lịch sử nhập xuất</span>
               </TabsTrigger>
-              <TabsTrigger value="production" className="gap-2 flex-1 lg:flex-none">
+              <TabsTrigger value="production" className="gap-2 px-4 py-2 text-xs flex-1 sm:flex-none">
                 <Factory className="h-4 w-4" />
-                <span className="hidden sm:inline">Sản xuất</span>
+                <span>Sản xuất</span>
               </TabsTrigger>
-              <TabsTrigger value="picking" className="gap-2 flex-1 lg:flex-none">
+              <TabsTrigger value="picking" className="gap-2 px-4 py-2 text-xs flex-1 sm:flex-none">
                 <Layers className="h-4 w-4" />
-                <span className="hidden sm:inline">Nhặt & Đóng gói</span>
+                <span>Nhặt & Đóng gói</span>
               </TabsTrigger>
             </TabsList>
+          </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <div className="relative w-full sm:w-48">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm sản phẩm..."
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-36">
-                  <SelectValue placeholder="Danh mục" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả danh mục</SelectItem>
-                  {activeCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name}>
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-2 h-2 rounded-full" 
-                          style={{ backgroundColor: cat.color || '#3B82F6' }} 
-                        />
-                        {cat.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={stockFilter} onValueChange={setStockFilter}>
-                <SelectTrigger className="w-full sm:w-32">
-                  <SelectValue placeholder="Trạng thái" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả</SelectItem>
-                  <SelectItem value="normal">Đủ hàng</SelectItem>
-                  <SelectItem value="low">Sắp hết</SelectItem>
-                  <SelectItem value="critical">Hết hàng</SelectItem>
-                  <SelectItem value="service">Dịch vụ</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-success border-success hover:bg-success/10 flex-1 sm:flex-none"
-                  onClick={() => handleOpenStockDialog("in")}
-                >
-                  <ArrowDownLeft className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Nhập kho</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive border-destructive hover:bg-destructive/10 flex-1 sm:flex-none"
-                  onClick={() => handleOpenStockDialog("out")}
-                >
-                  <ArrowUpRight className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Xuất kho</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => activeTab === "products" ? exportProductsToExcel(products) : exportInventoryToExcel(transactions)}>
-                  <Download className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Xuất Excel</span>
-                </Button>
-                {canCreate("inventory") && (
-                  <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-                    <Upload className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Import</span>
-                  </Button>
+          {(activeTab === "products" || activeTab === "transactions") && (
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 p-3 mb-4 rounded-xl border bg-card/60 backdrop-blur-sm shadow-sm transition-all duration-300">
+              <div className="flex flex-wrap items-center gap-2 flex-1">
+                {activeTab === "products" && (
+                  <>
+                    <div className="relative w-full sm:w-56">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Tìm theo tên, SKU, barcode..."
+                        className="pl-9 h-9 text-xs"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-full sm:w-40 h-9 text-xs">
+                        <SelectValue placeholder="Danh mục" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả danh mục</SelectItem>
+                        {activeCategories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.name}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-2.5 h-2.5 rounded-full" 
+                                style={{ backgroundColor: cat.color || '#3B82F6' }} 
+                              />
+                              {cat.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={stockFilter} onValueChange={setStockFilter}>
+                      <SelectTrigger className="w-full sm:w-36 h-9 text-xs">
+                        <SelectValue placeholder="Trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                        <SelectItem value="normal">Đủ hàng</SelectItem>
+                        <SelectItem value="low">Sắp hết</SelectItem>
+                        <SelectItem value="critical">Hết hàng</SelectItem>
+                        <SelectItem value="service">Dịch vụ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </>
                 )}
-                {canCreate("inventory") && (
-                  <Button size="sm" onClick={() => handleOpenDialog()}>
-                    <Plus className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Thêm sản phẩm</span>
-                  </Button>
+                {activeTab === "transactions" && (
+                  <div className="text-xs font-medium text-muted-foreground py-2 px-1">
+                    Bộ lọc ngày báo cáo áp dụng từ thanh điều khiển trên cùng
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {activeTab === "products" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-success border-success/30 hover:border-success hover:bg-success/10 h-9 text-xs gap-1.5"
+                      onClick={() => handleOpenStockDialog("in")}
+                    >
+                      <ArrowDownLeft className="h-4 w-4" />
+                      Nhập kho
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive border-destructive/30 hover:border-destructive hover:bg-destructive/10 h-9 text-xs gap-1.5"
+                      onClick={() => handleOpenStockDialog("out")}
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                      Xuất kho
+                    </Button>
+                  </>
+                )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-9 text-xs gap-1.5"
+                  onClick={() => activeTab === "products" ? exportProductsToExcel(products) : exportInventoryToExcel(transactions)}
+                >
+                  <Download className="h-4 w-4" />
+                  Xuất Excel
+                </Button>
+                {activeTab === "products" && canCreate("inventory") && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-9 text-xs gap-1.5"
+                      onClick={() => setImportDialogOpen(true)}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Import
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="h-9 text-xs gap-1.5 bg-primary hover:bg-primary/90"
+                      onClick={() => handleOpenDialog()}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm sản phẩm
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
-          </div>
+          )}
 
-          <TabsContent value="products">
+          <TabsContent value="products" className="space-y-4">
+            {searchParams.get("filter") === "combo" && (
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Combo sản phẩm</h3>
+                  <p className="text-xs text-muted-foreground">Quản lý các gói sản phẩm, bộ sản phẩm ghép combo bán chung</p>
+                </div>
+                <Button
+                  onClick={() => handleOpenDialog()}
+                  className="h-9 text-xs gap-1.5 bg-primary hover:bg-primary/90 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Thêm combo mới
+                </Button>
+              </div>
+            )}
             <Card>
               <CardContent className="p-0 overflow-x-auto">
                 <table className="w-full min-w-[800px]">
@@ -438,7 +534,17 @@ const Inventory = () => {
                           <td className="p-3 sm:p-4 font-mono text-xs sm:text-sm text-muted-foreground">{product.sku}</td>
                           <td className="p-3 sm:p-4">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm text-foreground">{product.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setHistoryProduct(product);
+                                  setHistoryDialogOpen(true);
+                                }}
+                                className="font-medium text-sm text-foreground hover:text-primary hover:underline text-left transition-colors"
+                                title="Xem biến động kho"
+                              >
+                                {product.name}
+                              </button>
                               {isService && (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
                                   <Wrench className="h-3 w-3 mr-1" />
@@ -546,6 +652,20 @@ const Inventory = () => {
                                   <Scale className="h-4 w-4 text-emerald-600" />
                                 </Button>
                               )}
+                              {!isService && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                  title="Biến động kho"
+                                  onClick={() => {
+                                    setHistoryProduct(product);
+                                    setHistoryDialogOpen(true);
+                                  }}
+                                >
+                                  <History className="h-4 w-4 text-blue-600" />
+                                </Button>
+                              )}
                               {canEdit("inventory") && (
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(product)}>
                                   <Pencil className="h-4 w-4" />
@@ -561,6 +681,28 @@ const Inventory = () => {
                         </tr>
                       );
                     })}
+                    {filteredProducts.length > 0 && (
+                      <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-foreground">Tổng cộng</td>
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-foreground">
+                          {filteredProducts.length} sản phẩm
+                        </td>
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-muted-foreground hidden lg:table-cell">—</td>
+                        {hasFieldPermission("inventory", "cost_price") && (
+                          <td className="p-3 sm:p-4 text-xs sm:text-sm text-foreground">
+                            {filteredProducts.reduce((sum, p) => sum + (p.stock_quantity || 0) * (Number(p.cost_price) || 0), 0).toLocaleString("vi-VN")}đ
+                          </td>
+                        )}
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-foreground">
+                          {filteredProducts.reduce((sum, p) => sum + (p.stock_quantity || 0) * (Number(p.selling_price) || 0), 0).toLocaleString("vi-VN")}đ
+                        </td>
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-foreground">
+                          {filteredProducts.reduce((sum, p) => sum + (p.stock_quantity || 0), 0).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-muted-foreground hidden sm:table-cell">—</td>
+                        <td className="p-3 sm:p-4 text-xs sm:text-sm text-muted-foreground">—</td>
+                      </tr>
+                    )}
                     {filteredProducts.length === 0 && (
                       <tr>
                         <td colSpan={8} className="p-0">
@@ -576,9 +718,80 @@ const Inventory = () => {
                 </table>
               </CardContent>
             </Card>
+
+            {filteredProducts.length > 0 && (
+              <div className="mt-3 flex items-center justify-between flex-wrap gap-4 text-xs sm:text-sm text-muted-foreground bg-muted/20 border p-3 rounded-lg">
+                <div>
+                  Tổng số dòng sản phẩm: <span className="font-bold text-foreground">{filteredProducts.length}</span>
+                </div>
+                <div className="flex gap-4 sm:gap-6 flex-wrap">
+                  <div>
+                    Tổng số có thể bán: <span className="font-bold text-success">{filteredProducts.reduce((sum, p) => sum + (p.is_service ? 0 : (p.stock_quantity || 0)), 0).toLocaleString("vi-VN")}</span>
+                  </div>
+                  {hasFieldPermission("inventory", "cost_price") && (
+                    <div>
+                      Tổng tiền vốn tồn kho: <span className="font-bold text-foreground">{filteredProducts.reduce((sum, p) => sum + (p.is_service ? 0 : (p.stock_quantity || 0) * (Number(p.cost_price) || 0)), 0).toLocaleString("vi-VN")}đ</span>
+                    </div>
+                  )}
+                  <div>
+                    Tổng tiền có thể bán: <span className="font-bold text-primary">{filteredProducts.reduce((sum, p) => sum + (p.is_service ? 0 : (p.stock_quantity || 0) * (Number(p.selling_price) || 0)), 0).toLocaleString("vi-VN")}đ</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="transactions">
+          <TabsContent value="transactions" className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {searchParams.get("type") === "in" && "Lịch sử Nhập hàng"}
+                  {searchParams.get("type") === "out" && "Lịch sử Xuất hàng"}
+                  {searchParams.get("type") === "damaged" && "Danh sách Hàng lỗi / Hỏng"}
+                  {!searchParams.get("type") && "Lịch sử Nhập xuất kho"}
+                </h3>
+                <p className="text-xs text-muted-foreground">Theo dõi và cân đối biến động số lượng tồn kho</p>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {(searchParams.get("type") === "in" || !searchParams.get("type")) && (
+                  <Button
+                    onClick={() => {
+                      setStockDialogType("in");
+                      setStockDialogOpen(true);
+                    }}
+                    className="flex-1 sm:flex-none h-9 text-xs gap-1.5 bg-success hover:bg-success/90 cursor-pointer"
+                  >
+                    <ArrowDownLeft className="h-4 w-4" />
+                    Tạo phiếu nhập
+                  </Button>
+                )}
+                {(searchParams.get("type") === "out" || !searchParams.get("type")) && (
+                  <Button
+                    onClick={() => {
+                      setStockDialogType("out");
+                      setStockDialogOpen(true);
+                    }}
+                    className="flex-1 sm:flex-none h-9 text-xs gap-1.5 bg-destructive hover:bg-destructive/90 cursor-pointer"
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Tạo phiếu xuất
+                  </Button>
+                )}
+                {searchParams.get("type") === "damaged" && (
+                  <Button
+                    onClick={() => {
+                      setStockDialogType("out");
+                      setStockDialogOpen(true);
+                    }}
+                    className="flex-1 sm:flex-none h-9 text-xs gap-1.5 bg-warning hover:bg-warning/90 cursor-pointer text-warning-foreground"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    Báo lỗi / Hỏng
+                  </Button>
+                )}
+              </div>
+            </div>
+
             <Card>
               <CardContent className="p-0">
                 <table className="w-full">
@@ -716,6 +929,12 @@ const Inventory = () => {
         open={uomDialogOpen}
         onOpenChange={setUomDialogOpen}
         product={uomProduct}
+      />
+
+      <ProductStockHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        product={historyProduct}
       />
     </MainLayout>
   );

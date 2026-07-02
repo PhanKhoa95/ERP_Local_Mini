@@ -4,7 +4,9 @@ import {
   Settings, LogOut, ChevronLeft, Menu, Warehouse, FileText, Search, Star,
   FolderOpen, TrendingUp, Trophy, Target, Gamepad2, UsersRound, Mic,
   ChevronDown, ClipboardList, FolderKanban, Stamp, Workflow, PackageSearch, Coins,
-  FileSignature, CalendarDays, Activity, BookOpen, Bot, Database, CreditCard
+  FileSignature, CalendarDays, Activity, BookOpen, Bot, Database, CreditCard, Link2,
+  Shirt, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, Layers, History, Boxes, Award,
+  PackageCheck, RotateCcw, Truck, FileBarChart, FileCheck, Banknote, BarChart2, Factory, MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ interface MenuItem {
   icon: any;
   path: string;
   minRole?: string; // admin, manager, staff
+  subItems?: MenuItem[];
 }
 
 interface MenuSection {
@@ -47,14 +50,78 @@ const menuSections: MenuSection[] = [
     items: [
       { title: "Dashboard", icon: LayoutDashboard, path: "/" },
       { title: "POS Bán hàng", icon: ShoppingCart, path: "/pos" },
-      { title: "Khuyến mãi", icon: Ticket, path: "/promotions" },
-      { title: "Đơn hàng", icon: Receipt, path: "/orders" },
-      { title: "Kho hàng", icon: Package, path: "/inventory" },
-      { title: "Quản lý kho", icon: Warehouse, path: "/warehouses" },
-      { title: "Đối tác", icon: Users, path: "/partners" },
-      { title: "Thẻ thành viên", icon: CreditCard, path: "/memberships" },
-      { title: "Tra cứu đơn hàng", icon: PackageSearch, path: "/tracking" },
-      { title: "Công nợ", icon: FileText, path: "/debt-report" },
+      {
+        title: "Đơn hàng",
+        icon: Receipt,
+        path: "/orders",
+        subItems: [
+          { title: "Tất cả đơn hàng", icon: Receipt, path: "/orders" },
+          { title: "Đóng hàng", icon: PackageCheck, path: "/orders?view=list&status=packing" },
+          { title: "Báo giá", icon: FileBarChart, path: "/orders?tab=quotations" },
+          { title: "Đổi / Trả hàng", icon: RotateCcw, path: "/orders?tab=returns" },
+          { title: "Đối soát", icon: FileCheck, path: "/orders?tab=reconciliation" },
+          { title: "Tra cứu vận đơn", icon: PackageSearch, path: "/tracking" },
+          { title: "Hẹn giao", icon: Truck, path: "/orders?view=list&status=waiting_transfer" },
+        ]
+      },
+      {
+        title: "Sản phẩm",
+        icon: Shirt,
+        path: "/inventory",
+        subItems: [
+          { title: "Sản phẩm", icon: Package, path: "/inventory?tab=products" },
+          { title: "Kiểm hàng", icon: ClipboardList, path: "/inventory?tab=picking" },
+          { title: "Nhập hàng", icon: ArrowDownLeft, path: "/inventory?tab=transactions&type=in" },
+          { title: "Xuất hàng", icon: ArrowUpRight, path: "/inventory?tab=transactions&type=out" },
+          { title: "Hàng lỗi", icon: AlertTriangle, path: "/inventory?tab=transactions&type=damaged" },
+          { title: "Xuất lô - kệ", icon: Layers, path: "/warehouses?tab=locations" },
+          { title: "Chuyển kho", icon: ArrowRightLeft, path: "/warehouses?tab=transfers" },
+          { title: "Kho Cộng tác viên", icon: Link2, path: "/warehouses?tab=collaborator" },
+          { title: "Lịch sử xuất nhập", icon: History, path: "/inventory?tab=transactions" },
+          { title: "Khuyến mãi", icon: Ticket, path: "/promotions" },
+          { title: "Combo sản phẩm", icon: Boxes, path: "/inventory?tab=products&filter=combo" },
+        ]
+      },
+      {
+        title: "Sản xuất",
+        icon: Factory,
+        path: "/production/materials",
+        subItems: [
+          { title: "Nguyên phụ liệu", icon: Package, path: "/production/materials" },
+          { title: "Nhập NPL", icon: ArrowDownLeft, path: "/inventory?tab=transactions&type=in" },
+          { title: "Xuất NPL", icon: ArrowUpRight, path: "/inventory?tab=transactions&type=out" },
+          { title: "Định mức NPL", icon: ClipboardList, path: "/inventory?tab=products&filter=bom" },
+          { title: "Lệnh sản xuất", icon: Factory, path: "/inventory?tab=production" },
+        ]
+      },
+      {
+        title: "Khách hàng",
+        icon: Users,
+        path: "/partners",
+        subItems: [
+          { title: "Khách hàng & Đối tác", icon: Users, path: "/partners" },
+          { title: "Thu chi", icon: Banknote, path: "/partners?tab=cashflow" },
+          { title: "Lịch sử giao dịch", icon: History, path: "/partners?tab=transactions" },
+          { title: "Thống kê", icon: BarChart2, path: "/partners?tab=insights" },
+          { title: "CSKH Chatwoot", icon: MessageSquare, path: "/partners?tab=chatwoot" },
+          { title: "Thẻ thành viên", icon: CreditCard, path: "/memberships" },
+          { title: "Tích điểm & Hạng thẻ", icon: Award, path: "/settings?tab=loyalty" },
+        ]
+      },
+      {
+        title: "Tài chính",
+        icon: Wallet,
+        path: "/finance",
+        minRole: "manager",
+        subItems: [
+          { title: "Tổng quan", icon: Wallet, path: "/finance?tab=overview" },
+          { title: "Đối soát", icon: ArrowRightLeft, path: "/finance?tab=reconciliation" },
+          { title: "Thu chi", icon: Banknote, path: "/partners?tab=cashflow" },
+          { title: "Công nợ", icon: FileText, path: "/debt-report" },
+          { title: "Hoá đơn điện tử", icon: Receipt, path: "/finance?tab=e_invoices" },
+          { title: "Quản lý giao dịch", icon: History, path: "/partners?tab=transactions" },
+        ]
+      },
       { title: "E-Office", icon: Stamp, path: "/e-office" },
       { title: "Dashboard Chỉ thị", icon: Activity, path: "/directive-dashboard", minRole: "manager" },
       { title: "Hợp đồng", icon: FileSignature, path: "/contracts", minRole: "manager" },
@@ -64,7 +131,6 @@ const menuSections: MenuSection[] = [
       { title: "Data Hub", icon: Database, path: "/data-hub", minRole: "manager" },
       { title: "Tài sản số", icon: Coins, path: "/digital-assets", minRole: "manager" },
       { title: "Kế toán", icon: BookOpen, path: "/accounting", minRole: "manager" },
-      { title: "Tài chính", icon: Wallet, path: "/finance", minRole: "manager" },
       { title: "Báo cáo", icon: BarChart3, path: "/reports", minRole: "manager" },
     ],
   },
@@ -189,7 +255,53 @@ export function Sidebar({ onNavigate }: SidebarProps) {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-0.5 mt-1">
                 {visibleItems.map((item) => {
-                  const isActive = location.pathname === item.path;
+                  const hasSubItems = item.subItems && item.subItems.length > 0;
+                  const isActive = !hasSubItems && location.pathname === item.path;
+                  
+                  if (hasSubItems) {
+                    const isSubActive = item.subItems!.some(sub => location.pathname + location.search === sub.path || location.pathname === sub.path.split('?')[0]);
+                    return (
+                      <Collapsible key={item.title} defaultOpen={isSubActive} className="w-full">
+                        <CollapsibleTrigger className="flex items-center justify-between w-full sidebar-item select-none cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <item.icon className="h-5 w-5 flex-shrink-0" />
+                            <span>{item.title}</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=closed]>&]:rotate-[-90deg]" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-0.5 mt-1 pl-4 border-l ml-5 border-sidebar-border">
+                          {item.subItems!.map((sub) => {
+                            // Parse sub.path into pathname and search parts
+                            const [subPath, subSearch] = sub.path.split('?');
+                            const currentFullPath = location.pathname + location.search;
+                            let isSubItemActive = false;
+                            if (subSearch) {
+                              // Has query params: match pathname + search contains all params
+                              isSubItemActive = location.pathname === subPath && currentFullPath.includes(subSearch);
+                            } else {
+                              // No query params: exact match (path only, no search)
+                              isSubItemActive = location.pathname === subPath && !location.search;
+                            }
+                            return (
+                              <NavLink
+                                key={sub.path}
+                                to={sub.path}
+                                onClick={handleNavClick}
+                                className={cn(
+                                  "sidebar-item text-xs py-1.5 h-8 gap-2", 
+                                  isSubItemActive && "sidebar-item-active"
+                                )}
+                              >
+                                <sub.icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                                <span>{sub.title}</span>
+                              </NavLink>
+                            );
+                          })}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  }
+
                   return (
                     <NavLink
                       key={item.path}

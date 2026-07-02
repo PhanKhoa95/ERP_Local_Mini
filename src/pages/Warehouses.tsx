@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,7 @@ import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { WarehouseLocationsTab } from "@/components/warehouses/WarehouseLocationsTab";
 import { FleetManagementTab } from "@/components/warehouses/FleetManagementTab";
+import { CollaboratorWarehouseTab } from "@/components/warehouses/CollaboratorWarehouseTab";
 
 const Warehouses = () => {
   const {
@@ -64,6 +66,21 @@ const Warehouses = () => {
     cancelTransfer,
   } = useWarehouses();
   const { products } = useProducts();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "stock");
+
+  useEffect(() => {
+    const tabVal = searchParams.get("tab");
+    if (tabVal && ["stock", "transfers", "locations", "fleet", "collaborator"].includes(tabVal)) {
+      setActiveTab(tabVal);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    setSearchParams({ tab: val });
+  };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all");
@@ -332,12 +349,13 @@ const Warehouses = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="stock" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="stock">Tồn kho theo kho</TabsTrigger>
             <TabsTrigger value="transfers">Phiếu luân chuyển</TabsTrigger>
             <TabsTrigger value="locations">Vị trí kệ</TabsTrigger>
             <TabsTrigger value="fleet">Quản lý Đội xe</TabsTrigger>
+            <TabsTrigger value="collaborator">Kho Cộng tác viên (CTV)</TabsTrigger>
           </TabsList>
 
           <TabsContent value="stock" className="space-y-4">
@@ -434,6 +452,27 @@ const Warehouses = () => {
           </TabsContent>
 
           <TabsContent value="transfers" className="space-y-4">
+            <div className="flex justify-between items-center bg-card border p-3 rounded-xl shadow-xs">
+              <span className="text-sm font-semibold text-foreground">Danh sách phiếu luân chuyển kho</span>
+              <Button 
+                onClick={() => {
+                  setTransferForm({
+                    from_warehouse_id: "",
+                    to_warehouse_id: "",
+                    notes: "",
+                    items: [],
+                  });
+                  setTransferQuantity(1);
+                  setSelectedProduct("");
+                  setTransferDialogOpen(true);
+                }}
+                className="bg-primary hover:bg-primary/95 text-white h-9 text-xs gap-1.5 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                Tạo phiếu chuyển kho
+              </Button>
+            </div>
+
             <Card>
               <Table>
                 <TableHeader>
@@ -441,62 +480,69 @@ const Warehouses = () => {
                     <TableHead>Mã phiếu</TableHead>
                     <TableHead>Từ kho</TableHead>
                     <TableHead>Đến kho</TableHead>
-                    <TableHead>Số SP</TableHead>
+                    <TableHead>Số mẫu</TableHead>
+                    <TableHead>Tổng SL</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead>Ngày tạo</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transfers.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-mono font-medium">
-                        {t.transfer_number}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{t.from_warehouse?.name}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{t.to_warehouse?.name}</Badge>
-                      </TableCell>
-                      <TableCell>{t.items?.length || 0} SP</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(t.status)}>
-                          {getStatusLabel(t.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(t.created_at), "dd/MM/yyyy HH:mm", {
-                          locale: vi,
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {t.status === "pending" && (
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => completeTransfer.mutate(t.id)}
-                            >
-                              <Check className="h-4 w-4 text-success" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => cancelTransfer.mutate(t.id)}
-                            >
-                              <X className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {transfers.map((t) => {
+                    const totalQty = t.items?.reduce((s, i) => s + (i.quantity || 0), 0) || 0;
+                    return (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono font-medium">
+                          {t.transfer_number}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{t.from_warehouse?.name}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{t.to_warehouse?.name}</Badge>
+                        </TableCell>
+                        <TableCell>{t.items?.length || 0} mẫu mã</TableCell>
+                        <TableCell className="font-semibold text-foreground">{totalQty.toLocaleString()} SP</TableCell>
+                        <TableCell>
+                          <Badge className={cn("status-badge px-2 py-0.5", getStatusColor(t.status))}>
+                            {getStatusLabel(t.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(t.created_at), "dd/MM/yyyy HH:mm", {
+                            locale: vi,
+                          })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {t.status === "pending" && (
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-success/15"
+                                title="Xác nhận hoàn thành"
+                                onClick={() => completeTransfer.mutate(t.id)}
+                              >
+                                <Check className="h-4 w-4 text-success" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 hover:bg-destructive/15"
+                                title="Hủy phiếu"
+                                onClick={() => cancelTransfer.mutate(t.id)}
+                              >
+                                <X className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {transfers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Chưa có phiếu luân chuyển
                       </TableCell>
                     </TableRow>
@@ -504,6 +550,17 @@ const Warehouses = () => {
                 </TableBody>
               </Table>
             </Card>
+
+            {transfers.length > 0 && (
+              <div className="mt-3 flex items-center justify-between text-xs sm:text-sm text-muted-foreground bg-muted/20 border p-3 rounded-lg">
+                <div>
+                  Tổng số phiếu: <span className="font-bold text-foreground">{transfers.length}</span>
+                </div>
+                <div>
+                  Tổng SL hàng chuyển kho: <span className="font-bold text-primary">{transfers.reduce((sum, t) => sum + (t.items?.reduce((s, i) => s + (i.quantity || 0), 0) || 0), 0).toLocaleString()} SP</span>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="locations" className="mt-4">
@@ -512,6 +569,10 @@ const Warehouses = () => {
 
           <TabsContent value="fleet" className="mt-4">
             <FleetManagementTab />
+          </TabsContent>
+
+          <TabsContent value="collaborator" className="mt-4">
+            <CollaboratorWarehouseTab />
           </TabsContent>
         </Tabs>
       </div>

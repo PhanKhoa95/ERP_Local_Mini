@@ -7,11 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Wrench, Plus, Barcode, Scale } from "lucide-react";
+import { Loader2, Wrench, Plus, Barcode, Scale, Package, Trash2 } from "lucide-react";
 import { z } from "zod";
 import type { Tables } from "@/integrations/supabase/types";
 import { ImageUpload } from "./ImageUpload";
 import { useProductCategories } from "@/hooks/useProductCategories";
+import { useProducts } from "@/hooks/useProducts";
 
 const productSchema = z.object({
   sku: z.string().max(50).optional().default(""),
@@ -46,6 +47,11 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
   const [conversions, setConversions] = useState<{ from_unit: string; factor: number }[]>([]);
   const [tempFromUnit, setTempFromUnit] = useState("");
   const [tempFactor, setTempFactor] = useState<number>(10);
+
+  // Combo states
+  const { products = [] } = useProducts();
+  const [isCombo, setIsCombo] = useState(false);
+  const [comboItems, setComboItems] = useState<{ product_id: string; quantity: number }[]>([]);
 
   const [formData, setFormData] = useState({
     sku: "",
@@ -98,7 +104,24 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
     setConversions([]);
     setTempFromUnit("");
     setTempFactor(10);
+    setTempFactor(10);
     setErrors({});
+
+    if (product) {
+      const rawCombos = localStorage.getItem("erp-mini-local-demo-combos");
+      const combos = rawCombos ? JSON.parse(rawCombos) : [];
+      const matched = combos.find((c: any) => c.id === product.id);
+      if (matched) {
+        setIsCombo(true);
+        setComboItems(matched.items || []);
+      } else {
+        setIsCombo(false);
+        setComboItems([]);
+      }
+    } else {
+      setIsCombo(false);
+      setComboItems([]);
+    }
   }, [product, open]);
 
   /** Generate SKU: SKU-{timestamp}-{random} */
@@ -119,7 +142,13 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
       const payload = { ...validated, barcode: formData.barcode.trim() || undefined };
       
       // If creating new, include the temporary conversions list in submission
-      onSubmit(product ? { id: product.id, ...payload } : { ...payload, conversions });
+      onSubmit({ 
+        ...(product ? { id: product.id } : {}), 
+        ...payload, 
+        conversions, 
+        is_combo: isCombo, 
+        combo_items: comboItems 
+      });
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
@@ -266,6 +295,108 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
               />
             </div>
           </div>
+
+          {/* Combo Item Toggle */}
+          {!formData.is_service && (
+            <div className="flex flex-col p-4 border rounded-lg bg-muted/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="is_combo" className="text-base font-medium">
+                      Sản phẩm Combo / Gói
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Gồm nhiều sản phẩm thành phần bán chung, tự động trừ kho thành phần khi bán.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isCombo && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                      Combo
+                    </Badge>
+                  )}
+                  <Switch
+                    id="is_combo"
+                    checked={isCombo}
+                    onCheckedChange={(checked) => {
+                      setIsCombo(checked);
+                      if (checked) {
+                        setFormData({ ...formData, is_service: false });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Combo components list */}
+              {isCombo && (
+                <div className="pt-2 border-t space-y-3">
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-[10px] font-semibold text-muted-foreground">Chọn sản phẩm thành phần</Label>
+                      <Select
+                        onValueChange={(val) => {
+                          const existing = comboItems.find(item => item.product_id === val);
+                          if (existing) return;
+                          setComboItems([...comboItems, { product_id: val, quantity: 1 }]);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white dark:bg-card">
+                          <SelectValue placeholder="Chọn sản phẩm..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover text-foreground z-[130] max-h-[180px] overflow-y-auto">
+                          {products
+                            .filter(p => p.id !== product?.id && !p.is_service && !comboItems.some(ci => ci.product_id === p.id))
+                            .map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku || p.id})</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {comboItems.length > 0 && (
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                      {comboItems.map((ci, idx) => {
+                        const prod = products.find(p => p.id === ci.product_id);
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-2 rounded bg-white dark:bg-card border text-xs">
+                            <div className="font-medium truncate flex-1 mr-2">
+                              {prod?.name || ci.product_id}
+                              <span className="text-[10px] text-muted-foreground block font-mono">SKU: {prod?.sku || ci.product_id}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={ci.quantity}
+                                onChange={(e) => {
+                                  const qty = Math.max(1, Number(e.target.value));
+                                  setComboItems(comboItems.map((item, i) => i === idx ? { ...item, quantity: qty } : item));
+                                }}
+                                className="w-14 h-7 text-center text-xs"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setComboItems(comboItems.filter((_, i) => i !== idx))}
+                                className="h-7 w-7 text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">

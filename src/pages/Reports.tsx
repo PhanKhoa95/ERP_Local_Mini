@@ -63,6 +63,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Users, Building, Clock, Target, MapPin, Store, Globe, Percent, Award, FolderKanban, Activity, Flame, ShieldAlert, CheckSquare, Sparkles } from "lucide-react";
 import { PrintShopReportTab } from "@/components/reports/PrintShopReportTab";
+import { CustomReportTab } from "@/components/reports/CustomReportTab";
 import { exportAllReportsToExcel } from "@/lib/exportExcel";
 import { printShopProducts, printShopMonthlyPlan } from "@/lib/printShopReportModel";
 
@@ -585,6 +586,7 @@ const Reports = () => {
             <TabsTrigger value="partners">Đối tác</TabsTrigger>
             <TabsTrigger value="operations">Vận hành & Dự án</TabsTrigger>
             <TabsTrigger value="printshop">Chiết tính & Dòng tiền</TabsTrigger>
+            <TabsTrigger value="custom_reports">Thống kê tuỳ chỉnh</TabsTrigger>
           </TabsList>
 
 
@@ -2307,6 +2309,11 @@ const Reports = () => {
           {/* Print Shop V5 Tab */}
           <TabsContent value="printshop" className="space-y-6">
             <PrintShopReportTab />
+          </TabsContent>
+
+          {/* Custom Reports Tab */}
+          <TabsContent value="custom_reports" className="space-y-6">
+            <CustomReportTab />
           </TabsContent>
         </Tabs>
       </div>

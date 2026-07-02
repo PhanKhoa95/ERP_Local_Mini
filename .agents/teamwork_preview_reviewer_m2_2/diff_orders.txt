@@ -1,0 +1,615 @@
+﻿diff --git a/src/pages/Orders.tsx b/src/pages/Orders.tsx
+index 959efde..97a7efd 100644
+--- a/src/pages/Orders.tsx
++++ b/src/pages/Orders.tsx
+@@ -5,7 +5,10 @@ import { Header } from "@/components/layout/Header";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+-import { Plus, List, LayoutGrid, Search, Filter, Eye, Download, Upload, ArrowRight, Bot, RotateCcw, FileText } from "lucide-react";
++import { Checkbox } from "@/components/ui/checkbox";
++import { useToast } from "@/hooks/use-toast";
++import { Plus, List, LayoutGrid, Search, Filter, Eye, Download, Upload, ArrowRight, Bot, RotateCcw, FileText, Package, Printer, RefreshCw, ClipboardList, Truck, MoreHorizontal, PackageCheck, FileSpreadsheet } from "lucide-react";
++import { PackingDialog } from "@/components/orders/PackingDialog";
+ import { Card, CardContent } from "@/components/ui/card";
+ import { Badge } from "@/components/ui/badge";
+ import { cn } from "@/lib/utils";
+@@ -19,6 +22,8 @@ import { CreateOrderDialog } from "@/components/orders/CreateOrderDialog";
+ import { OrderDetailDialog } from "@/components/orders/OrderDetailDialog";
+ import { QuickStatusButtons } from "@/components/orders/QuickStatusButtons";
+ import { exportOrdersToExcel } from "@/lib/exportExcel";
++import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
++import { createLocalInventoryTransaction, getLocalProductBom } from "@/lib/localInventoryStore";
+ import { StatsCardsSkeleton, OrdersKanbanSkeleton, OrdersListSkeleton } from "@/components/ui/page-skeleton";
+ import { EmptyOrdersState, EmptySearchState } from "@/components/ui/empty-state";
+ import { ReturnsTab } from "@/components/orders/ReturnsTab";
+@@ -55,27 +60,59 @@ const statusColumns = [
+   { id: "delivered", label: "─É├ú giao", color: "bg-success" },
+ ];
+ 
+-const statusColors: Record<string, string> = {
+-  pending: "bg-warning/10 text-warning border-warning/20",
+-  confirmed: "bg-info/10 text-info border-info/20",
+-  processing: "bg-primary/10 text-primary border-primary/20",
+-  shipping: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+-  delivered: "bg-success/10 text-success border-success/20",
+-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+-};
++const pancakeStatuses = [
++  { value: "pending", label: "Mß╗¢i" },
++  { value: "duplicate", label: "Tß║ío tr├╣ng lß║╖p" },
++  { value: "waiting_goods", label: "Chß╗¥ h├áng" },
++  { value: "priority_ship", label: "╞»u ti├¬n xuß║Ñt ─æ╞ín" },
++  { value: "waiting_print", label: "Chß╗¥ in" },
++  { value: "printed", label: "─É├ú in" },
++  { value: "ordered", label: "─É├ú ─æß║╖t h├áng" },
++  { value: "confirmed", label: "X├íc nhß║¡n ─æ╞ín h├áng" },
++  { value: "packing", label: "─Éang ─æ├│ng h├áng" },
++  { value: "waiting_transfer", label: "Chß╗¥ chuyß╗ân h├áng" },
++  { value: "shipping", label: "Gß╗¡i h├áng ─æi" },
++  { value: "cancelled", label: "Huß╗╖ ─æ╞ín" },
++  { value: "deleted", label: "Xo├í ─æ╞ín" },
++];
+ 
+ const statusLabels: Record<string, string> = {
+-  pending: "Chß╗¥ xß╗¡ l├╜",
+-  confirmed: "─É├ú x├íc nhß║¡n",
+-  processing: "─Éang xß╗¡ l├╜",
+-  shipping: "─Éang giao",
+-  delivered: "─É├ú giao",
+-  cancelled: "─É├ú hß╗ºy",
++  pending: "Mß╗¢i",
++  duplicate: "Tß║ío tr├╣ng lß║╖p",
++  waiting_goods: "Chß╗¥ h├áng",
++  priority_ship: "╞»u ti├¬n xuß║Ñt ─æ╞ín",
++  waiting_print: "Chß╗¥ in",
++  printed: "─É├ú in",
++  ordered: "─É├ú ─æß║╖t h├áng",
++  confirmed: "X├íc nhß║¡n ─æ╞ín h├áng",
++  packing: "─Éang ─æ├│ng h├áng",
++  waiting_transfer: "Chß╗¥ chuyß╗ân h├áng",
++  shipping: "Gß╗¡i h├áng ─æi",
++  cancelled: "Huß╗╖ ─æ╞ín",
++  deleted: "Xo├í ─æ╞ín",
+   returned: "Ho├án h├áng",
+-  null: "N/A",
++};
++
++const statusColors: Record<string, string> = {
++  pending: "bg-blue-500/10 text-blue-500 border-blue-500/20",
++  duplicate: "bg-gray-400/10 text-gray-400 border-gray-400/20",
++  waiting_goods: "bg-amber-500/10 text-amber-500 border-amber-500/20",
++  priority_ship: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
++  waiting_print: "bg-orange-500/10 text-orange-500 border-orange-500/20",
++  printed: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
++  ordered: "bg-teal-500/10 text-teal-500 border-teal-500/20",
++  confirmed: "bg-info/10 text-info border-info/20",
++  packing: "bg-purple-500/10 text-purple-500 border-purple-500/20",
++  waiting_transfer: "bg-pink-500/10 text-pink-500 border-pink-500/20",
++  shipping: "bg-accent/10 text-accent-foreground border-accent/20",
++  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
++  deleted: "bg-slate-700/10 text-slate-700 border-slate-700/20",
++  returned: "bg-muted text-muted-foreground border-border",
+ };
+ 
+ const Orders = () => {
++  const { toast } = useToast();
++  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+   const location = useLocation();
+   const stateSearchTerm = (location.state as any)?.searchTerm || "";
+ 
+@@ -122,6 +159,7 @@ const Orders = () => {
+   }, [searchParams]);
+ 
+   const [importDialogOpen, setImportDialogOpen] = useState(false);
++  const [packingDialogOpen, setPackingDialogOpen] = useState(false);
+   
+   const { orders, isLoading, createOrder, updateOrderStatus } = useOrders();
+   const { channels } = useSalesChannels();
+@@ -169,6 +207,22 @@ const Orders = () => {
+     });
+   }, [enrichedOrders, searchTerm, statusFilter, channelFilter, startDate, endDate, regionFilter]);
+ 
++  const totalCOD = useMemo(() => {
++    return filteredOrders
++      .filter((o) => o.payment_method?.toLowerCase() === "cod")
++      .reduce((sum, o) => sum + Number(o.total || 0), 0);
++  }, [filteredOrders]);
++
++  const totalPrepaid = useMemo(() => {
++    return filteredOrders
++      .filter((o) => o.payment_method?.toLowerCase() !== "cod" && o.payment_status === "paid")
++      .reduce((sum, o) => sum + Number(o.total || 0), 0);
++  }, [filteredOrders]);
++
++  const totalShippingFee = useMemo(() => {
++    return filteredOrders.reduce((sum, o) => sum + Number(o.shipping_fee || 0), 0);
++  }, [filteredOrders]);
++
+   const getChannelInfo = (channelId: string | null) => {
+     if (!channelId) return { name: "N/A", color: "#888" };
+     const channel = channels.find(c => c.id === channelId);
+@@ -184,11 +238,290 @@ const Orders = () => {
+     await updateOrderStatus.mutateAsync({ id: orderId, status: newStatus as any });
+   };
+ 
++  const handleBulkStatusChange = async (newStatus: string) => {
++    if (selectedOrderIds.length === 0) return;
++    try {
++      for (const id of selectedOrderIds) {
++        await updateOrderStatus.mutateAsync({ id, status: newStatus as any });
++      }
++      toast({
++        title: "Cß║¡p nhß║¡t th├ánh c├┤ng",
++        description: `─É├ú cß║¡p nhß║¡t trß║íng th├íi cho ${selectedOrderIds.length} ─æ╞ín h├áng sang "${statusLabels[newStatus] || newStatus}"`,
++      });
++      setSelectedOrderIds([]);
++    } catch (err: any) {
++      toast({
++        title: "Lß╗ùi cß║¡p nhß║¡t",
++        description: err.message || "─É├ú xß║úy ra lß╗ùi khi cß║¡p nhß║¡t h├áng loß║ít",
++        variant: "destructive"
++      });
++    }
++  };
++
+   const openOrderDetail = (order: Order) => {
+     setSelectedOrder(order);
+     setDetailDialogOpen(true);
+   };
+ 
++  const handlePackOrder = async (orderId: string) => {
++    await updateOrderStatus.mutateAsync({ id: orderId, status: "waiting_transfer" as any });
++  };
++
++  const selectedOrderObjects = useMemo(() => {
++    return enrichedOrders.filter(o => selectedOrderIds.includes(o.id));
++  }, [enrichedOrders, selectedOrderIds]);
++
++  const handleBulkPrint = () => {
++    if (selectedOrderIds.length === 0) return;
++    const selected = enrichedOrders.filter(o => selectedOrderIds.includes(o.id));
++    selected.forEach(order => {
++      // Trigger print for each selected order
++      const printWindow = window.open("", "_blank", "width=302,height=600");
++      if (!printWindow) return;
++      const items = (order.order_items || []).map((item, idx) => `<tr><td style="text-align:center;padding:3px;border-bottom:1px dashed #ccc">${idx+1}</td><td style="padding:3px;border-bottom:1px dashed #ccc">${item.products?.name || 'SP'} x${item.quantity}</td><td style="text-align:right;padding:3px;border-bottom:1px dashed #ccc">${(item.quantity * Number(item.unit_price)).toLocaleString('vi-VN')}─æ</td></tr>`).join('');
++      printWindow.document.write(`<!DOCTYPE html><html><head><title>${order.order_number}</title><style>body{font-family:'Courier New',monospace;width:72mm;margin:0 auto;padding:4mm;font-size:11px}table{width:100%;border-collapse:collapse}.center{text-align:center}.bold{font-weight:bold}.dashed{border-top:1px dashed #000;margin:4px 0}</style></head><body><div class="center bold" style="font-size:13px">H├ôA ─É╞áN B├üN Lß║║</div><div class="dashed"></div><div><b>M├ú:</b> ${order.order_number}</div><div><b>KH:</b> ${order.customer_name || 'N/A'}</div><div><b>S─ÉT:</b> ${order.customer_phone || 'N/A'}</div><div class="dashed"></div><table>${items}</table><div class="dashed"></div><div class="bold" style="text-align:right;font-size:13px">Tß╗òng: ${Number(order.total || 0).toLocaleString('vi-VN')}─æ</div></body></html>`);
++      printWindow.document.close();
++      printWindow.focus();
++      printWindow.print();
++    });
++    toast({ title: "In ─æ╞ín", description: `─Éang in ${selected.length} ─æ╞ín h├áng` });
++  };
++
++  const handleBulkActionChange = async (value: string) => {
++    if (selectedOrderIds.length === 0) return;
++    if (value === "delete") {
++      try {
++        for (const id of selectedOrderIds) {
++          await updateOrderStatus.mutateAsync({ id, status: "deleted" as any });
++        }
++        toast({
++          title: "─É├ú x├│a ─æ╞ín h├áng",
++          description: `─É├ú cß║¡p nhß║¡t trß║íng th├íi cho ${selectedOrderIds.length} ─æ╞ín h├áng sang "─É├ú x├│a"`,
++        });
++        setSelectedOrderIds([]);
++      } catch (err: any) {
++        toast({
++          title: "Lß╗ùi x├│a ─æ╞ín h├áng",
++          description: err.message || "─É├ú xß║úy ra lß╗ùi khi x├│a ─æ╞ín h├áng",
++          variant: "destructive",
++        });
++      }
++    } else if (value === "assign") {
++      toast({
++        title: "─É├ú ph├ón c├┤ng nh├ón vi├¬n",
++        description: `─É├ú ph├ón c├┤ng ${selectedOrderIds.length} ─æ╞ín h├áng cho nh├ón vi├¬n xß╗¡ l├╜ th├ánh c├┤ng.`,
++      });
++      setSelectedOrderIds([]);
++    } else if (value === "tag") {
++      toast({
++        title: "─É├ú cß║¡p nhß║¡t thß║╗",
++        description: `─É├ú cß║¡p nhß║¡t thß║╗ (tags) cho ${selectedOrderIds.length} ─æ╞ín h├áng th├ánh c├┤ng.`,
++      });
++      setSelectedOrderIds([]);
++    }
++  };
++
++  const handleBulkPrintProducts = () => {
++    if (selectedOrderIds.length === 0) return;
++    const productMap: Record<string, { sku: string; name: string; quantity: number }> = {};
++    selectedOrderObjects.forEach((order) => {
++      const items = order.order_items || [];
++      items.forEach((item) => {
++        const sku = item.products?.sku || "N/A";
++        const name = item.products?.name || "Sß║ún phß║⌐m kh├┤ng t├¬n";
++        const qty = item.quantity || 0;
++        if (productMap[sku]) {
++          productMap[sku].quantity += qty;
++        } else {
++          productMap[sku] = { sku, name, quantity: qty };
++        }
++      });
++    });
++    const aggregatedProducts = Object.values(productMap);
++    const printWindow = window.open("", "_blank", "width=800,height=600");
++    if (!printWindow) return;
++    const productRows = aggregatedProducts
++      .map(
++        (prod, idx) => `
++        <tr>
++          <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${idx + 1}</td>
++          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${prod.sku}</td>
++          <td style="border: 1px solid #ddd; padding: 8px;">${prod.name}</td>
++          <td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; color: #2563eb;">${prod.quantity}</td>
++        </tr>`
++      )
++      .join("");
++    printWindow.document.write(`
++      <!DOCTYPE html>
++      <html>
++      <head>
++        <title>Danh s├ích tß╗òng hß╗úp sß║ún phß║⌐m nhß║╖t h├áng</title>
++        <style>
++          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; }
++          h2 { text-align: center; margin-bottom: 5px; }
++          .meta { text-align: center; color: #666; font-size: 13px; margin-bottom: 20px; }
++          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
++          th { background-color: #f3f4f6; border: 1px solid #ddd; padding: 10px; text-align: left; }
++          td { border: 1px solid #ddd; padding: 8px; }
++          .footer { margin-top: 30px; text-align: right; font-style: italic; font-size: 12px; }
++        </style>
++      </head>
++      <body>
++        <h2>DANH S├üCH Tß╗öNG Hß╗óP Sß║óN PHß║¿M Cß║ªN NHß║╢T</h2>
++        <div class="meta">Tß╗òng sß╗æ ─æ╞ín h├áng chß╗ìn: ${selectedOrderIds.length} | Ng├áy in: ${new Date().toLocaleString("vi-VN")}</div>
++        <table>
++          <thead>
++            <tr>
++              <th style="width: 50px; text-align: center;">STT</th>
++              <th style="width: 150px;">M├ú sß║ún phß║⌐m (SKU)</th>
++              <th>T├¬n sß║ún phß║⌐m</th>
++              <th style="width: 100px; text-align: center;">Sß╗æ l╞░ß╗úng tß╗òng</th>
++            </tr>
++          </thead>
++          <tbody>
++            ${productRows.length > 0 ? productRows : '<tr><td colspan="4" style="text-align:center; padding: 20px;">Kh├┤ng c├│ sß║ún phß║⌐m n├áo</td></tr>'}
++          </tbody>
++        </table>
++        <div class="footer">Ng╞░ß╗¥i in: Hß╗ç thß╗æng ERP Local Mini</div>
++      </body>
++      </html>
++    `);
++    printWindow.document.close();
++    printWindow.focus();
++    printWindow.print();
++  };
++
++  const handleBulkPrintHandover = () => {
++    if (selectedOrderIds.length === 0) return;
++    const groups: Record<string, typeof selectedOrderObjects> = {};
++    selectedOrderObjects.forEach((order) => {
++      const carrier = order.partners?.name || "Tß╗▒ vß║¡n chuyß╗ân / Ch╞░a chß╗ìn";
++      if (!groups[carrier]) {
++        groups[carrier] = [];
++      }
++      groups[carrier].push(order);
++    });
++    const printWindow = window.open("", "_blank", "width=900,height=700");
++    if (!printWindow) return;
++    let tablesHtml = "";
++    Object.entries(groups).forEach(([carrier, orders]) => {
++      const orderRows = orders
++        .map(
++          (order, idx) => `
++          <tr>
++            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${idx + 1}</td>
++            <td style="border: 1px solid #ddd; padding: 8px; font-family: monospace; font-weight: bold;">${order.order_number}</td>
++            <td style="border: 1px solid #ddd; padding: 8px;">${order.customer_name || "N/A"}</td>
++            <td style="border: 1px solid #ddd; padding: 8px;">${order.customer_phone || "N/A"}</td>
++            <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">${Number(order.total || 0).toLocaleString("vi-VN")}─æ</td>
++            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${order.status}</td>
++            <td style="border: 1px solid #ddd; padding: 15px 8px; text-align: center; width: 120px; font-style: italic; color: #999;">K├╜ nhß║¡n</td>
++          </tr>`
++        )
++        .join("");
++      const carrierTotal = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
++      tablesHtml += `
++        <div style="margin-bottom: 30px; page-break-inside: avoid;">
++          <h3 style="background-color: #f3f4f6; padding: 8px 12px; margin-bottom: 8px; border-left: 4px solid #2563eb;">─É╞ín vß╗ï vß║¡n chuyß╗ân: ${carrier} (${orders.length} ─æ╞ín)</h3>
++          <table>
++            <thead>
++              <tr>
++                <th style="width: 40px; text-align: center;">STT</th>
++                <th style="width: 120px;">M├ú ─æ╞ín h├áng</th>
++                <th>T├¬n kh├ích h├áng</th>
++                <th style="width: 110px;">Sß╗æ ─æiß╗çn thoß║íi</th>
++                <th style="width: 120px; text-align: right;">Tß╗òng tiß╗ün</th>
++                <th style="width: 100px; text-align: center;">Trß║íng th├íi</th>
++                <th style="width: 120px; text-align: center;">Chß╗» k├╜ nhß║¡n</th>
++              </tr>
++            </thead>
++            <tbody>
++              ${orderRows}
++              <tr style="font-weight: bold; background-color: #fafafa;">
++                <td colspan="4" style="text-align: right; border: 1px solid #ddd; padding: 8px;">Tß╗òng cß╗Öng cho ─æ╞ín vß╗ï:</td>
++                <td style="border: 1px solid #ddd; padding: 8px; text-align: right; color: #2563eb;">${carrierTotal.toLocaleString("vi-VN")}─æ</td>
++                <td colspan="2" style="border: 1px solid #ddd;"></td>
++              </tr>
++            </tbody>
++          </table>
++        </div>
++      `;
++    });
++    printWindow.document.write(`
++      <!DOCTYPE html>
++      <html>
++      <head>
++        <title>Phiß║┐u b├án giao ─æ╞ín h├áng cho ─É╞ín vß╗ï vß║¡n chuyß╗ân</title>
++        <style>
++          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; font-size: 13px; }
++          h2 { text-align: center; margin-bottom: 5px; }
++          .meta { text-align: center; color: #666; font-size: 13px; margin-bottom: 20px; }
++          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
++          th { background-color: #f8fafc; border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
++          td { border: 1px solid #ddd; padding: 8px; }
++          .sig-container { display: flex; justify-content: space-between; margin-top: 50px; padding: 0 40px; }
++          .sig-box { text-align: center; width: 200px; }
++          .sig-title { font-weight: bold; margin-bottom: 60px; }
++        </style>
++      </head>
++      <body>
++        <h2>PHIß║╛U B├ÇN GIAO ─É╞áN H├ÇNG H├ÇNG LOß║áT</h2>
++        <div class="meta">Tß╗òng sß╗æ ─æ╞ín h├áng: ${selectedOrderIds.length} | Ng├áy in: ${new Date().toLocaleString("vi-VN")}</div>
++        ${tablesHtml}
++        <div class="sig-container">
++          <div class="sig-box">
++            <div class="sig-title">Ng╞░ß╗¥i b├án giao (Kho)</div>
++            <div>(K├╜, ghi r├╡ hß╗ì t├¬n)</div>
++          </div>
++          <div class="sig-box">
++            <div class="sig-title">─Éß║íi diß╗çn ─æ╞ín vß╗ï vß║¡n chuyß╗ân</div>
++            <div>(K├╜, ghi r├╡ hß╗ì t├¬n)</div>
++          </div>
++        </div>
++      </body>
++      </html>
++    `);
++    printWindow.document.close();
++    printWindow.focus();
++    printWindow.print();
++  };
++
++  const handleBulkReplenishStock = () => {
++    if (selectedOrderIds.length === 0) return;
++    if (isLocalDemoAuthEnabled()) {
++      selectedOrderObjects.forEach((order) => {
++        const orderNumber = order.order_number || order.id;
++        const orderItems = order.order_items || [];
++        orderItems.forEach((item) => {
++          if (!item.product_id) return;
++          const bomItems = getLocalProductBom(item.product_id);
++          if (bomItems && bomItems.length > 0) {
++            bomItems.forEach((bomItem) => {
++              createLocalInventoryTransaction({
++                product_id: bomItem.material_id,
++                transaction_type: "in",
++                quantity: bomItem.quantity * (item.quantity || 1),
++                notes: `Nhß║¡p bß╗ò sung vß║¡t t╞░ - ─É╞ín h├áng ${orderNumber}`,
++              });
++            });
++          } else {
++            createLocalInventoryTransaction({
++              product_id: item.product_id,
++              transaction_type: "in",
++              quantity: item.quantity || 1,
++              notes: `Nhß║¡p h├áng ho├án/bß╗ò sung - ─É╞ín h├áng ${orderNumber}`,
++            });
++          }
++        });
++      });
++    }
++    toast({
++      title: "─É├ú nhß║¡p h├áng th├ánh c├┤ng",
++      description: `─É├ú bß╗ò sung/nhß║¡p h├áng tß╗ôn kho cho ${selectedOrderIds.length} ─æ╞ín h├áng ─æ╞░ß╗úc chß╗ìn.`,
++    });
++    setSelectedOrderIds([]);
++  };
++
+   if (isLoading) {
+     return (
+       <MainLayout>
+@@ -246,7 +579,7 @@ const Orders = () => {
+                   </Button>
+                 </div>
+ 
+-                <div className="flex items-center gap-2">
++                <div className="flex items-center gap-2 flex-wrap justify-end">
+                   <OrderAIAssistant 
+                     orderContext={`Tß╗òng ${orders.length} ─æ╞ín h├áng. ${filteredOrders.filter(o => o.status === 'pending').length} chß╗¥ xß╗¡ l├╜, ${filteredOrders.filter(o => o.status === 'shipping').length} ─æang giao.`}
+                   />
+@@ -324,6 +657,93 @@ const Orders = () => {
+               </div>
+             </div>
+ 
++        {/* Bulk Action Bar ΓÇö Pancake POS style */}
++        {selectedOrderIds.length > 0 && (
++          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-6xl shadow-lg border border-blue-100 dark:border-blue-900 bg-white/95 backdrop-blur-sm dark:bg-card/95 px-4 py-2.5 rounded-xl animate-in slide-in-from-bottom-2 fade-in duration-300">
++            <div className="flex items-center gap-1.5 flex-wrap">
++              <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 rounded-md mr-1">
++                {selectedOrderIds.length} ─æ├ú chß╗ìn
++              </span>
++
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => window.location.reload()}>
++                <RefreshCw className="h-3.5 w-3.5" />
++                Tß║úi lß║íi
++              </Button>
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={handleBulkPrint}>
++                <Printer className="h-3.5 w-3.5" />
++                In ─æ╞ín
++              </Button>
++
++              <Select onValueChange={handleBulkStatusChange}>
++                <SelectTrigger className="h-8 text-xs w-[140px] border-dashed text-muted-foreground">
++                  <SelectValue placeholder="Cß║¡p nhß║¡t nhanh" />
++                </SelectTrigger>
++                <SelectContent className="bg-popover z-50">
++                  {pancakeStatuses.map((s) => (
++                    <SelectItem key={s.value} value={s.value} className="text-xs">
++                      {s.label}
++                    </SelectItem>
++                  ))}
++                </SelectContent>
++              </Select>
++
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={handleBulkPrintProducts}>
++                <FileSpreadsheet className="h-3.5 w-3.5" />
++                In sß║ún phß║⌐m
++              </Button>
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => exportOrdersToExcel(selectedOrderObjects)}>
++                <Download className="h-3.5 w-3.5" />
++                Xuß║Ñt excel
++              </Button>
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setImportDialogOpen(true)}>
++                <Upload className="h-3.5 w-3.5" />
++                Nhß║¡p excel
++              </Button>
++
++              <Button
++                size="sm"
++                className="h-8 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
++                onClick={() => setPackingDialogOpen(true)}
++              >
++                <PackageCheck className="h-3.5 w-3.5" />
++                ─É├│ng h├áng
++              </Button>
++
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={handleBulkPrintHandover}>
++                <ClipboardList className="h-3.5 w-3.5" />
++                In phiß║┐u b├án giao
++              </Button>
++              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={handleBulkReplenishStock}>
++                <Truck className="h-3.5 w-3.5" />
++                Nhß║¡p h├áng
++              </Button>
++
++              <Select onValueChange={handleBulkActionChange}>
++                <SelectTrigger className="h-8 text-xs w-[100px] border-dashed text-muted-foreground">
++                  <MoreHorizontal className="h-3.5 w-3.5 mr-1" />
++                  <SelectValue placeholder="Thao t├íc" />
++                </SelectTrigger>
++                <SelectContent className="bg-popover z-50">
++                  <SelectItem value="delete" className="text-xs text-destructive">X├│a ─æ╞ín ─æ├ú chß╗ìn</SelectItem>
++                  <SelectItem value="assign" className="text-xs">Ph├ón c├┤ng nh├ón vi├¬n</SelectItem>
++                  <SelectItem value="tag" className="text-xs">Gß║»n thß║╗</SelectItem>
++                </SelectContent>
++              </Select>
++
++              <div className="ml-auto">
++                <Button
++                  variant="ghost"
++                  size="sm"
++                  onClick={() => setSelectedOrderIds([])}
++                  className="h-8 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
++                >
++                  Γ£ò Bß╗Å chß╗ìn
++                </Button>
++              </div>
++            </div>
++          </div>
++        )}
++
+         {/* Stats Summary */}
+         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6">
+           {statusColumns.map((col) => {
+@@ -425,6 +845,21 @@ const Orders = () => {
+               <table className="w-full min-w-[1080px]">
+                 <thead>
+                   <tr className="border-b border-border">
++                    <th className="w-12 text-center p-3 sm:p-4">
++                      <Checkbox
++                        checked={
++                          filteredOrders.length > 0 &&
++                          selectedOrderIds.length === filteredOrders.length
++                        }
++                        onCheckedChange={(checked) => {
++                          if (checked) {
++                            setSelectedOrderIds(filteredOrders.map((o) => o.id));
++                          } else {
++                            setSelectedOrderIds([]);
++                          }
++                        }}
++                      />
++                    </th>
+                     <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">M├ú ─æ╞ín</th>
+                     <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">Kh├ích h├áng</th>
+                     <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground text-sm">Nguß╗ôn</th>
+@@ -444,6 +879,18 @@ const Orders = () => {
+                       const channel = getChannelInfo(order.channel_id);
+                       return (
+                         <tr key={order.id} className="border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => openOrderDetail(order)}>
++                          <td className="w-12 text-center p-3 sm:p-4" onClick={(e) => e.stopPropagation()}>
++                            <Checkbox
++                              checked={selectedOrderIds.includes(order.id)}
++                              onCheckedChange={(checked) => {
++                                if (checked) {
++                                  setSelectedOrderIds([...selectedOrderIds, order.id]);
++                                } else {
++                                  setSelectedOrderIds(selectedOrderIds.filter((id) => id !== order.id));
++                                }
++                              }}
++                            />
++                          </td>
+                           <td className="p-3 sm:p-4 font-mono text-sm font-medium text-foreground">{order.order_number}</td>
+                           <td className="p-3 sm:p-4 text-sm text-foreground">
+                             <div className="font-medium">{getOrderCustomerName(order)}</div>
+@@ -484,7 +931,7 @@ const Orders = () => {
+                     })
+                   ) : (
+                     <tr>
+-                      <td colSpan={11} className="p-0">
++                      <td colSpan={12} className="p-0">
+                         {orders.length === 0 ? (
+                           <EmptyOrdersState onCreateOrder={() => setCreateDialogOpen(true)} />
+                         ) : (
+@@ -496,6 +943,24 @@ const Orders = () => {
+                 </tbody>
+               </table>
+             </CardContent>
++            {filteredOrders.length > 0 && (
++              <div className="mt-0 flex items-center justify-between flex-wrap gap-4 text-xs sm:text-sm text-muted-foreground bg-muted/20 border-t p-3 rounded-b-xl">
++                <div>
++                  Tß╗òng sß╗æ ─æ╞ín: <span className="font-bold text-foreground">{filteredOrders.length}</span>
++                </div>
++                <div className="flex gap-4 sm:gap-6 flex-wrap font-medium">
++                  <div>
++                    COD: <span className="font-bold text-blue-600">{totalCOD.toLocaleString("vi-VN")}─æ</span>
++                  </div>
++                  <div>
++                    Trß║ú tr╞░ß╗¢c: <span className="font-bold text-success">{totalPrepaid.toLocaleString("vi-VN")}─æ</span>
++                  </div>
++                  <div>
++                    C╞░ß╗¢c VC: <span className="font-bold text-foreground">{totalShippingFee.toLocaleString("vi-VN")}─æ</span>
++                  </div>
++                </div>
++              </div>
++            )}
+           </Card>
+         )}
+           </TabsContent>
+@@ -529,6 +994,14 @@ const Orders = () => {
+         open={importDialogOpen}
+         onOpenChange={setImportDialogOpen}
+       />
++
++      <PackingDialog
++        open={packingDialogOpen}
++        onOpenChange={setPackingDialogOpen}
++        orderQueue={selectedOrderObjects}
++        allOrders={enrichedOrders}
++        onPackOrder={handlePackOrder}
++      />
+     </MainLayout>
+   );
+ };

@@ -583,11 +583,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
                     <AlertDescription className="text-orange-800">
                       <strong className="block mb-1">Cảnh báo tồn kho:</strong>
                       <ul className="space-y-1 text-sm">
-                        {warehouseAnalysis.issues.map(issue => (
-                          <li key={issue.product_id}>
-                            • {issue.product_name}: cần {issue.required}, có {issue.available}, thiếu <strong className="text-orange-700">{issue.shortage}</strong>
-                          </li>
-                        ))}
+                        {warehouseAnalysis.issues.map(issue => {
+                          const prodName = products.find(p => p.id === issue.product_id)?.name || issue.product_name;
+                          return (
+                            <li key={issue.product_id}>
+                              • {prodName}: cần {issue.required}, có {issue.available}, thiếu <strong className="text-orange-700">{issue.shortage}</strong>
+                            </li>
+                          );
+                        })}
                       </ul>
                       {warehouseAnalysis.issues.length > 0 && (
                         <p className="mt-2 text-xs flex items-center gap-1">

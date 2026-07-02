@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAIRotator } from "@/hooks/useAIRotator";
 import { Bot, Send, Loader2, X, Minimize2, Sparkles, BarChart3, Package, ShoppingCart, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,6 +24,11 @@ const suggestedQuestions = [
 ];
 
 export function ERPChatbot() {
+  const location = useLocation();
+  if (location.pathname === "/pos") {
+    return null;
+  }
+
   const { companyId } = useCompanyContext();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);

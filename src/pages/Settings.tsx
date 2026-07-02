@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,8 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User, Store, Shield, Loader2, Plus, Pencil, Trash2, CreditCard, Ticket, Truck, Users, History, FolderOpen, Mail, Bot, Building2, UsersRound, Link2, HardDrive, ShieldCheck, Activity, Tags, Zap } from "lucide-react";
+import { useProducts } from "@/hooks/useProducts";
+import { User, Store, Shield, Loader2, Plus, Pencil, Trash2, CreditCard, Ticket, Truck, Users, History, FolderOpen, Mail, Bot, Building2, UsersRound, Link2, HardDrive, ShieldCheck, Activity, Tags, Zap, Award, ArrowLeft, MessageSquare, Facebook } from "lucide-react";
 import { usePlatformSync } from "@/hooks/usePlatformSync";
 import { BankSettingsTab } from "@/components/settings/BankSettingsTab";
 import { VouchersTab } from "@/components/settings/VouchersTab";
@@ -26,6 +28,7 @@ import { CustomerGroupsTab } from "@/components/settings/CustomerGroupsTab";
 import { CategoriesTab } from "@/components/settings/CategoriesTab";
 import { EmailPreferencesTab } from "@/components/settings/EmailPreferencesTab";
 import { AISettingsTab } from "@/components/settings/AISettingsTab";
+import { ChatwootSupportTab } from "@/components/partners/ChatwootSupportTab";
 import { CompanyInfoSection } from "@/components/settings/CompanyInfoSection";
 import { BackupTab } from "@/components/settings/BackupTab";
 import { PermissionPoliciesTab } from "@/components/settings/PermissionPoliciesTab";
@@ -35,7 +38,12 @@ import { PriceListsTab } from "@/components/settings/PriceListsTab";
 import { SubscriptionsTab } from "@/components/settings/SubscriptionsTab";
 import { EventBusMonitorTab } from "@/components/settings/EventBusMonitorTab";
 import { SalesPoliciesTab } from "@/components/settings/SalesPoliciesTab";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LoyaltySettingsTab } from "@/components/settings/LoyaltySettingsTab";
+import { CommissionSettingsTab } from "@/components/settings/CommissionSettingsTab";
+import { AutoMessagesTab } from "@/components/settings/AutoMessagesTab";
+import { EventSyncTab } from "@/components/settings/EventSyncTab";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { z } from "zod";
 
 const passwordSchema = z.object({
@@ -62,7 +70,23 @@ const Settings = () => {
   const { role } = useCompanyContext();
   const isAdmin = role === "admin";
   const { channels, createChannel, updateChannel, deleteChannel } = useSalesChannels();
+  const { products = [] } = useProducts();
   const { getAuthUrl } = usePlatformSync();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
+
+  useEffect(() => {
+    const tabVal = searchParams.get("tab");
+    if (tabVal) {
+      setActiveTab(tabVal);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    setSearchParams({ tab: val });
+  };
+
   const [connectingId, setConnectingId] = useState<string | null>(null);
 
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -78,6 +102,56 @@ const Settings = () => {
 
   const [channelDialogOpen, setChannelDialogOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<any>(null);
+
+  // Product Mappings State
+  const [productMappings, setProductMappings] = useState<any[]>([]);
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+  const [newMapping, setNewMapping] = useState({ channel_id: "", external_name: "", external_sku: "", product_id: "" });
+
+  useEffect(() => {
+    const rawMappings = localStorage.getItem("erp-mini-local-demo-product-mappings");
+    if (rawMappings) {
+      try {
+        setProductMappings(JSON.parse(rawMappings));
+      } catch (e) {
+        setProductMappings([]);
+      }
+    } else {
+      const defaultMappings = [
+        { id: "map-1", channel_id: channels[0]?.id || "chan-1", external_name: "Áo sơ mi nam công sở cotton", external_sku: "SHP-SHIRT-COTTON", product_id: "prod-1" },
+        { id: "map-2", channel_id: channels[1]?.id || "chan-2", external_name: "Chỉ may bò dập dày", external_sku: "LZD-CHI-MAY", product_id: "CHI" }
+      ];
+      setProductMappings(defaultMappings);
+      localStorage.setItem("erp-mini-local-demo-product-mappings", JSON.stringify(defaultMappings));
+    }
+  }, [channels]);
+
+  const handleCreateMapping = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMapping.channel_id || !newMapping.external_name.trim() || !newMapping.external_sku.trim() || !newMapping.product_id) {
+      toast({ title: "Lỗi", description: "Vui lòng điền đầy đủ các trường", variant: "destructive" });
+      return;
+    }
+    const created = {
+      id: `map-${Date.now()}`,
+      ...newMapping
+    };
+    const updated = [...productMappings, created];
+    setProductMappings(updated);
+    localStorage.setItem("erp-mini-local-demo-product-mappings", JSON.stringify(updated));
+    setNewMapping({ channel_id: "", external_name: "", external_sku: "", product_id: "" });
+    setMappingDialogOpen(false);
+    toast({ title: "Đã liên kết sản phẩm thành công" });
+  };
+
+  const handleDeleteMapping = (id: string) => {
+    if (confirm("Hủy liên kết sản phẩm này?")) {
+      const updated = productMappings.filter((m) => m.id !== id);
+      setProductMappings(updated);
+      localStorage.setItem("erp-mini-local-demo-product-mappings", JSON.stringify(updated));
+      toast({ title: "Đã hủy liên kết sản phẩm" });
+    }
+  };
   const [channelForm, setChannelForm] = useState({ name: "", code: "", color: "#3B82F6", description: "", platform_type: "manual", api_credentials: {} as Record<string, string> });
   const [channelErrors, setChannelErrors] = useState<Record<string, string>>({});
 
@@ -181,13 +255,146 @@ const Settings = () => {
     }
   };
 
+  const SettingsOverview = () => {
+    const sections = [
+      {
+        title: "Cấu hình chung",
+        icon: Store,
+        items: [
+          { label: "Cửa hàng", tab: "shop", desc: "Thông tin shop, mẫu in hoá đơn" },
+          { label: "Tài khoản cá nhân", tab: "account", desc: "Đổi mật khẩu, cập nhật profile" },
+          { label: "Thông tin công ty", tab: "company", desc: "Thiết lập thông tin pháp lý doanh nghiệp" },
+          { label: "Danh mục sản phẩm", tab: "categories", desc: "Quản lý danh mục sản phẩm, nguyên vật liệu" },
+          { label: "Bảng giá", tab: "price_lists", desc: "Thiết lập bảng giá bán sỉ/bán lẻ" }
+        ]
+      },
+      {
+        title: "Bán hàng & Kênh sàn",
+        icon: Link2,
+        items: [
+          { label: "Kênh bán hàng", tab: "channels", desc: "Quản lý kết nối Shopee, Lazada, TikTok Shop" },
+          { label: "Mã giảm giá (Vouchers)", tab: "vouchers", desc: "Thiết lập mã giảm giá cho shop" }
+        ]
+      },
+      {
+        title: "Nhân viên & Phân quyền",
+        icon: UsersRound,
+        items: [
+          { label: "Danh sách nhân viên", tab: "members", desc: "Quản lý tài khoản nhân viên" },
+          { label: "Cấu hình hoa hồng", tab: "commissions", desc: "Thiết lập hoa hồng bán hàng cho sales" },
+          { label: "Quy trình phân quyền", tab: "permissions", desc: "Cài đặt phân quyền chi tiết vai trò" },
+          { label: "Vai trò & Nhóm quyền động", tab: "dynamic_rbac", desc: "Tùy biến nhóm quyền và vai trò chi tiết" }
+        ]
+      },
+      {
+        title: "Khách hàng & Đối tác",
+        icon: Users,
+        items: [
+          { label: "Nhóm khách hàng", tab: "customers", desc: "Cài đặt nhóm khách hàng, phân loại" },
+          { label: "Tích điểm & Hạng thẻ", tab: "loyalty", desc: "Cấu hình tích điểm và hạng thành viên" }
+        ]
+      },
+      {
+        title: "Thanh toán",
+        icon: CreditCard,
+        items: [
+          { label: "Tài khoản ngân hàng", tab: "bank", desc: "Cấu hình tài khoản nhận tiền thanh toán" }
+        ]
+      },
+      {
+        title: "Vận chuyển",
+        icon: Truck,
+        items: [
+          { label: "Khu vực vận chuyển", tab: "shipping", desc: "Thiết lập phí ship theo khu vực" },
+          { label: "Hãng giao hàng (Pancake)", tab: "carriers", desc: "Cài đặt hãng vận chuyển mặc định" }
+        ]
+      },
+      {
+        title: "Thông báo & CSKH",
+        icon: MessageSquare,
+        items: [
+          { label: "Tin nhắn tự động", tab: "auto_messages", desc: "Tự động gửi hoá đơn, CSKH qua Messenger & SMS" },
+          { label: "Cấu hình Email", tab: "email", desc: "Cấu hình mail server gửi hóa đơn" },
+          { label: "Cấu hình Chatwoot", tab: "chatwoot", desc: "Tích hợp kênh hỗ trợ đa kênh (Zalo OA, Messenger, Live Chat Website)" }
+        ]
+      },
+      {
+        title: "AI & Tự động hóa",
+        icon: Bot,
+        items: [
+          { label: "Cài đặt AI", tab: "ai", desc: "Cấu hình API Key, Prompt cho AI Copilot" },
+          { label: "AI Agent", tab: "agents", desc: "Quản lý quyền hạn và tác vụ của Agent" }
+        ]
+      },
+      {
+        title: "Nâng cao & Hệ thống",
+        icon: Zap,
+        items: [
+          { label: "Đồng bộ sự kiện (CAPI)", tab: "event_sync", desc: "Đồng bộ Facebook Conversions API & Pixel" },
+          { label: "Chính sách bán hàng", tab: "policies", desc: "Quản lý chính sách công nợ, đổi trả" },
+          { label: "Sao lưu & Khôi phục", tab: "backup", desc: "Quản lý dữ liệu hệ thống" },
+          { label: "Gói dịch vụ", tab: "subscriptions", desc: "Quản lý gói dịch vụ và thời hạn sử dụng" },
+          { label: "Nhật ký hệ thống", tab: "audit", desc: "Tra cứu lịch sử thao tác hệ thống" },
+          { label: "Sức khỏe hệ thống", tab: "health", desc: "Giám sát hiệu suất ứng dụng và DB" },
+          { label: "Event Bus Monitor", tab: "event_bus", desc: "Theo dõi luồng sự kiện thời gian thực" }
+        ]
+      }
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {sections.map((section, idx) => (
+            <Card key={idx} className="border border-border hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center gap-2.5 pb-2 border-b">
+                <section.icon className="h-5 w-5 text-primary shrink-0" />
+                <CardTitle className="text-xs font-bold uppercase tracking-wider">{section.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3 space-y-3">
+                {section.items.map((item, itemIdx) => (
+                  <div
+                    key={itemIdx}
+                    onClick={() => handleTabChange(item.tab)}
+                    className="group cursor-pointer block text-left"
+                  >
+                    <span className="text-xs font-semibold text-blue-600 group-hover:text-blue-700 transition-colors block">
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block leading-relaxed">
+                      {item.desc}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <MainLayout>
       <Header title="Cài đặt" subtitle="Quản lý tài khoản và cấu hình hệ thống" />
 
-      <div className="p-4 sm:p-6">
-        <Tabs defaultValue="account" className="space-y-6">
-          <TabsList className="w-full flex flex-wrap h-auto gap-1">
+      <div className="p-4 sm:p-6 space-y-6">
+        {activeTab !== "overview" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleTabChange("overview")}
+            className="gap-1.5 text-muted-foreground hover:text-foreground cursor-pointer -mt-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Quay lại cài đặt tổng quan
+          </Button>
+        )}
+
+        {activeTab === "overview" ? (
+          <SettingsOverview />
+        ) : (
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+            <TabsList className="hidden flex-wrap h-auto gap-1">
             <TabsTrigger value="account" className="gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Tài khoản</span>
@@ -216,6 +423,10 @@ const Settings = () => {
               <Store className="h-4 w-4" />
               <span className="hidden sm:inline">Kênh bán</span>
             </TabsTrigger>
+             <TabsTrigger value="chatwoot" className="gap-2">
+               <MessageSquare className="h-4 w-4 text-indigo-500" />
+               <span className="hidden sm:inline">Cấu hình Chatwoot</span>
+             </TabsTrigger>
             <TabsTrigger value="vouchers" className="gap-2">
               <Ticket className="h-4 w-4" />
               <span className="hidden sm:inline">Voucher</span>
@@ -231,6 +442,10 @@ const Settings = () => {
             <TabsTrigger value="customers" className="gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Nhóm KH</span>
+            </TabsTrigger>
+            <TabsTrigger value="loyalty" className="gap-2">
+              <Award className="h-4 w-4" />
+              <span className="hidden sm:inline">Tích điểm & Hạng thẻ</span>
             </TabsTrigger>
             <TabsTrigger value="policies" className="gap-2">
               <ShieldCheck className="h-4 w-4" />
@@ -494,6 +709,137 @@ const Settings = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Product Mappings Section */}
+            <Card className="mt-6">
+              <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
+                <div>
+                  <CardTitle className="text-sm font-bold">Liên kết sản phẩm đa sàn</CardTitle>
+                  <CardDescription className="text-[11px] mt-1">
+                    Thiết lập ánh xạ mã SKU từ các sàn Shopee, Lazada, TikTok sang sản phẩm nội bộ để trừ tồn kho chính xác.
+                  </CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setMappingDialogOpen(true)} className="h-8 text-xs font-semibold gap-1">
+                  <Plus className="h-3.5 w-3.5" /> Tạo liên kết
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/20 text-muted-foreground text-left">
+                        <th className="p-3 font-medium">Kênh bán</th>
+                        <th className="p-3 font-medium">Sản phẩm trên Sàn (SKU Sàn)</th>
+                        <th className="p-3 font-medium">Sản phẩm liên kết POS (SKU POS)</th>
+                        <th className="p-3 font-center font-medium text-center">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productMappings.map((m) => {
+                        const channel = channels.find((c) => c.id === m.channel_id);
+                        const product = products.find((p) => p.id === m.product_id);
+                        return (
+                          <tr key={m.id} className="border-b hover:bg-secondary/15 transition-colors">
+                            <td className="p-3">
+                              <Badge style={{ backgroundColor: channel?.color || "#e2e8f0" }} className="text-[9px] px-1.5 py-0 font-bold text-white">
+                                {channel?.name || "Kênh bán"}
+                              </Badge>
+                            </td>
+                            <td className="p-3">
+                              <div className="font-semibold text-foreground">{m.external_name}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono mt-0.5">SKU Sàn: {m.external_sku}</div>
+                            </td>
+                            <td className="p-3">
+                              {product ? (
+                                <>
+                                  <div className="font-semibold text-foreground">{product.name}</div>
+                                  <div className="text-[10px] text-muted-foreground font-mono mt-0.5">SKU POS: {product.sku || product.id}</div>
+                                </>
+                              ) : (
+                                <span className="text-red-500 font-semibold">Sản phẩm đã bị xóa khỏi POS</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteMapping(m.id)}
+                                className="h-8 w-8 hover:bg-red-50 dark:hover:bg-red-950/20"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {productMappings.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-muted-foreground">
+                            Chưa có sản phẩm nào được liên kết đa sàn.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Dialog: Create Product Mapping */}
+            <Dialog open={mappingDialogOpen} onOpenChange={setMappingDialogOpen}>
+              <DialogContent className="max-w-md bg-card border border-border">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-foreground">
+                    <Link2 className="h-5 w-5 text-blue-600" /> Tạo liên kết sản phẩm mới
+                  </DialogTitle>
+                  <DialogDescription>
+                    Thiết lập ánh xạ SKU từ sàn thương mại điện tử sang kho hàng POS.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateMapping} className="space-y-4 text-foreground text-xs">
+                  <div className="space-y-1">
+                    <Label className="font-semibold">Kênh bán hàng</Label>
+                    <Select
+                      value={newMapping.channel_id}
+                      onValueChange={(val) => setNewMapping({ ...newMapping, channel_id: val })}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Chọn kênh..." /></SelectTrigger>
+                      <SelectContent className="bg-popover text-foreground z-[100]">
+                        {channels.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="extName" className="font-semibold">Tên sản phẩm trên Sàn</Label>
+                    <Input id="extName" className="h-8" placeholder="Ví dụ: Áo khoác dù chống nắng" value={newMapping.external_name} onChange={(e) => setNewMapping({ ...newMapping, external_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="extSku" className="font-semibold">Mã SKU trên Sàn</Label>
+                    <Input id="extSku" className="h-8 font-mono" placeholder="Ví dụ: SHP-JACKET-RED-M" value={newMapping.external_sku} onChange={(e) => setNewMapping({ ...newMapping, external_sku: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="font-semibold">Sản phẩm POS tương ứng</Label>
+                    <Select
+                      value={newMapping.product_id}
+                      onValueChange={(val) => setNewMapping({ ...newMapping, product_id: val })}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Chọn sản phẩm POS..." /></SelectTrigger>
+                      <SelectContent className="bg-popover text-foreground z-[100] max-h-[200px] overflow-y-auto">
+                        {products.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku || p.id})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setMappingDialogOpen(false)}>Hủy</Button>
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">Tạo liên kết</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           <TabsContent value="vouchers">
@@ -510,6 +856,10 @@ const Settings = () => {
 
           <TabsContent value="customers">
             <CustomerGroupsTab />
+          </TabsContent>
+
+          <TabsContent value="loyalty">
+            <LoyaltySettingsTab />
           </TabsContent>
 
           <TabsContent value="policies">
@@ -571,7 +921,24 @@ const Settings = () => {
           <TabsContent value="subscriptions">
             <SubscriptionsTab />
           </TabsContent>
-        </Tabs>
+
+          <TabsContent value="commissions">
+            <CommissionSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="auto_messages">
+            <AutoMessagesTab />
+          </TabsContent>
+
+          <TabsContent value="event_sync">
+            <EventSyncTab />
+          </TabsContent>
+
+          <TabsContent value="chatwoot">
+            <ChatwootSupportTab mode="settings" />
+          </TabsContent>
+          </Tabs>
+        )}
       </div>
 
       {/* Channel Dialog */}

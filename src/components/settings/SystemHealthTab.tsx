@@ -347,98 +347,95 @@ export function SystemHealthTab() {
       const interval = setInterval(() => {
         const currentFeatures = featureStatusesRef.current;
         const featuresKeys = Object.keys(currentFeatures) as Array<keyof typeof currentFeatures>;
-        // Randomly pick one of the 8 features to execute
-        const featureKey = featuresKeys[Math.floor(Math.random() * featuresKeys.length)];
-        
         const users = ["Nguyễn Văn A", "Trần Thị B", "Lê Văn C", "Phạm Thị D", "Khách lẻ VIP"];
-        const user = users[Math.floor(Math.random() * users.length)];
-        const amount = (Math.floor(Math.random() * 50) + 1) * 10000;
-        const orderId = Math.floor(100000 + Math.random() * 900000);
-        const sku = `SKU-ERP-${Math.floor(1000 + Math.random() * 9000)}`;
-        const responseTime = Math.round(150 + Math.random() * 150);
 
-        const isUp = currentFeatures[featureKey] === "up";
-
-        switch (featureKey) {
-          case "pos_sales":
-            if (isUp) {
-              addLog(`[POS] Giao dịch POS ${amount.toLocaleString()}đ của ${user} - 200 OK | Hóa đơn in thành công.`);
-              writeMockAuditLog("POST /pos/orders", `Tạo đơn hàng POS trị giá ${amount.toLocaleString()}đ cho ${user}`);
-            } else {
-              addLog(`[POS/Lỗi] THẤT BẠI: Giao dịch POS của ${user} bị lỗi - Lỗi in hóa đơn hoặc lỗi cổng thanh toán QR code.`);
-              writeMockAuditLog("POST /pos/orders", `THẤT BẠI: Giao dịch POS ${amount.toLocaleString()}đ bị hủy do thiết bị in hóa đơn lỗi.`);
-            }
-            break;
-          case "order_fulfillment":
-            if (isUp) {
-              addLog(`[Xử lý Đơn] Đã duyệt và phân phối tự động đơn hàng #${orderId} - 200 OK.`);
-              writeMockAuditLog("POST /orders/fulfill", `Phân phối đơn hàng #${orderId} cho đơn vị vận chuyển.`);
-            } else {
-              addLog(`[Xử lý Đơn/Lỗi] THẤT BẠI: Giao hàng #${orderId} lỗi - Lỗi phân vùng đơn hàng tự động do thiếu dữ liệu địa chỉ.`);
-              writeMockAuditLog("POST /orders/fulfill", `THẤT BẠI: Đơn #${orderId} không thể tự động xử lý.`);
-            }
-            break;
-          case "inventory_control":
-            if (isUp) {
-              addLog(`[Tồn kho] Cập nhật tồn kho thành công cho sản phẩm ${sku} - 200 OK.`);
-            } else {
-              addLog(`[Tồn kho/Lỗi] CẢNH BÁO: Phát hiện chênh lệch kiểm kho tại Kho Q1 cho sản phẩm ${sku}.`);
-            }
-            break;
-          case "accounting_ledger":
-            if (isUp) {
-              addLog(`[Kế toán] Hạch toán tự động sổ cái đơn hàng POS - 200 OK.`);
-              writeMockAuditLog("POST /accounting/journals", `Hạch toán doanh thu và giá vốn đơn hàng.`);
-            } else {
-              addLog(`[Kế toán/Lỗi] THẤT BẠI: Bút toán sổ cái không cân đối (Nợ khác Có) trong kỳ hạch toán.`);
-              writeMockAuditLog("POST /accounting/journals", `THẤT BẠI: Từ chối ghi sổ do mất cân đối tài khoản.`);
-            }
-            break;
-          case "channel_sync":
-            if (isUp) {
-              addLog(`[Đồng bộ] Đồng bộ thành công sản phẩm ${sku} sang Shopee/Lazada/TikTok - 200 OK.`);
-            } else {
-              addLog(`[Đồng bộ/Lỗi] THẤT BẠI: Đồng bộ kênh bán lỗi - Lỗi xác thực khóa API Shopee (Token expired).`);
-            }
-            break;
-          case "performance_kpi":
-            if (isUp) {
-              addLog(`[KPI] Tính toán điểm hiệu suất định kỳ cho nhân viên ${user} - 200 OK.`);
-            } else {
-              addLog(`[KPI/Lỗi] THẤT BẠI: Tính toán KPI của ${user} lỗi - Lộ trình thăng tiến nhân sự chưa cấu hình cấp bậc liên kết.`);
-            }
-            break;
-          case "ai_chatbot":
-            if (isUp) {
-              addLog(`[AI Trợ lý] Phản hồi câu hỏi khách hàng (${responseTime}ms) - 200 OK.`);
-            } else {
-              addLog(`[AI Trợ lý/Lỗi] THẤT BẠI: Trợ lý AI không phản hồi - AI phản hồi chậm (>10s) hoặc lỗi Vector Database connection.`);
-            }
-            break;
-          case "workflow_engine":
-            if (isUp) {
-              addLog(`[Workflows] Kích hoạt luồng duyệt báo giá tự động thành công - 200 OK.`);
-            } else {
-              addLog(`[Workflows/Lỗi] THẤT BẠI: Luồng duyệt báo giá lỗi - Lỗi vòng lặp vô hạn trong luồng tự động duyệt báo giá.`);
-            }
-            break;
-        }
-
-        // Update statistical counters
         setFeatureStats((prev) => {
-          const currentStat = prev[featureKey] || { totalRequests: 0, successRequests: 0, failedRequests: 0 };
-          const updated = {
-            ...prev,
-            [featureKey]: {
+          const updated = { ...prev };
+
+          featuresKeys.forEach((featureKey) => {
+            const user = users[Math.floor(Math.random() * users.length)];
+            const amount = (Math.floor(Math.random() * 50) + 1) * 10000;
+            const orderId = Math.floor(100000 + Math.random() * 900000);
+            const sku = `SKU-ERP-${Math.floor(1000 + Math.random() * 9000)}`;
+            const responseTime = Math.round(150 + Math.random() * 150);
+            const isUp = currentFeatures[featureKey] === "up";
+
+            switch (featureKey) {
+              case "pos_sales":
+                if (isUp) {
+                  addLog(`[POS] Giao dịch POS ${amount.toLocaleString()}đ của ${user} - 200 OK | Hóa đơn in thành công.`);
+                  writeMockAuditLog("POST /pos/orders", `Tạo đơn hàng POS trị giá ${amount.toLocaleString()}đ cho ${user}`);
+                } else {
+                  addLog(`[POS/Lỗi] THẤT BẠI: Giao dịch POS của ${user} bị lỗi - Lỗi in hóa đơn hoặc lỗi cổng thanh toán QR code.`);
+                  writeMockAuditLog("POST /pos/orders", `THẤT BẠI: Giao dịch POS ${amount.toLocaleString()}đ bị hủy do thiết bị in hóa đơn lỗi.`);
+                }
+                break;
+              case "order_fulfillment":
+                if (isUp) {
+                  addLog(`[Xử lý Đơn] Đã duyệt và phân phối tự động đơn hàng #${orderId} - 200 OK.`);
+                  writeMockAuditLog("POST /orders/fulfill", `Phân phối đơn hàng #${orderId} cho đơn vị vận chuyển.`);
+                } else {
+                  addLog(`[Xử lý Đơn/Lỗi] THẤT BẠI: Giao hàng #${orderId} lỗi - Lỗi phân vùng đơn hàng tự động do thiếu dữ liệu địa chỉ.`);
+                  writeMockAuditLog("POST /orders/fulfill", `THẤT BẠI: Đơn #${orderId} không thể tự động xử lý.`);
+                }
+                break;
+              case "inventory_control":
+                if (isUp) {
+                  addLog(`[Tồn kho] Cập nhật tồn kho thành công cho sản phẩm ${sku} - 200 OK.`);
+                } else {
+                  addLog(`[Tồn kho/Lỗi] CẢNH BÁO: Phát hiện chênh lệch kiểm kho tại Kho Q1 cho sản phẩm ${sku}.`);
+                }
+                break;
+              case "accounting_ledger":
+                if (isUp) {
+                  addLog(`[Kế toán] Hạch toán tự động sổ cái đơn hàng POS - 200 OK.`);
+                  writeMockAuditLog("POST /accounting/journals", `Hạch toán doanh thu và giá vốn đơn hàng.`);
+                } else {
+                  addLog(`[Kế toán/Lỗi] THẤT BẠI: Bút toán sổ cái không cân đối (Nợ khác Có) trong kỳ hạch toán.`);
+                  writeMockAuditLog("POST /accounting/journals", `THẤT BẠI: Từ chối ghi sổ do mất cân đối tài khoản.`);
+                }
+                break;
+              case "channel_sync":
+                if (isUp) {
+                  addLog(`[Đồng bộ] Đồng bộ thành công sản phẩm ${sku} sang Shopee/Lazada/TikTok - 200 OK.`);
+                } else {
+                  addLog(`[Đồng bộ/Lỗi] THẤT BẠI: Đồng bộ kênh bán lỗi - Lỗi xác thực khóa API Shopee (Token expired).`);
+                }
+                break;
+              case "performance_kpi":
+                if (isUp) {
+                  addLog(`[KPI] Tính toán điểm hiệu suất định kỳ cho nhân viên ${user} - 200 OK.`);
+                } else {
+                  addLog(`[KPI/Lỗi] THẤT BẠI: Tính toán KPI của ${user} lỗi - Lộ trình thăng tiến nhân sự chưa cấu hình cấp bậc liên kết.`);
+                }
+                break;
+              case "ai_chatbot":
+                if (isUp) {
+                  addLog(`[AI Trợ lý] Phản hồi câu hỏi khách hàng (${responseTime}ms) - 200 OK.`);
+                } else {
+                  addLog(`[AI Trợ lý/Lỗi] THẤT BẠI: Trợ lý AI không phản hồi - AI phản hồi chậm (>10s) hoặc lỗi Vector Database connection.`);
+                }
+                break;
+              case "workflow_engine":
+                if (isUp) {
+                  addLog(`[Workflows] Kích hoạt luồng duyệt báo giá tự động thành công - 200 OK.`);
+                } else {
+                  addLog(`[Workflows/Lỗi] THẤT BẠI: Luồng duyệt báo giá lỗi - Lỗi vòng lặp vô hạn trong luồng tự động duyệt báo giá.`);
+                }
+                break;
+            }
+
+            const currentStat = updated[featureKey] || { totalRequests: 0, successRequests: 0, failedRequests: 0 };
+            updated[featureKey] = {
               totalRequests: currentStat.totalRequests + 1,
               successRequests: currentStat.successRequests + (isUp ? 1 : 0),
               failedRequests: currentStat.failedRequests + (isUp ? 0 : 1),
-            }
-          };
+            };
+          });
+
           localStorage.setItem("system-feature-stats", JSON.stringify(updated));
           return updated;
         });
-
       }, 700);
 
       return () => {
@@ -525,6 +522,55 @@ export function SystemHealthTab() {
         description: `Tính năng ${displayName} đã hoạt động trở lại.`,
       });
     }
+  };
+
+  const handleRestoreAll = () => {
+    const healthyApis = {
+      database: "up" as const,
+      supabase_api: "up" as const,
+      shopee_api: "up" as const,
+      lazada_api: "up" as const,
+      tiktok_api: "up" as const,
+      ai_api: "up" as const,
+      momo_api: "up" as const,
+      vnpay_api: "up" as const,
+      ghn_api: "up" as const,
+      ghtk_api: "up" as const,
+    };
+    setApiStatuses(healthyApis);
+    setDbStatus("up");
+    
+    Object.keys(healthyApis).forEach(key => {
+      const storageKey = key === "database" ? "system-integrity-db-status" : `system-integrity-${key.replace(/_/g, "-")}`;
+      localStorage.setItem(storageKey, "up");
+    });
+    
+    const healthyFeatures = {
+      pos_sales: "up" as const,
+      order_fulfillment: "up" as const,
+      inventory_control: "up" as const,
+      accounting_ledger: "up" as const,
+      channel_sync: "up" as const,
+      performance_kpi: "up" as const,
+      ai_chatbot: "up" as const,
+      workflow_engine: "up" as const,
+    };
+    setFeatureStatuses(healthyFeatures);
+    
+    Object.keys(healthyFeatures).forEach(key => {
+      const storageKey = `system-feature-status-${key.replace(/_/g, "-")}`;
+      localStorage.setItem(storageKey, "up");
+    });
+
+    localStorage.setItem("system-integrity-memory-status", "up");
+    localStorage.setItem("system-integrity-cpu-status", "up");
+    setAuditReport(null);
+
+    addLog("[Terminus] Đã khôi phục toàn bộ dịch vụ và kết nối hệ thống về trạng thái khỏe mạnh.");
+    toast({
+      title: "Đã phục hồi hệ thống",
+      description: "Tất cả các dịch vụ và API giả lập đã được khôi phục về trạng thái hoạt động bình thường.",
+    });
   };
 
   const generateTerminusJson = () => {
@@ -723,6 +769,16 @@ export function SystemHealthTab() {
                 <Badge variant={isOverallError ? "destructive" : "default"} className="text-[10px] uppercase font-bold py-0.5 px-2">
                   {isOverallError ? "Error 503" : "Online 200"}
                 </Badge>
+                {isOverallError && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] bg-emerald-600/20 border-emerald-500/30 hover:bg-emerald-600 text-emerald-300 hover:text-white font-semibold px-2 py-0"
+                    onClick={handleRestoreAll}
+                  >
+                    Khôi phục
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-slate-400">Endpoint API sức khỏe hệ thống theo thời gian thực</p>
             </div>

@@ -1,12 +1,12 @@
-# BRIEFING — 2026-07-01T16:21:28+07:00
+# BRIEFING — 2026-07-02T11:46:13+07:00
 
 ## Mission
-Nâng cấp và hoàn thiện tính năng Thẻ thành viên & Ví (Memberships & Wallet Balance) trong ERP_Local_Mini.
+Tích hợp tính năng Đóng hàng (Pancake packing workflow) và thanh Bulk Action Bar đúng chuẩn Pancake POS vào trang quản lý Đơn hàng Orders.tsx.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents\sentinel
-- Orchestrator: 2bff7b72-6ffb-46c0-954c-29f349c5f6a9
+- Orchestrator: 532fe2c7-bca1-4de1-b1a0-823080194fe1
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
@@ -16,7 +16,7 @@ Nâng cấp và hoàn thiện tính năng Thẻ thành viên & Ví (Memberships 
 - Run Liveness Check cron (`*/10 * * * *`)
 
 ## User Context
-- **Last user request**: Nâng cấp và hoàn thiện tính năng Thẻ thành viên & Ví (Memberships & Wallet Balance) trong ERP_Local_Mini, hỗ trợ nhiều thẻ, tải lên hình ảnh thẻ, cấu hình động tài khoản kế toán đối ứng và tự động hạch toán dòng tiền ví.
+- **Last user request**: Tích hợp tính năng Đóng hàng và thanh Bulk Action Bar đúng chuẩn Pancake POS vào trang quản lý Đơn hàng Orders.tsx.
 - **Pending clarifications**: none
 - **Delivered results**: none
 

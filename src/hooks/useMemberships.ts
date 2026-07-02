@@ -15,6 +15,7 @@ export interface MembershipTierConfig {
   discount_rate: number;
   min_spent: number;
   description?: string;
+  card_background_image?: string;
 }
 
 export interface Membership {

@@ -198,6 +198,96 @@ export default function Memberships() {
   const [tierDiscountRate, setTierDiscountRate] = useState(0);
   const [tierMinSpent, setTierMinSpent] = useState(0);
   const [tierDesc, setTierDesc] = useState("");
+  const [tierCardBgImage, setTierCardBgImage] = useState<string | null>(null);
+  const [isUploadingTierBgImage, setIsUploadingTierBgImage] = useState(false);
+
+  const handleTierBgImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Lỗi file", description: "Vui lòng chọn file hình ảnh" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "Lỗi file", description: "Kích thước file không được vượt quá 5MB" });
+      return;
+    }
+
+    setIsUploadingTierBgImage(true);
+
+    try {
+      if (isLocalDemoAuthEnabled()) {
+        const LOCAL_IMAGE_MAX_DIMENSION = 900;
+        const LOCAL_IMAGE_QUALITY = 0.72;
+
+        const readFileAsDataUrl = (f: File): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error ?? new Error("Không thể đọc file ảnh"));
+            reader.readAsDataURL(f);
+          });
+        };
+
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error("Không thể xử lý file ảnh"));
+            img.src = src;
+          });
+        };
+
+        const dataUrl = await readFileAsDataUrl(file);
+        if (file.type === "image/svg+xml") {
+          setTierCardBgImage(dataUrl);
+        } else {
+          const img = await loadImage(dataUrl);
+          const scale = Math.min(1, LOCAL_IMAGE_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+          const width = Math.max(1, Math.round(img.naturalWidth * scale));
+          const height = Math.max(1, Math.round(img.naturalHeight * scale));
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const context = canvas.getContext("2d");
+          if (context) {
+            context.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL("image/jpeg", LOCAL_IMAGE_QUALITY);
+            setTierCardBgImage(compressed);
+          } else {
+            setTierCardBgImage(dataUrl);
+          }
+        }
+        toast({ title: "Đã nạp hình nền hạng thẻ thành công" });
+      } else {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `tiers/${fileName}`;
+
+        let uploadBucket = "membership-cards";
+        let uploadResult = await supabase.storage.from(uploadBucket).upload(filePath, file);
+
+        if (uploadResult.error) {
+          uploadBucket = "member-cards";
+          uploadResult = await supabase.storage.from(uploadBucket).upload(filePath, file);
+        }
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        const { data } = supabase.storage.from(uploadBucket).getPublicUrl(filePath);
+        setTierCardBgImage(data.publicUrl);
+        toast({ title: "Upload hình nền hạng thẻ thành công" });
+      }
+    } catch (err: any) {
+      console.error("Tier image upload failed:", err);
+      toast({ variant: "destructive", title: "Lỗi tải ảnh", description: err.message || "Không thể tải hình ảnh lên" });
+    } finally {
+      setIsUploadingTierBgImage(false);
+    }
+  };
 
   const getTierName = (tId: string) => {
     const config = tierConfigs.find(tc => tc.id === tId);
@@ -214,6 +304,25 @@ export default function Memberships() {
     return config?.bg_gradient || "from-slate-700 to-slate-900 text-slate-50";
   };
 
+  const getCardBgStyle = (membership: any) => {
+    if (!membership) return undefined;
+    if (membership.card_image) {
+      return { backgroundImage: `url(${membership.card_image})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+    }
+    const config = tierConfigs.find(tc => tc.id === membership.tier);
+    if (config?.card_background_image) {
+      return { backgroundImage: `url(${config.card_background_image})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+    }
+    return undefined;
+  };
+
+  const hasCardBgImage = (membership: any) => {
+    if (!membership) return false;
+    if (membership.card_image) return true;
+    const config = tierConfigs.find(tc => tc.id === membership.tier);
+    return !!config?.card_background_image;
+  };
+
   const handleOpenTierEditor = (config: any = null) => {
     if (config) {
       setEditingTier(config);
@@ -224,6 +333,7 @@ export default function Memberships() {
       setTierDiscountRate(config.discount_rate);
       setTierMinSpent(config.min_spent);
       setTierDesc(config.description || "");
+      setTierCardBgImage(config.card_background_image || null);
     } else {
       setEditingTier(null);
       setTierId("");
@@ -233,6 +343,7 @@ export default function Memberships() {
       setTierDiscountRate(0);
       setTierMinSpent(0);
       setTierDesc("");
+      setTierCardBgImage(null);
     }
     setTierEditorOpen(true);
   };
@@ -248,6 +359,7 @@ export default function Memberships() {
       discount_rate: tierDiscountRate,
       min_spent: tierMinSpent,
       description: tierDesc,
+      card_background_image: tierCardBgImage || undefined,
     };
     if (editingTier) {
       await updateMembershipTierConfig.mutateAsync(payload);
@@ -538,11 +650,11 @@ export default function Memberships() {
                 <div 
                   className={cn(
                     "p-6 bg-gradient-to-br relative min-h-[220px] rounded-xl flex flex-col justify-between transition-all duration-300",
-                    selectedWithPartner.card_image ? "bg-slate-900 text-white" : getCardBg(selectedWithPartner.tier)
+                    hasCardBgImage(selectedWithPartner) ? "bg-slate-900 text-white" : getCardBg(selectedWithPartner.tier)
                   )}
-                  style={selectedWithPartner.card_image ? { backgroundImage: `url(${selectedWithPartner.card_image})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                  style={getCardBgStyle(selectedWithPartner)}
                 >
-                  {selectedWithPartner.card_image && (
+                  {hasCardBgImage(selectedWithPartner) && (
                     <div className="absolute inset-0 bg-black/45 rounded-xl pointer-events-none" />
                   )}
                   {/* Glassmorphic overlay grid */}
@@ -1291,11 +1403,39 @@ export default function Memberships() {
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="tier-bg-image-upload">Hình nền thẻ (Tùy chọn)</Label>
+              <Input
+                id="tier-bg-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleTierBgImageChange}
+                disabled={isUploadingTierBgImage}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Nếu tải lên hình nền thẻ, hệ thống sẽ hiển thị hình nền này thay vì sử dụng màu Gradient CSS ở trên.
+              </p>
+              {tierCardBgImage && (
+                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border">
+                  <img src={tierCardBgImage} alt="Tier card background preview" className="w-full h-full object-cover" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6"
+                    onClick={() => setTierCardBgImage(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTierEditorOpen(false)}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={!tierId || !tierName || createMembershipTier.isPending || updateMembershipTierConfig.isPending}>
+              <Button type="submit" disabled={!tierId || !tierName || createMembershipTier.isPending || updateMembershipTierConfig.isPending || isUploadingTierBgImage}>
                 Xác nhận
               </Button>
             </DialogFooter>

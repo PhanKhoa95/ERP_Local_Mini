@@ -64,6 +64,16 @@ const DEFAULT_PROVIDERS: AIProvider[] = [
     models: ["google/gemini-2.5-flash", "openai/gpt-4o-mini", "deepseek/deepseek-chat", "anthropic/claude-3.5-sonnet"],
     selectedModel: "google/gemini-2.5-flash",
     baseUrl: "https://openrouter.ai/api/v1"
+  },
+  {
+    id: "ollama",
+    name: "Ollama (Local & Cloud)",
+    enabled: false,
+    keys: ["", "", "", "", ""],
+    activeKeyIndex: 0,
+    models: ["deepseek-r1:7b", "deepseek-r1:1.5b", "llama3.2", "llama3.1", "qwen2.5-coder", "mistral"],
+    selectedModel: "deepseek-r1:7b",
+    baseUrl: "http://localhost:11434/v1"
   }
 ];
 
@@ -73,6 +83,19 @@ export function useAIRotator() {
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as AIProvider[];
+        // Backfill Ollama provider if missing from localStorage
+        if (!parsed.some(p => p.id === "ollama")) {
+          parsed.push({
+            id: "ollama",
+            name: "Ollama (Local & Cloud)",
+            enabled: false,
+            keys: ["", "", "", "", ""],
+            activeKeyIndex: 0,
+            models: ["deepseek-r1:7b", "deepseek-r1:1.5b", "llama3.2", "llama3.1", "qwen2.5-coder", "mistral"],
+            selectedModel: "deepseek-r1:7b",
+            baseUrl: "http://localhost:11434/v1"
+          });
+        }
         // Migrate Gemini base URL if still pointing to OpenRouter
         return parsed.map(p => {
           if (p.id === "gemini" && (p.baseUrl === "https://openrouter.ai/api/v1" || p.selectedModel.startsWith("google/"))) {

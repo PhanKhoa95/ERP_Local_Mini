@@ -310,3 +310,78 @@ Integrity mode: development
 ### Tương thích hệ thống
 - [ ] Mọi hành động nạp tiền, chi tiêu và đổi cấu hình được ghi nhận thành công vào `audit_logs`.
 - [ ] Ứng dụng vượt qua kiểm tra kiểu tĩnh `npm run typecheck` và build production `npm run build` thành công 100%.
+
+## Follow-up — 2026-07-02T11:46:13+07:00
+
+Tích hợp tính năng **Đóng hàng** (Pancake packing workflow) và thanh công cụ hành động hàng loạt **Bulk Action Bar** đúng chuẩn Pancake POS vào trang quản lý Đơn hàng Orders.tsx.
+
+Working directory: y:\\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Tích hợp thanh Bulk Action Bar trên danh sách Đơn hàng (Orders.tsx)
+- Hiển thị thanh Toolbar/Bulk Actions trên đầu bảng danh sách đơn hàng khi chọn một hoặc nhiều đơn hàng, chứa các nút hành động giống Pancake POS: `Tải lại`, `In đơn`, `Cập nhật nhanh` (trạng thái), `In sản phẩm`, `Xuất excel`, `Nhập excel`, `Đóng hàng`, `In phiếu bàn giao`, `Nhập hàng`, `Thao tác` (dropdown).
+
+### R2. Quy trình Đóng hàng & Kiểm hàng chi tiết (Packing & Picking Dialog)
+- Khi bấm nút **Đóng hàng**, mở Dialog Đóng hàng:
+  - Cho phép quét mã vạch (giả lập hoặc nhập tay) hoặc tìm kiếm mã đơn hàng để tải đơn hàng cần đóng gói.
+  - Hiển thị chi tiết đơn hàng đang đóng: Mã đơn, Tên KH, SĐT, Địa chỉ, ĐVVC và danh sách sản phẩm cần nhặt (Picking list).
+  - Nhân viên có thể tích chọn từng sản phẩm hoặc bấm **Đã đủ hàng** để xác nhận đóng gói hoàn tất.
+  - Hỗ trợ tuỳ chọn: "Tự động in hóa đơn/nhãn dán K80 sau khi đóng xong" và "Tự động trừ tồn kho sản phẩm".
+  - Khi hoàn tất đóng gói, đơn hàng tự động chuyển sang trạng thái **Chờ chuyển hàng** (`waiting_transfer`), tự động trừ tồn kho của sản phẩm tại **Kho chỉ định trong đơn hàng** và trigger in hóa đơn K80 nếu bật cấu hình.
+  - Sau khi hoàn thành đóng một đơn, nếu có danh sách đơn đã chọn trước đó, hệ thống sẽ **tự động chuyển tiếp sang đơn tiếp theo** trong danh sách để tối ưu hóa quy trình đóng gói liên tục. Nếu không, Dialog giữ nguyên và chuyển sang chế độ chờ quét đơn hàng tiếp theo.
+
+## Verification Plan
+
+### Automated Tests
+- Chạy lệnh `npm run typecheck` để xác minh không có lỗi kiểu TypeScript nào.
+
+### Manual Verification
+- Người dùng chọn 2-3 đơn hàng bất kỳ trên bảng đơn hàng.
+- Click nút **Đóng hàng** trên thanh Bulk Action.
+- Dialog đóng gói mở ra hiển thị đơn hàng đầu tiên. Bấm nút **Đã đủ hàng**.
+- Đơn thứ nhất tự động đóng xong, chuyển sang đơn thứ hai. Đồng thời kiểm tra số lượng tồn kho sản phẩm trong kho của đơn một xem đã giảm tương ứng chưa.
+
+## Acceptance Criteria
+
+### Bulk Action Bar & Toolbar
+- [ ] Khi chọn ít nhất 1 đơn hàng trên bảng, thanh hành động hàng loạt màu trắng/xanh xuất hiện đầy đủ các nút chức năng.
+- [ ] Bấm nút "Đóng hàng" sẽ khởi chạy Dialog đóng gói.
+
+### Dialog Đóng hàng & Xử lý nghiệp vụ
+- [ ] Dialog hiển thị chi tiết thông tin đơn hàng, ĐVVC và danh sách sản phẩm kèm trạng thái nhặt (SL cần nhặt, SL đã nhặt).
+- [ ] Có ô input quét/tìm đơn hàng nhanh bằng mã đơn.
+- [ ] Bấm "Đã đủ hàng" hoặc quét đủ sản phẩm sẽ chuyển đơn hàng sang trạng thái `waiting_transfer` và trừ tồn kho ở kho tương ứng của đơn đó.
+- [ ] Tự động chuyển tiếp thông minh sang đơn tiếp theo trong danh sách đã chọn.
+- [ ] Tự động in hóa đơn bán lẻ K80 (mở printWindow) nếu bật checkbox cấu hình.
+- [ ] Không có lỗi runtime hoặc TypeScript build.
+
+## Follow-up — 2026-07-02T12:02:16+07:00
+
+Kiểm tra chéo, rà soát và hoàn thiện triệt để tính năng **Đóng hàng** (Packing Workflow) và thanh **Bulk Action Bar** trong file Orders.tsx và PackingDialog.tsx để đảm bảo hoạt động hoàn hảo, không có lỗi TypeScript hay lỗi logic trừ tồn kho.
+
+Working directory: y:\\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Rà soát lỗi biên dịch và lỗi logic trong PackingDialog.tsx
+- Kiểm tra toàn bộ mã nguồn của [PackingDialog.tsx](file:///y:/ERP_Local_Mini/src/components/orders/PackingDialog.tsx), đảm bảo các hàm callback `onPackOrder` hoạt động chính xác với cơ chế cập nhật trạng thái đơn hàng.
+- Kiểm tra việc nhập tay/quét mã đơn hàng để tải đơn hàng, đồng bộ danh sách picking list sản phẩm.
+
+### R2. Tối ưu hóa giao diện Bulk Action Bar trên Orders.tsx
+- Đảm bảo thanh Bulk Action Bar hiển thị chuẩn và đẹp trên cả phiên bản máy tính và điện thoại.
+- Các nút như In đơn, Đóng hàng, Cập nhật nhanh hoạt động mượt mà và gọi đúng hàm xử lý.
+
+## Verification Plan
+
+### Automated Tests
+- Chạy lệnh `npm run typecheck` để xác minh không có lỗi kiểu TypeScript nào.
+
+## Acceptance Criteria
+
+### Biên dịch & Hoạt động
+- [ ] Vượt qua kiểm tra kiểu tĩnh của TypeScript compile mà không có bất kỳ lỗi nào.
+- [ ] Giao diện Bulk Action Bar hiển thị hài hòa, cân đối.
+- [ ] PackingDialog tải đúng sản phẩm và xử lý chuyển trạng thái đơn hàng ổn định.

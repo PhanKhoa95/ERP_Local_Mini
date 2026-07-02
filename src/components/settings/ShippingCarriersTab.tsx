@@ -52,6 +52,95 @@ export function ShippingCarriersTab() {
 
   return (
     <>
+      {/* Pancake Shipping Advanced Config */}
+      <Card className="border border-border rounded-xl p-4 bg-muted/10 space-y-4 mb-6">
+        <CardHeader className="p-0 border-b pb-2">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
+            <Truck className="h-4 w-4 text-primary" />
+            Cấu hình vận chuyển Pancake
+          </CardTitle>
+          <CardDescription className="text-xs">Thiết lập tham số đồng bộ và quy tắc gửi đơn sang hãng vận chuyển</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0 space-y-4 pt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cấu hình Trạng thái */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-foreground uppercase">Trạng thái vận chuyển</h4>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-card border shadow-xs">
+                <Label htmlFor="sync-cancel" className="text-xs text-muted-foreground flex flex-col gap-0.5 cursor-pointer">
+                  <span>Không đồng bộ trạng thái huỷ đơn từ DVVC</span>
+                  <span className="text-[10px] text-muted-foreground/80">Khi hãng vận chuyển huỷ, giữ nguyên trạng thái đơn</span>
+                </Label>
+                <Switch id="sync-cancel" defaultChecked />
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-card border shadow-xs">
+                <Label htmlFor="manual-return" className="text-xs text-muted-foreground flex flex-col gap-0.5 cursor-pointer">
+                  <span>Trả hàng thủ công</span>
+                  <span className="text-[10px] text-muted-foreground/80">Cho phép kiểm soát hoàn trả thủ công</span>
+                </Label>
+                <Switch id="manual-return" />
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-card border shadow-xs">
+                <Label htmlFor="auto-schedule" className="text-xs text-muted-foreground flex flex-col gap-0.5 cursor-pointer">
+                  <span>Tự động cập nhật đơn hẹn ngày gửi về Chờ xác nhận</span>
+                  <span className="text-[10px] text-muted-foreground/80">Hẹn lịch tự động cập nhật về trạng thái chờ</span>
+                </Label>
+                <Switch id="auto-schedule" defaultChecked />
+              </div>
+            </div>
+
+            {/* Dịch vụ vận chuyển */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-foreground uppercase">Dịch vụ & Kích thước</h4>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-card border shadow-xs">
+                <Label htmlFor="return-fee" className="text-xs text-muted-foreground flex flex-col gap-0.5 cursor-pointer">
+                  <span>Thu phí vận chuyển với đơn hoàn</span>
+                  <span className="text-[10px] text-muted-foreground/80">Tự động cộng phí ship hoàn vào chi phí đơn hàng</span>
+                </Label>
+                <Switch id="return-fee" defaultChecked />
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-card border shadow-xs">
+                <Label htmlFor="cheapest-carrier" className="text-xs text-muted-foreground flex flex-col gap-0.5 cursor-pointer">
+                  <span>Tự động chọn dịch vụ với giá rẻ nhất</span>
+                  <span className="text-[10px] text-muted-foreground/80">So sánh giá và tự động chỉ định hãng rẻ nhất</span>
+                </Label>
+                <Switch id="cheapest-carrier" />
+              </div>
+              
+              {/* Kích thước */}
+              <div className="p-2 rounded-lg bg-card border shadow-xs space-y-2">
+                <Label className="text-xs text-muted-foreground">Kích thước gói hàng mặc định (cm)</Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" placeholder="Dài" defaultValue={10} className="h-8 text-xs text-center" />
+                  <span className="text-muted-foreground text-xs">x</span>
+                  <Input type="number" placeholder="Rộng" defaultValue={10} className="h-8 text-xs text-center" />
+                  <span className="text-muted-foreground text-xs">x</span>
+                  <Input type="number" placeholder="Cao" defaultValue={10} className="h-8 text-xs text-center" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Đơn vị vận chuyển */}
+          <div className="p-3 rounded-lg bg-card border border-primary/20 shadow-xs space-y-3">
+            <h4 className="text-xs font-semibold text-primary uppercase">Đơn vị vận chuyển</h4>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="save-carrier" className="text-xs text-muted-foreground flex flex-col gap-0.5 cursor-pointer">
+                <span>Lưu lại đơn vị vận chuyển</span>
+                <span className="text-[10px] text-muted-foreground/80">Tự động chọn lại hãng vận chuyển cho các đơn hàng tiếp theo</span>
+              </Label>
+              <Switch id="save-carrier" defaultChecked />
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t text-xs">
+              <span className="text-muted-foreground">Đơn vị vận chuyển bổ sung</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/5 cursor-pointer">
+                Chỉnh sửa danh sách
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

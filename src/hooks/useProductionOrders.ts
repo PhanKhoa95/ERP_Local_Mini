@@ -155,5 +155,55 @@ export function useProductionOrders() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  return { productionOrders, isLoading, createProductionOrder, updateStatus };
+  const updateProductionOrder = useMutation({
+    mutationFn: async (params: {
+      id: string;
+      product_id: string;
+      quantity: number;
+      notes?: string;
+    }) => {
+      if (isLocalDemoAuthEnabled()) {
+        const local = getLocalProductionOrders(companyId || "");
+        const idx = local.findIndex(po => po.id === params.id);
+        if (idx >= 0) {
+          local[idx] = {
+            ...local[idx],
+            product_id: params.product_id,
+            quantity: params.quantity,
+            notes: params.notes || null,
+            updated_at: new Date().toISOString()
+          };
+          saveLocalProductionOrders(local);
+          return local[idx];
+        }
+        throw new Error("Không tìm thấy lệnh sản xuất local");
+      }
+
+      const { data, error } = await supabase
+        .from("production_orders")
+        .update({
+          product_id: params.product_id,
+          quantity: params.quantity,
+          notes: params.notes || null,
+        })
+        .eq("id", params.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production-orders"] });
+      toast.success("Đã cập nhật lệnh sản xuất");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  return { 
+    productionOrders, 
+    isLoading, 
+    createProductionOrder, 
+    updateStatus, 
+    updateProductionOrder 
+  };
 }

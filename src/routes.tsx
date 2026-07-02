@@ -40,19 +40,21 @@ const SalesAgent = lazy(() => import("./pages/SalesAgent"));
 const DataHub = lazy(() => import("./pages/DataHub"));
 const Promotions = lazy(() => import("./pages/Promotions"));
 
+const ProductionMaterials = lazy(() => import("./pages/ProductionMaterials"));
+
 function PageLoader() {
   return (
     <div className="p-6 space-y-6">
       <div className="space-y-2">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-48" />
+        <span className="h-8 w-64 block bg-muted animate-pulse rounded" />
+        <span className="h-4 w-48 block bg-muted animate-pulse rounded" />
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-xl" />
+          <span key={i} className="h-28 rounded-xl block bg-muted animate-pulse" />
         ))}
       </div>
-      <Skeleton className="h-64 rounded-xl" />
+      <span className="h-64 rounded-xl block bg-muted animate-pulse" />
     </div>
   );
 }
@@ -123,6 +125,7 @@ export function AppRoutes() {
           <ProtectedRoute minRole="manager"><DataHub /></ProtectedRoute>
         } />
         <Route path="/promotions" element={<Promotions />} />
+        <Route path="/production/materials" element={<ProductionMaterials />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

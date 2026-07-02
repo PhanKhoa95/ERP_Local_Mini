@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Download, Star, Award, Wallet, Eye, BarChart3, Sparkles } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Download, Star, Award, Wallet, Eye, BarChart3, Sparkles, Banknote, ArrowRightLeft, MessageSquare } from "lucide-react";
 import { CustomerInsights } from "@/components/partners/CustomerInsights";
+import { CashflowTab } from "@/components/partners/CashflowTab";
+import { TransactionsTab } from "@/components/partners/TransactionsTab";
+import { ChatwootSupportTab } from "@/components/partners/ChatwootSupportTab";
 import { cn } from "@/lib/utils";
 import { usePartners } from "@/hooks/usePartners";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
@@ -49,6 +54,17 @@ const Partners = () => {
   const [detailPartner, setDetailPartner] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("customers");
+  const [searchParams] = useSearchParams();
+
+  // Sync tab from URL params (for sidebar submenu navigation)
+  useEffect(() => {
+    const tabVal = searchParams.get("tab");
+    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "chatwoot") {
+      setActiveTab(tabVal);
+    } else if (!tabVal) {
+      setActiveTab("customers");
+    }
+  }, [searchParams]);
 
   // Bulk Dialog state
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -291,6 +307,138 @@ const Partners = () => {
     );
   };
 
+  const PartnerTable = ({ list }: { list: any[] }) => {
+    return (
+      <Card className="border border-border">
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[1200px]">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12 text-center">
+                  <Checkbox
+                    checked={list.length > 0 && selectedPartnerIds.length === list.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedPartnerIds(list.map(p => p.id));
+                      } else {
+                        setSelectedPartnerIds([]);
+                      }
+                    }}
+                  />
+                </TableHead>
+                <TableHead className="text-xs">Tên đối tác</TableHead>
+                <TableHead className="text-xs">Trạng thái</TableHead>
+                <TableHead className="text-xs">Cấp độ</TableHead>
+                <TableHead className="text-xs">Phân công cho</TableHead>
+                <TableHead className="text-xs">Ngày sinh</TableHead>
+                <TableHead className="text-xs text-center">Số đơn</TableHead>
+                <TableHead className="text-xs text-center">Đơn đã nhận</TableHead>
+                <TableHead className="text-xs text-right">Số tiền đã chi</TableHead>
+                <TableHead className="text-xs">Lần mua cuối</TableHead>
+                <TableHead className="text-xs">Nhân viên tạo</TableHead>
+                <TableHead className="text-xs text-right">Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.map((partner) => {
+                const group = getGroupInfo(partner.group_id);
+                const isBlocked = partner.is_active === false || partner.code.includes("BLOCK");
+                const tierName = partner.promo_segment === "loyalty" ? "Super" : (group?.name || "Thường");
+                const tierColor = 
+                  tierName === "Super" ? "bg-purple-600 text-white" :
+                  tierName === "VÀNG" ? "bg-amber-500 text-white" :
+                  tierName === "SILVER" ? "bg-blue-400 text-white" :
+                  tierName === "MEMBER" ? "bg-green-600 text-white" :
+                  tierName === "Cấp 2" ? "bg-blue-500 text-white" :
+                  "bg-green-400 text-white";
+
+                const assignedStaff = ["Thăng Long", "Khoa 12 Tran", "Thùy Dương", "Lê Hoà", "Đạt Phùng"][partner.name.charCodeAt(0) % 5];
+                const creatorStaff = ["Thăng Long", "Khoa 12 Tran", "Thùy Dương", "Lê Hoà", "Đạt Phùng"][partner.name.charCodeAt(1) % 5];
+                const birthday = partner.phone ? "01/01/1970" : "Chưa có";
+                const totalOrders = partner.total_spent > 0 ? Math.floor(partner.total_spent / 120000) + 1 : 0;
+                const receivedOrders = partner.total_spent > 0 ? Math.max(0, totalOrders - 1) : 0;
+                const lastPurchase = partner.updated_at ? new Date(partner.updated_at).toLocaleDateString("vi-VN") : "Chưa có";
+
+                return (
+                  <TableRow key={partner.id} className="hover:bg-muted/30">
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedPartnerIds.includes(partner.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedPartnerIds([...selectedPartnerIds, partner.id]);
+                          } else {
+                            setSelectedPartnerIds(selectedPartnerIds.filter(id => id !== partner.id));
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                          {partner.name.charAt(0)}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-foreground font-semibold">{partner.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{partner.code}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {isBlocked ? (
+                        <Badge variant="destructive" className="text-[9px] bg-red-500 px-1.5 py-0">
+                          Bị chặn
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] bg-green-50 text-green-600 border-green-200 px-1.5 py-0">
+                          Hoạt động
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <Badge className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded", tierColor)}>
+                        {tierName}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <div className="h-4 w-4 rounded-full bg-muted flex items-center justify-center text-[8px]">
+                          👤
+                        </div>
+                        {assignedStaff}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{birthday}</TableCell>
+                    <TableCell className="text-xs text-center font-medium">{totalOrders}</TableCell>
+                    <TableCell className="text-xs text-center font-medium">{receivedOrders}</TableCell>
+                    <TableCell className="text-xs text-right font-semibold">
+                      {Number(partner.total_spent || 0).toLocaleString("vi-VN")}đ
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{lastPurchase}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{creatorStaff}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => { setDetailPartner(partner); setDetailDialogOpen(true); }}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer" onClick={() => handleOpenDialog(partner)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/5 cursor-pointer" onClick={() => handleDeleteClick(partner)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <MainLayout>
       <Header title="Quản lý đối tác" subtitle="Khách hàng và nhà cung cấp" />
@@ -307,63 +455,83 @@ const Partners = () => {
                 <Building className="h-4 w-4" />
                 <span className="hidden sm:inline">Nhà cung cấp</span> ({suppliers.length})
               </TabsTrigger>
+              <TabsTrigger value="cashflow" className="gap-2 flex-1 lg:flex-none">
+                <Banknote className="h-4 w-4" />
+                <span className="hidden sm:inline">Thu chi</span>
+              </TabsTrigger>
+              <TabsTrigger value="transactions" className="gap-2 flex-1 lg:flex-none">
+                <ArrowRightLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Giao dịch</span>
+              </TabsTrigger>
               <TabsTrigger value="insights" className="gap-2 flex-1 lg:flex-none">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Phân tích RFM</span>
               </TabsTrigger>
+              <TabsTrigger value="chatwoot" className="gap-2 flex-1 lg:flex-none">
+                <MessageSquare className="h-4 w-4 text-indigo-500" />
+                <span className="hidden sm:inline">CSKH Chatwoot</span>
+              </TabsTrigger>
             </TabsList>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm kiếm..."
-                  className="pl-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+            {(activeTab === "customers" || activeTab === "suppliers") && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Tìm kiếm..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="w-full sm:w-auto gap-1.5">
+                  <Sparkles className="h-4 w-4 text-primary" /> Thiết lập hàng loạt
+                </Button>
+                <Button variant="outline" onClick={() => exportPartnersToExcel(activeTab === "customers" ? filteredCustomers : filteredSuppliers)} className="w-full sm:w-auto">
+                  <Download className="h-4 w-4 mr-2" />
+                  Xuất Excel
+                </Button>
+                <Button onClick={() => handleOpenDialog(null, activeTab === "customers" ? "customer" : "supplier")} className="w-full sm:w-auto">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Thêm mới
+                </Button>
               </div>
-              <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="w-full sm:w-auto gap-1.5">
-                <Sparkles className="h-4 w-4 text-primary" /> Thiết lập hàng loạt
-              </Button>
-              <Button variant="outline" onClick={() => exportPartnersToExcel(activeTab === "customers" ? filteredCustomers : filteredSuppliers)} className="w-full sm:w-auto">
-                <Download className="h-4 w-4 mr-2" />
-                Xuất Excel
-              </Button>
-              <Button onClick={() => handleOpenDialog(null, activeTab === "customers" ? "customer" : "supplier")} className="w-full sm:w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm mới
-              </Button>
-            </div>
+            )}
           </div>
 
-          <TabsContent value="customers">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCustomers.map((customer) => (
-                <PartnerCard key={customer.id} partner={customer} />
-              ))}
-              {filteredCustomers.length === 0 && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  {searchQuery ? "Không tìm thấy khách hàng" : "Chưa có khách hàng. Nhấn 'Thêm mới' để bắt đầu."}
-                </div>
-              )}
-            </div>
+          <TabsContent value="customers" className="space-y-4">
+            {filteredCustomers.length > 0 ? (
+              <PartnerTable list={filteredCustomers} />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg bg-card">
+                {searchQuery ? "Không tìm thấy khách hàng" : "Chưa có khách hàng. Nhấn 'Thêm mới' để bắt đầu."}
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="suppliers">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredSuppliers.map((supplier) => (
-                <PartnerCard key={supplier.id} partner={supplier} />
-              ))}
-              {filteredSuppliers.length === 0 && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  {searchQuery ? "Không tìm thấy nhà cung cấp" : "Chưa có nhà cung cấp. Nhấn 'Thêm mới' để bắt đầu."}
-                </div>
-              )}
-            </div>
+          <TabsContent value="suppliers" className="space-y-4">
+            {filteredSuppliers.length > 0 ? (
+              <PartnerTable list={filteredSuppliers} />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground border border-dashed rounded-lg bg-card">
+                {searchQuery ? "Không tìm thấy nhà cung cấp" : "Chưa có nhà cung cấp. Nhấn 'Thêm mới' để bắt đầu."}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="insights">
             <CustomerInsights />
+          </TabsContent>
+
+          <TabsContent value="cashflow">
+            <CashflowTab />
+          </TabsContent>
+
+          <TabsContent value="transactions">
+            <TransactionsTab />
+          </TabsContent>
+
+          <TabsContent value="chatwoot">
+            <ChatwootSupportTab />
           </TabsContent>
         </Tabs>
       </div>

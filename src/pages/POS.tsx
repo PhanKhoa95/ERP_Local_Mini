@@ -3,6 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -38,8 +39,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   QrCode,
-  Coins
+  Coins,
+  Store,
+  Percent,
+  FileSearch,
+  BarChart3,
+  Settings
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
 import { usePartners } from "@/hooks/usePartners";
 import { useSalesChannels } from "@/hooks/useSalesChannels";
@@ -157,6 +164,7 @@ const POSQuantityInput: React.FC<POSQuantityInputProps> = ({
 };
 
 interface POSNumberInputProps {
+  id?: string;
   value: number;
   onChange: (val: number) => void;
   placeholder?: string;
@@ -164,6 +172,7 @@ interface POSNumberInputProps {
 }
 
 const POSNumberInput: React.FC<POSNumberInputProps> = ({
+  id,
   value,
   onChange,
   placeholder,
@@ -212,6 +221,7 @@ const POSNumberInput: React.FC<POSNumberInputProps> = ({
 
   return (
     <Input
+      id={id}
       type="text"
       inputMode="numeric"
       pattern="[0-9]*"
@@ -293,15 +303,207 @@ const POS = () => {
   const { autoSelectWarehouse, checkStockAvailability } = useWarehouseStock();
   const { toast } = useToast();
   const { memberships, tierConfigs = [], performTransaction } = useMemberships();
+  const { vouchers, applyVoucher } = useVouchers();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<string>("");
-  const [customerSearch, setCustomerSearch] = useState("");
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
 
-  const [customSelectedCardId, setCustomSelectedCardId] = useState<string>("");
+  // Multi-tab POS State
+  interface POSTab {
+    id: string;
+    name: string;
+    cart: CartItem[];
+    discount: number;
+    shippingFee: number;
+    notes: string;
+    selectedCustomer: string;
+    customerSearch: string;
+    selectedChannel: string;
+    selectedWarehouse: string;
+    appliedPromoName: string | null;
+    appliedVoucherId: string | null;
+    isManualDiscount: boolean;
+    customSelectedCardId: string;
+    tenderedAmount: number;
+  }
+
+  const [tabs, setTabs] = useState<POSTab[]>([
+    {
+      id: "tab-default",
+      name: "Đơn 1",
+      cart: [],
+      discount: 0,
+      shippingFee: 0,
+      notes: "",
+      selectedCustomer: "walk-in",
+      customerSearch: "",
+      selectedChannel: "",
+      selectedWarehouse: "",
+      appliedPromoName: null,
+      appliedVoucherId: null,
+      isManualDiscount: false,
+      customSelectedCardId: "",
+      tenderedAmount: 0,
+    }
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>("tab-default");
+
+  const activeTab = useMemo(() => {
+    return tabs.find(t => t.id === activeTabId) || tabs[0];
+  }, [tabs, activeTabId]);
+
+  // Tab State Getters
+  const cart = activeTab.cart;
+  const discount = activeTab.discount;
+  const shippingFee = activeTab.shippingFee;
+  const notes = activeTab.notes;
+  const selectedCustomer = activeTab.selectedCustomer;
+  const customerSearch = activeTab.customerSearch;
+  const selectedChannel = activeTab.selectedChannel;
+  const selectedWarehouse = activeTab.selectedWarehouse;
+  const appliedPromoName = activeTab.appliedPromoName;
+  const appliedVoucherId = activeTab.appliedVoucherId;
+  const isManualDiscount = activeTab.isManualDiscount;
+  const customSelectedCardId = activeTab.customSelectedCardId;
+  const tenderedAmount = activeTab.tenderedAmount;
+
+  // Tab State Setters
+  const updateActiveTab = (updates: Partial<POSTab>) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
+  };
+
+  const setCart = (newCart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
+    if (typeof newCart === "function") {
+      updateActiveTab({ cart: newCart(activeTab.cart) });
+    } else {
+      updateActiveTab({ cart: newCart });
+    }
+  };
+
+  const setSelectedCustomer = (val: string) => updateActiveTab({ selectedCustomer: val });
+  const setCustomerSearch = (val: string) => updateActiveTab({ customerSearch: val });
+  const setSelectedChannel = (val: string) => updateActiveTab({ selectedChannel: val });
+  const setSelectedWarehouse = (val: string) => updateActiveTab({ selectedWarehouse: val });
+  const setDiscount = (val: number | ((prev: number) => number)) => {
+    if (typeof val === "function") {
+      updateActiveTab({ discount: val(activeTab.discount) });
+    } else {
+      updateActiveTab({ discount: val });
+    }
+  };
+  const setShippingFee = (val: number) => updateActiveTab({ shippingFee: val });
+  const setNotes = (val: string) => updateActiveTab({ notes: val });
+  const setAppliedPromoName = (val: string | null) => updateActiveTab({ appliedPromoName: val });
+  const setAppliedVoucherId = (val: string | null) => updateActiveTab({ appliedVoucherId: val });
+  const setIsManualDiscount = (val: boolean) => updateActiveTab({ isManualDiscount: val });
+  const setCustomSelectedCardId = (val: string) => updateActiveTab({ customSelectedCardId: val });
+  const setTenderedAmount = (val: number) => updateActiveTab({ tenderedAmount: val });
+
+  const addTab = () => {
+    const nextNum = tabs.length > 0 
+      ? Math.max(...tabs.map(t => {
+          const num = parseInt(t.name.replace("Đơn ", ""));
+          return isNaN(num) ? 0 : num;
+        })) + 1 
+      : 1;
+    const newTab: POSTab = {
+      id: `tab-${Date.now()}`,
+      name: `Đơn ${nextNum}`,
+      cart: [],
+      discount: 0,
+      shippingFee: 0,
+      notes: "",
+      selectedCustomer: "walk-in",
+      customerSearch: "",
+      selectedChannel: selectedChannel || "",
+      selectedWarehouse: selectedWarehouse || "",
+      appliedPromoName: null,
+      appliedVoucherId: null,
+      isManualDiscount: false,
+      customSelectedCardId: "",
+      tenderedAmount: 0,
+    };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+  };
+
+  const closeTab = (tabId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tabs.length === 1) {
+      setTabs([{
+        id: "tab-default",
+        name: "Đơn 1",
+        cart: [],
+        discount: 0,
+        shippingFee: 0,
+        notes: "",
+        selectedCustomer: "walk-in",
+        customerSearch: "",
+        selectedChannel: selectedChannel || "",
+        selectedWarehouse: selectedWarehouse || "",
+        appliedPromoName: null,
+        appliedVoucherId: null,
+        isManualDiscount: false,
+        customSelectedCardId: "",
+        tenderedAmount: 0,
+      }]);
+      setActiveTabId("tab-default");
+      return;
+    }
+    const index = tabs.findIndex(t => t.id === tabId);
+    const newTabs = tabs.filter(t => t.id !== tabId);
+    setTabs(newTabs);
+    if (activeTabId === tabId) {
+      const nextActiveIndex = Math.max(0, index - 1);
+      setActiveTabId(newTabs[nextActiveIndex]?.id || "tab-default");
+    }
+  };
+
+  // Keyboard shortcuts event listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F3") {
+        e.preventDefault();
+        const searchInput = document.getElementById("pos-product-search");
+        if (searchInput) searchInput.focus();
+      }
+      if (e.key === "F2") {
+        e.preventDefault();
+        const tenderedInput = document.getElementById("pos-tendered-amount");
+        if (tenderedInput) tenderedInput.focus();
+      }
+      if (e.key === "F6") {
+        e.preventDefault();
+        const discountInput = document.getElementById("pos-discount-input");
+        if (discountInput) discountInput.focus();
+      }
+      if (e.key === "F1") {
+        e.preventDefault();
+        handleCheckout("cash");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [cart, discount, shippingFee, notes, selectedCustomer, selectedWarehouse, selectedChannel, tabs, activeTabId]);
+
+  // Get default warehouse
+  const defaultWarehouse = useMemo(() => {
+    return warehouses.find(w => w.is_default && w.is_active) || warehouses.find(w => w.is_active);
+  }, [warehouses]);
+
+  // Get default sales channel (prioritize retail, then first active channel)
+  const defaultChannel = useMemo(() => {
+    return (
+      channels.find(c => c.code?.toLowerCase() === "retail" && c.is_active) ||
+      channels.find(c => c.name?.toLowerCase().includes("bán lẻ") && c.is_active) ||
+      channels.find(c => c.is_active) ||
+      channels[0]
+    );
+  }, [channels]);
 
   const handleQuickAddCustomerSubmit = async (data: any) => {
     try {
@@ -320,32 +522,6 @@ const POS = () => {
       });
     }
   };
-  const [selectedChannel, setSelectedChannel] = useState<string>("");
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
-  const { vouchers, applyVoucher } = useVouchers();
-  const [isManualDiscount, setIsManualDiscount] = useState(false);
-  const [appliedPromoName, setAppliedPromoName] = useState<string | null>(null);
-  const [appliedVoucherId, setAppliedVoucherId] = useState<string | null>(null);
-  const [discount, setDiscount] = useState(0);
-  const [shippingFee, setShippingFee] = useState(0);
-  const [notes, setNotes] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
-
-  // Get default warehouse
-  const defaultWarehouse = useMemo(() => {
-    return warehouses.find(w => w.is_default && w.is_active) || warehouses.find(w => w.is_active);
-  }, [warehouses]);
-
-  // Get default sales channel (prioritize retail, then first active channel)
-  const defaultChannel = useMemo(() => {
-    return (
-      channels.find(c => c.code?.toLowerCase() === "retail" && c.is_active) ||
-      channels.find(c => c.name?.toLowerCase().includes("bán lẻ") && c.is_active) ||
-      channels.find(c => c.is_active) ||
-      channels[0]
-    );
-  }, [channels]);
 
   // Auto-select default warehouse and sales channel on mount
   useEffect(() => {
@@ -835,375 +1011,362 @@ const POS = () => {
     }
   };
 
-  const CartContent = () => (
-    <div className="flex flex-col h-full">
-      {/* Cart Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-primary" />
-            <h2 className="font-semibold text-foreground">Giỏ hàng</h2>
-            <Badge variant="secondary">{cart.length}</Badge>
-          </div>
-          {cart.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={clearCart}>
-              <X className="h-4 w-4 mr-1" />
-              Xóa
+  const renderPaymentPanel = () => {
+    const customer = selectedCustomer && selectedCustomer !== "walk-in"
+      ? customers.find((c) => c.id === selectedCustomer)
+      : null;
+
+    const customerMemberships = selectedCustomer && selectedCustomer !== "walk-in"
+      ? memberships.filter(m => m.partner_id === selectedCustomer)
+      : [];
+
+    const defaultCard = customerMemberships.length > 0
+      ? (customerMemberships.find(m => m.status === "active" && m.balance >= total) ||
+         customerMemberships.find(m => m.status === "active") ||
+         customerMemberships[0])
+      : null;
+
+    const customerMembership = customSelectedCardId
+      ? customerMemberships.find(m => m.id === customSelectedCardId)
+      : defaultCard;
+
+    const suggestedAmounts = getSuggestedAmounts(total);
+
+    return (
+      <div className="flex flex-col h-full bg-card">
+        {/* Customer Selection */}
+        <div className="p-4 border-b border-border space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <User className="h-4 w-4 text-primary" />
+              <span>Khách hàng</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={handleSimulateQRScan}
+              className="h-7 text-xs text-primary gap-1 px-1.5 hover:bg-primary/10 cursor-pointer"
+            >
+              <QrCode className="h-3.5 w-3.5" /> Giả lập Quét VIP
             </Button>
+          </div>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <POSTextInput
+                placeholder="Tìm khách hàng (tên, SĐT, mã)..."
+                value={customerSearch}
+                onChange={setCustomerSearch}
+                className="h-9 text-xs flex-1 bg-background"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                onClick={() => setQuickAddOpen(true)}
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                title="Thêm khách hàng mới"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+              <SelectTrigger className="bg-background h-9 text-xs">
+                <SelectValue placeholder="Khách lẻ" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50 max-h-60">
+                <SelectItem value="walk-in">Khách lẻ</SelectItem>
+                {filteredCustomers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    <div className="flex flex-col text-left">
+                      <span className="font-medium text-xs">{customer.name}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {customer.phone || customer.code}
+                        {customer.loyalty_points > 0 && ` • ${customer.loyalty_points} điểm`}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Channels & Warehouse */}
+        <div className="p-4 border-b border-border space-y-2">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Thiết lập xuất hàng</label>
+          <div className="grid grid-cols-2 gap-2">
+            <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+              <SelectTrigger className="bg-background h-9 text-xs">
+                <SelectValue placeholder="Kênh bán hàng *" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    <span className="text-xs">{channel.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+              <SelectTrigger className={cn(
+                "bg-background h-9 text-xs",
+                warehouseAnalysis.all_available ? "border-green-500" : warehouseAnalysis.issues.length > 0 ? "border-orange-500" : ""
+              )}>
+                <SelectValue placeholder="Kho xuất" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50">
+                {warehouses.filter(w => w.is_active).map((warehouse) => (
+                  <SelectItem key={warehouse.id} value={warehouse.id}>
+                    <span className="text-xs">{warehouse.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Stock Status Indicator */}
+          {cart.length > 0 && (
+            <div className="mt-2">
+              {warehouseAnalysis.all_available ? (
+                <div className="flex items-center gap-1.5 text-green-600 text-[11px] font-medium">
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>Đủ hàng tại {warehouseAnalysis.warehouse_name}</span>
+                </div>
+              ) : warehouseAnalysis.issues.length > 0 && (
+                <div className="p-2.5 rounded-lg border border-warning/35 bg-warning/5 text-warning backdrop-blur-sm space-y-1 shadow-sm">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3 animate-pulse" />
+                    <span>Thiếu tồn kho:</span>
+                  </div>
+                  <div className="text-[10px] font-medium pl-4 space-y-0.5">
+                    {warehouseAnalysis.issues.map(issue => {
+                      const prodName = cart.find(item => item.product.id === issue.product_id)?.product.name || issue.product_name;
+                      return (
+                        <div key={issue.product_id} className="flex justify-between items-center">
+                          <span className="truncate max-w-[150px]">{prodName}</span>
+                          <span className="font-semibold text-destructive">Thiếu {issue.shortage}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Channel Selection */}
-        <Select value={selectedChannel} onValueChange={setSelectedChannel}>
-          <SelectTrigger className="bg-background mb-2">
-            <SelectValue placeholder="Chọn kênh bán hàng *" />
-          </SelectTrigger>
-          <SelectContent className="bg-popover z-50">
-            {channels.map((channel) => (
-              <SelectItem key={channel.id} value={channel.id}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: channel.color || "#3B82F6" }}
-                  />
-                  {channel.name}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Pricing & Checkout */}
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+          {/* Discount & Shipping */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 flex-wrap mb-1">
+                <span>Chiết khấu (F6)</span>
+                {appliedPromoName && (
+                  <span className="text-[9px] bg-green-500/10 text-green-600 font-semibold px-1 rounded">
+                    {appliedPromoName}
+                  </span>
+                )}
+              </label>
+              <POSNumberInput
+                id="pos-discount-input"
+                value={discount}
+                onChange={handleDiscountChange}
+                className="h-9 text-xs bg-background"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Phí vận chuyển</label>
+              <POSNumberInput
+                value={shippingFee}
+                onChange={setShippingFee}
+                className="h-9 text-xs bg-background"
+                placeholder="0"
+              />
+            </div>
+          </div>
 
-        {/* Warehouse Selection - Auto Selected */}
-        <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
-          <SelectTrigger className={cn(
-            "bg-background",
-            warehouseAnalysis.all_available ? "border-green-500" : warehouseAnalysis.issues.length > 0 ? "border-orange-500" : ""
-          )}>
-            <SelectValue placeholder="Chọn kho xuất hàng" />
-          </SelectTrigger>
-          <SelectContent className="bg-popover z-50">
-            {warehouses.filter(w => w.is_active).map((warehouse) => (
-              <SelectItem key={warehouse.id} value={warehouse.id}>
-                <div className="flex items-center gap-2">
-                  <Warehouse className="h-3 w-3" />
-                  {warehouse.name}
-                  {warehouse.is_default && <Badge variant="secondary" className="text-xs">Mặc định</Badge>}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Stock Status Indicator */}
-        {cart.length > 0 && (
-          <div className="mt-2">
-            {warehouseAnalysis.all_available ? (
-              <div className="flex items-center gap-2 text-green-600 text-xs">
-                <CheckCircle2 className="h-3 w-3" />
-                <span>Đủ hàng tại {warehouseAnalysis.warehouse_name}</span>
+          {/* Bill Totals */}
+          <div className="p-3 bg-secondary/20 rounded-lg space-y-2 text-xs">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Tạm tính ({cart.reduce((s, i) => s + i.quantity, 0)} sản phẩm)</span>
+              <span>{subtotal.toLocaleString("vi-VN")}đ</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Giảm giá</span>
+                <span className="text-destructive font-medium">-{discount.toLocaleString("vi-VN")}đ</span>
               </div>
-            ) : warehouseAnalysis.issues.length > 0 && (
-              <Alert variant="destructive" className="py-2">
-                <AlertTriangle className="h-3 w-3" />
-                <AlertDescription className="text-xs">
-                  {warehouseAnalysis.issues.map(issue => (
-                    <div key={issue.product_id}>
-                      {issue.product_name}: thiếu {issue.shortage}
-                    </div>
-                  ))}
-                </AlertDescription>
-              </Alert>
+            )}
+            {shippingFee > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Phí vận chuyển</span>
+                <span>+{shippingFee.toLocaleString("vi-VN")}đ</span>
+              </div>
+            )}
+            <Separator className="my-1" />
+            <div className="flex justify-between text-base font-bold text-foreground">
+              <span>Khách phải trả</span>
+              <span className="text-primary">{total.toLocaleString("vi-VN")}đ</span>
+            </div>
+          </div>
+
+          {/* Tendered Amount (Tiền khách đưa) */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+                <Banknote className="h-3.5 w-3.5 text-primary" />
+                <span>Tiền khách đưa (F2)</span>
+              </label>
+              <span className="text-[11px] text-muted-foreground font-medium">
+                Thừa: <strong className="text-green-600">{(Math.max(0, (tenderedAmount || 0) - total)).toLocaleString("vi-VN")}đ</strong>
+              </span>
+            </div>
+            <POSNumberInput
+              id="pos-tendered-amount"
+              value={tenderedAmount || 0}
+              onChange={setTenderedAmount}
+              className="h-9 text-sm font-semibold bg-background"
+              placeholder="Nhập số tiền khách đưa..."
+            />
+
+            {/* Quick cash suggestions */}
+            {suggestedAmounts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {suggestedAmounts.map((amt, idx) => (
+                  <Button
+                    key={idx}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] font-medium px-2 py-0 cursor-pointer"
+                    onClick={() => setTenderedAmount(amt)}
+                  >
+                    {amt.toLocaleString("vi-VN")}
+                  </Button>
+                ))}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* Customer Selection with Search */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Khách hàng</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            onClick={handleSimulateQRScan}
-            className="h-7 text-xs text-primary gap-1 px-1.5 hover:bg-primary/10"
-          >
-            <QrCode className="h-3.5 w-3.5" /> Giả lập Quét VIP
-          </Button>
-        </div>
-        <div className="space-y-2">
-          <div className="flex gap-2">
+          {/* Ghi chú đơn hàng */}
+          <div>
+            <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Ghi chú đơn</label>
             <POSTextInput
-              placeholder="Tìm khách hàng (tên, SĐT, mã)..."
-              value={customerSearch}
-              onChange={setCustomerSearch}
-              className="h-8 text-sm flex-1"
+              value={notes}
+              onChange={setNotes}
+              className="h-9 text-xs bg-background"
+              placeholder="Ghi chú đơn hàng..."
             />
-            <Button
-              variant="outline"
-              size="icon"
-              type="button"
-              onClick={() => setQuickAddOpen(true)}
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-              title="Thêm khách hàng mới"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
           </div>
-          <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-            <SelectTrigger className="bg-background">
-              <SelectValue placeholder="Khách lẻ" />
-            </SelectTrigger>
-            <SelectContent className="bg-popover z-50 max-h-60">
-              <SelectItem value="walk-in">Khách lẻ</SelectItem>
-              {filteredCustomers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{customer.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {customer.phone || customer.code}
-                      {customer.loyalty_points > 0 && ` • ${customer.loyalty_points} điểm`}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-              {filteredCustomers.length === 0 && customerSearch && (
-                <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                  Không tìm thấy khách hàng
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
-      {/* Cart Items */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
-          {cart.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>Giỏ hàng trống</p>
-              <p className="text-sm">Nhấn vào sản phẩm để thêm</p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div
-                key={item.product.id}
-                className="flex gap-3 p-3 bg-secondary/30 rounded-lg"
+          {/* Checkout actions */}
+          <div className="space-y-2 pt-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="h-11 text-xs border-primary/20 hover:bg-primary/5 cursor-pointer"
+                disabled={cart.length === 0 || isProcessing}
+                onClick={() => handleCheckout("cash")}
               >
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm truncate text-foreground">
-                    {item.product.name}
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    {item.product.sku}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Input
-                      type="number"
-                      value={item.unit_price}
-                      onChange={(e) =>
-                        updateItemPrice(item.product.id, Number(e.target.value))
-                      }
-                      className="w-24 h-7 text-xs"
-                    />
-                    <span className="text-xs text-muted-foreground">đ/sp</span>
-                  </div>
-                  {item.unit_price > 0 && item.product.cost_price > 0 && item.unit_price < item.product.cost_price && (
-                    <p className="text-[10px] text-amber-500 font-medium mt-1">
-                      Giá bán thấp hơn giá vốn ({item.product.cost_price.toLocaleString("vi-VN")}đ)
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-col items-end justify-between">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={() => removeFromCart(item.product.id)}
-                  >
-                    <Trash2 className="h-3 w-3 text-destructive" />
-                  </Button>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        updateQuantity(item.product.id, item.quantity - 1)
-                      }
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <POSQuantityInput
-                      value={item.quantity}
-                      maxStock={item.product.stock_quantity || 0}
-                      isService={item.product.is_service === true}
-                      onChange={(newVal) => updateQuantity(item.product.id, newVal)}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() =>
-                        updateQuantity(item.product.id, item.quantity + 1)
-                      }
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <span className="font-semibold text-sm text-primary">
-                    {(item.quantity * item.unit_price).toLocaleString("vi-VN")}đ
-                  </span>
-                </div>
+                <Banknote className="h-4 w-4 mr-1.5 text-green-600" />
+                Tiền mặt
+              </Button>
+              <Button
+                className="h-11 text-xs cursor-pointer"
+                disabled={cart.length === 0 || isProcessing}
+                onClick={() => handleCheckout("bank")}
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4 mr-1.5 text-blue-400" />
+                )}
+                Chuyển khoản
+              </Button>
+            </div>
+
+            {customerMemberships.length > 1 && (
+              <div className="space-y-1 mb-2">
+                <label className="text-[9px] uppercase font-semibold text-muted-foreground">Chọn thẻ thanh toán ({customerMemberships.length})</label>
+                <Select value={customerMembership?.id} onValueChange={(val) => setCustomSelectedCardId(val)}>
+                  <SelectTrigger className="h-8 text-[11px]">
+                    <SelectValue placeholder="Chọn thẻ..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customerMemberships.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="text-xs">
+                        {m.card_number} ({tierConfigs.find(tc => tc.id === m.tier)?.name || m.tier} - Ví: {m.balance.toLocaleString("vi-VN")}đ)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ))
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Cart Footer */}
-      <div className="p-4 border-t border-border space-y-3 bg-secondary/20">
-        {/* Discount & Shipping */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
-              <span>Giảm giá</span>
-              {appliedPromoName && (
-                <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 font-semibold px-1.5 py-0.5 rounded leading-none">
-                  Tự động: {appliedPromoName}
+            )}
+            
+            {customerMembership && (
+              <Button
+                variant="secondary"
+                className={cn(
+                  "w-full h-11 text-xs border flex items-center justify-between px-3 transition-all cursor-pointer",
+                  customerMembership.balance >= total
+                    ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border-amber-500/20"
+                    : "bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50"
+                )}
+                disabled={cart.length === 0 || isProcessing || customerMembership.balance < total}
+                onClick={() => handleCheckout("membership_wallet")}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Coins className="h-4 w-4 text-amber-600 animate-bounce" />
+                  <span className="truncate max-w-[120px]">Ví thẻ ({customerMembership.card_number})</span>
                 </span>
-              )}
-            </label>
-            <POSNumberInput
-              value={discount}
-              onChange={handleDiscountChange}
-              className="h-9"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Phí ship</label>
-            <POSNumberInput
-              value={shippingFee}
-              onChange={setShippingFee}
-              className="h-9"
-              placeholder="0"
-            />
-          </div>
-        </div>
+                <span className="font-bold shrink-0">
+                  {customerMembership.balance.toLocaleString("vi-VN")}đ
+                </span>
+              </Button>
+            )}
 
-        {/* Notes */}
-        <div>
-          <label className="text-xs text-muted-foreground">Ghi chú</label>
-          <POSTextInput
-            value={notes}
-            onChange={setNotes}
-            className="h-9"
-            placeholder="Ghi chú đơn hàng..."
-          />
-        </div>
-
-        <Separator />
-
-        {/* Totals */}
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between text-muted-foreground">
-            <span>Tạm tính</span>
-            <span>{subtotal.toLocaleString("vi-VN")}đ</span>
-          </div>
-          {discount > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Giảm giá</span>
-              <span className="text-destructive">-{discount.toLocaleString("vi-VN")}đ</span>
-            </div>
-          )}
-          {shippingFee > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Phí ship</span>
-              <span>+{shippingFee.toLocaleString("vi-VN")}đ</span>
-            </div>
-          )}
-          <div className="flex justify-between text-lg font-bold text-foreground pt-2">
-            <span>Tổng cộng</span>
-            <span className="text-primary">{total.toLocaleString("vi-VN")}đ</span>
-          </div>
-        </div>
-
-        {/* Checkout Buttons */}
-        <div className="space-y-2 pt-2">
-          <div className="grid grid-cols-2 gap-2">
             <Button
-              variant="outline"
-              className="h-12 text-xs"
+              className="w-full h-12 text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-md flex items-center justify-center gap-2 cursor-pointer"
               disabled={cart.length === 0 || isProcessing}
               onClick={() => handleCheckout("cash")}
             >
-              <Banknote className="h-4 w-4 mr-2" />
-              Tiền mặt
-            </Button>
-            <Button
-              className="h-12 text-xs"
-              disabled={cart.length === 0 || isProcessing}
-              onClick={() => handleCheckout("bank")}
-            >
-              {isProcessing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <CreditCard className="h-4 w-4 mr-2" />
-              )}
-              Chuyển khoản
+              <span>Thanh toán (F1)</span>
             </Button>
           </div>
-
-          {customerMemberships.length > 1 && (
-            <div className="space-y-1 mb-2">
-              <label className="text-[10px] uppercase font-semibold text-muted-foreground">Chọn thẻ thanh toán ({customerMemberships.length})</label>
-              <Select value={customerMembership?.id} onValueChange={(val) => setCustomSelectedCardId(val)}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Chọn thẻ..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerMemberships.map((m) => (
-                    <SelectItem key={m.id} value={m.id} className="text-xs">
-                      {m.card_number} ({tierConfigs.find(tc => tc.id === m.tier)?.name || m.tier} - Ví: {m.balance.toLocaleString("vi-VN")}đ) {m.status !== "active" ? `[${STATUS_LABELS[m.status]}]` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          
-          {customerMembership && (
-            <Button
-              variant="secondary"
-              className={cn(
-                "w-full h-12 text-xs border flex items-center justify-between px-4 transition-all",
-                customerMembership.balance >= total
-                  ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border-amber-500/20"
-                  : "bg-muted text-muted-foreground border-transparent cursor-not-allowed opacity-50"
-              )}
-              disabled={cart.length === 0 || isProcessing || customerMembership.balance < total}
-              onClick={() => handleCheckout("membership_wallet")}
-            >
-              <span className="flex items-center gap-2">
-                <Coins className="h-4 w-4 text-amber-600" />
-                <span>Thanh toán Ví thẻ ({customerMembership.card_number})</span>
-              </span>
-              <span className="font-bold">
-                Ví: {customerMembership.balance.toLocaleString("vi-VN")}đ
-              </span>
-            </Button>
-          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const getSuggestedAmounts = (totalVal: number) => {
+    if (totalVal <= 0) return [];
+    const suggestions = new Set<number>();
+    suggestions.add(totalVal);
+    
+    const roundTo5k = Math.ceil(totalVal / 5000) * 5000;
+    const roundTo10k = Math.ceil(totalVal / 10000) * 10000;
+    const roundTo50k = Math.ceil(totalVal / 50000) * 50000;
+    const roundTo100k = Math.ceil(totalVal / 100000) * 100000;
+    
+    if (roundTo5k > totalVal) suggestions.add(roundTo5k);
+    if (roundTo10k > totalVal) suggestions.add(roundTo10k);
+    if (roundTo50k > totalVal) suggestions.add(roundTo50k);
+    if (roundTo100k > totalVal) suggestions.add(roundTo100k);
+    
+    const bills = [10000, 20000, 50000, 100000, 200000, 500000];
+    bills.forEach(bill => {
+      if (bill >= totalVal && suggestions.size < 6) {
+        suggestions.add(bill);
+      }
+    });
+    
+    return Array.from(suggestions).sort((a, b) => a - b).slice(0, 5);
+  };
+
+  const [leftTab, setLeftTab] = useState<"quick-actions" | "products">("products");
 
   if (productsLoading) {
     return (
@@ -1217,115 +1380,383 @@ const POS = () => {
 
   return (
     <MainLayout>
-      <div className="flex h-[calc(100vh-56px)] lg:h-screen">
-        {/* Left Side - Products */}
-        <div className="flex-1 flex flex-col p-4 overflow-hidden">
-          {/* Search and Filter */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col h-[calc(100vh-56px)] lg:h-screen bg-background overflow-hidden">
+        {/* Header POS Chuyên Nghiệp */}
+        <header className="h-14 bg-primary text-primary-foreground border-b border-primary/20 flex items-center justify-between px-4 shrink-0 shadow-sm z-30">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Search Barcode */}
+            <div className="relative w-80 max-w-md hidden sm:block shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary-foreground/60" />
               <Input
-                placeholder="Tìm sản phẩm theo tên hoặc mã SKU..."
+                id="pos-product-search"
+                placeholder="Thêm sản phẩm vào đơn (F3)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-9 h-9 bg-primary-foreground/10 text-white border-primary-foreground/20 placeholder:text-primary-foreground/60 text-xs focus-visible:bg-white focus-visible:text-foreground"
               />
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full sm:w-40 bg-background">
-                <SelectValue placeholder="Danh mục" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50">
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat === "all" ? "Tất cả" : cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+            {/* Đa tab Đơn hàng */}
+            <div className="flex items-center gap-1.5 ml-2 overflow-x-auto py-1.5 scrollbar-thin">
+              {tabs.map((tab) => (
+                <div
+                  key={tab.id}
+                  onClick={() => setActiveTabId(tab.id)}
+                  className={cn(
+                    "flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold cursor-pointer transition-all border select-none shrink-0 group",
+                    tab.id === activeTabId
+                      ? "bg-white text-primary border-white shadow-sm"
+                      : "bg-primary-foreground/15 text-primary-foreground border-transparent hover:bg-primary-foreground/25"
+                  )}
+                >
+                  <span>{tab.name}</span>
+                  {tab.cart.length > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 py-0 min-w-[16px] text-[9px] flex items-center justify-center shrink-0">
+                      {tab.cart.reduce((s, i) => s + i.quantity, 0)}
+                    </Badge>
+                  )}
+                  <button
+                    onClick={(e) => closeTab(tab.id, e)}
+                    className="ml-1 p-0.5 rounded-full hover:bg-destructive/10 text-[10px] shrink-0 opacity-40 group-hover:opacity-100 hover:text-destructive transition-all"
+                    title="Đóng đơn"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={addTab}
+                className="h-7 w-7 rounded-md text-primary-foreground hover:bg-primary-foreground/10 shrink-0"
+                title="Mở thêm đơn hàng mới"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          {/* Products Grid */}
-          <ScrollArea className="flex-1">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {filteredProducts.map((product) => (
-                <Card
-                  key={product.id}
-                  className={cn(
-                    "cursor-pointer transition-all hover:shadow-md hover:border-primary/50 group",
-                    (product.stock_quantity || 0) < 1 && "opacity-50"
-                  )}
-                  onClick={() => addToCart(product)}
-                >
-                  <CardContent className="p-2 sm:p-3">
-                    <div className="aspect-square bg-secondary/50 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                      {product.image_url ? (
-                        <img
-                          src={product.image_url}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Package className="h-6 sm:h-8 w-6 sm:w-8 text-muted-foreground" />
-                      )}
-                    </div>
-                    <h3 className="font-medium text-xs sm:text-sm truncate text-foreground group-hover:text-primary transition-colors">
-                      {product.name}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-1 hidden sm:block">
-                      {product.sku}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs sm:text-sm text-primary">
-                        {Number(product.selling_price || 0).toLocaleString("vi-VN")}đ
-                      </span>
-                      <Badge
-                        variant={
-                          (product.stock_quantity || 0) > (product.min_stock || 0)
-                            ? "secondary"
-                            : "destructive"
-                        }
-                        className="text-xs"
+          <div className="flex items-center gap-4 text-xs font-medium text-primary-foreground/80 shrink-0">
+            <span className="hidden md:inline-flex items-center gap-1">
+              <Store className="h-3.5 w-3.5" /> Kho: {warehouses.find(w => w.id === selectedWarehouse)?.name || "Mặc định"}
+            </span>
+            <span className="hidden lg:inline bg-primary-foreground/10 px-2 py-1 rounded border border-primary-foreground/15 text-[10px] tracking-wider uppercase">
+              F3: Tìm kiếm • F2: Tiền khách • F1: Thanh toán
+            </span>
+          </div>
+        </header>
+
+        {/* Body chính POS */}
+        <div className="flex-1 flex min-h-0">
+          {/* Cột trái (72%): Giỏ hàng và Grid sản phẩm / Phím tắt */}
+          <div className="flex-[72] flex flex-col min-w-0 border-r border-border">
+            {/* 1. Phần trên: Bảng giỏ hàng ngang (Table) */}
+            <div className="flex-[60] flex flex-col min-h-[250px] p-4 bg-background border-b border-border overflow-hidden">
+              <ScrollArea className="flex-1">
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center py-16 text-muted-foreground">
+                    <ShoppingCart className="h-16 w-16 mb-4 text-muted-foreground/30 stroke-[1.5]" />
+                    <p className="font-semibold text-sm">Đơn hàng hiện chưa có sản phẩm nào</p>
+                    <p className="text-xs">Quét mã barcode hoặc chọn nhanh ở danh mục bên dưới</p>
+                  </div>
+                ) : (
+                  <div className="min-w-[700px]">
+                    <Table>
+                      <TableHeader className="bg-secondary/40 sticky top-0 z-10">
+                        <TableRow className="h-9">
+                          <TableHead className="w-12 text-center text-xs">STT</TableHead>
+                          <TableHead className="w-14 text-xs"></TableHead>
+                          <TableHead className="w-24 text-xs">Mã SKU</TableHead>
+                          <TableHead className="text-xs">Tên sản phẩm</TableHead>
+                          <TableHead className="w-28 text-center text-xs">Số lượng</TableHead>
+                          <TableHead className="w-28 text-right text-xs">Đơn giá</TableHead>
+                          <TableHead className="w-28 text-right text-xs">Thành tiền</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {cart.map((item, idx) => (
+                          <TableRow key={item.product.id} className="hover:bg-secondary/10 group h-12">
+                            <TableCell className="text-center font-medium text-xs">{idx + 1}</TableCell>
+                            <TableCell className="p-1">
+                              <div className="w-9 h-9 bg-secondary/50 rounded flex items-center justify-center overflow-hidden">
+                                {item.product.image_url ? (
+                                  <img src={item.product.image_url} alt={item.product.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Package className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-[11px] text-muted-foreground truncate">{item.product.sku}</TableCell>
+                            <TableCell>
+                              <div className="font-semibold text-xs text-foreground truncate max-w-[220px]" title={item.product.name}>
+                                {item.product.name}
+                              </div>
+                              {item.unit_price > 0 && item.product.cost_price > 0 && item.unit_price < item.product.cost_price && (
+                                <span className="text-[9px] bg-red-100 text-red-700 font-semibold px-1 rounded inline-block mt-0.5 leading-none">
+                                  Bán dưới vốn: {item.product.cost_price.toLocaleString("vi-VN")}đ
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                                >
+                                  <Minus className="h-2.5 w-2.5" />
+                                </Button>
+                                <input
+                                  type="number"
+                                  value={item.quantity}
+                                  className="w-10 h-6 text-center text-xs border rounded bg-background"
+                                  onChange={(e) => updateQuantity(item.product.id, Number(e.target.value))}
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                                >
+                                  <Plus className="h-2.5 w-2.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <input
+                                type="number"
+                                value={item.unit_price}
+                                className="w-20 h-6 text-right text-xs border rounded bg-background px-1 focus:outline-none focus:border-primary"
+                                onChange={(e) => updateItemPrice(item.product.id, Number(e.target.value))}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-xs text-primary">
+                              {(item.quantity * item.unit_price).toLocaleString("vi-VN")}đ
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-40 group-hover:opacity-100 transition-all"
+                                onClick={() => removeFromCart(item.product.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+
+            {/* 2. Phần dưới: Tabs điều khiển & Grid sản phẩm */}
+            <div className="flex-[40] flex flex-col p-4 bg-secondary/10 overflow-hidden">
+              <div className="flex items-center justify-between mb-3 shrink-0">
+                <div className="flex bg-muted p-0.5 rounded-md border text-xs">
+                  <button
+                    onClick={() => setLeftTab("products")}
+                    className={cn(
+                      "px-3 py-1 rounded font-semibold transition-all cursor-pointer",
+                      leftTab === "products" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"
+                    )}
+                  >
+                    Danh sách sản phẩm
+                  </button>
+                  <button
+                    onClick={() => setLeftTab("quick-actions")}
+                    className={cn(
+                      "px-3 py-1 rounded font-semibold transition-all cursor-pointer",
+                      leftTab === "quick-actions" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"
+                    )}
+                  >
+                    Thao tác nhanh
+                  </button>
+                </div>
+
+                {leftTab === "products" && (
+                  <div className="flex items-center gap-2">
+                    {/* Category quick filter inside tab block */}
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-36 h-8 text-xs bg-background">
+                        <SelectValue placeholder="Danh mục" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat} className="text-xs">
+                            {cat === "all" ? "Tất cả danh mục" : cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {leftTab === "products" ? (
+                <ScrollArea className="flex-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                    {filteredProducts.map((product) => (
+                      <Card
+                        key={product.id}
+                        className={cn(
+                          "cursor-pointer transition-all hover:shadow hover:border-primary/50 group border-border bg-card",
+                          (product.stock_quantity || 0) < 1 && "opacity-50"
+                        )}
+                        onClick={() => addToCart(product)}
                       >
-                        {product.stock_quantity || 0}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {filteredProducts.length === 0 && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  Không tìm thấy sản phẩm
+                        <CardContent className="p-2 flex flex-col h-full justify-between">
+                          <div className="aspect-square bg-secondary/50 rounded flex items-center justify-center overflow-hidden mb-1.5 relative">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            )}
+                            {(product.stock_quantity || 0) <= (product.min_stock || 0) && (
+                              <Badge className="absolute top-1 right-1 text-[9px] px-1 py-0 h-4 bg-destructive hover:bg-destructive/80">
+                                Sắp hết hàng
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="space-y-0.5">
+                            <h3 className="font-semibold text-[11px] truncate text-foreground group-hover:text-primary transition-colors text-left" title={product.name}>
+                              {product.name}
+                            </h3>
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="font-bold text-primary">
+                                {Number(product.selling_price || 0).toLocaleString("vi-VN")}đ
+                              </span>
+                              <span className="text-muted-foreground">Kho: {product.stock_quantity || 0}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 py-2">
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs hover:bg-primary/5 hover:border-primary/40 cursor-pointer"
+                    onClick={() => {
+                      const searchInput = document.getElementById("pos-product-search");
+                      if (searchInput) searchInput.focus();
+                    }}
+                  >
+                    <Search className="h-5 w-5 text-primary" />
+                    <span>Tìm sản phẩm (F3)</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs hover:bg-primary/5 hover:border-primary/40 cursor-pointer"
+                    onClick={() => {
+                      const discountInput = document.getElementById("pos-discount-input");
+                      if (discountInput) discountInput.focus();
+                    }}
+                  >
+                    <Percent className="h-5 w-5 text-orange-500" />
+                    <span>Chiết khấu đơn (F6)</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs hover:bg-primary/5 hover:border-primary/40 cursor-pointer"
+                    onClick={handleSimulateQRScan}
+                  >
+                    <QrCode className="h-5 w-5 text-indigo-500" />
+                    <span>Quét VIP Member</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs text-destructive border-destructive/20 hover:bg-destructive/5 hover:border-destructive/40 cursor-pointer"
+                    onClick={clearCart}
+                  >
+                    <Trash2 className="h-5 w-5" />
+                    <span>Xóa toàn bộ sản phẩm</span>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs hover:bg-primary/5 hover:border-primary/40 cursor-pointer"
+                    asChild
+                  >
+                    <Link to="/orders">
+                      <FileSearch className="h-5 w-5 text-blue-500" />
+                      <span>Xem danh sách đơn</span>
+                    </Link>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs hover:bg-primary/5 hover:border-primary/40 cursor-pointer"
+                    asChild
+                  >
+                    <Link to="/reports">
+                      <BarChart3 className="h-5 w-5 text-success" />
+                      <span>Xem báo cáo</span>
+                    </Link>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="h-16 flex flex-col gap-1 items-center justify-center text-xs hover:bg-primary/5 hover:border-primary/40 cursor-pointer"
+                    asChild
+                  >
+                    <Link to="/settings">
+                      <Settings className="h-5 w-5 text-muted-foreground" />
+                      <span>Thiết lập chung</span>
+                    </Link>
+                  </Button>
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
+
+          {/* Cột phải (28%): Panel thanh toán thông minh */}
+          <div className="flex-[28] hidden lg:block bg-card shrink-0 shadow-lg relative z-20">
+            {renderPaymentPanel()}
+          </div>
         </div>
 
-        {/* Right Side - Cart (Desktop) */}
-        <div className="hidden lg:flex w-[420px] border-l border-border flex-col bg-card">
-          <CartContent />
-        </div>
-
-        {/* Mobile Cart Button */}
+        {/* Mobile Cart Sheet Trigger */}
         <Sheet open={cartOpen} onOpenChange={setCartOpen}>
           <SheetTrigger asChild>
             <Button
-              className="lg:hidden fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40"
+              className="lg:hidden fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40 cursor-pointer bg-primary text-white"
               size="icon"
             >
               <ShoppingCart className="h-6 w-6" />
               {cart.length > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {cart.length}
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] font-bold bg-destructive text-white animate-bounce">
+                  {cart.reduce((s, i) => s + i.quantity, 0)}
                 </Badge>
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-full sm:w-[400px] p-0">
-            <CartContent />
+          <SheetContent side="right" className="w-full sm:w-[400px] p-0 z-50">
+            <SheetHeader className="p-4 border-b shrink-0 bg-primary text-primary-foreground flex flex-row items-center justify-between">
+              <SheetTitle className="text-white text-sm font-bold flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" /> Chi tiết đơn {activeTab.name}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="h-[calc(100vh-56px)]">
+              {renderPaymentPanel()}
+            </div>
           </SheetContent>
         </Sheet>
+
+        {/* Dialog Add Customer */}
         <PartnerDialog
           open={quickAddOpen}
           onOpenChange={setQuickAddOpen}

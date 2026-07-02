@@ -41,3 +41,8 @@ Integrity mode: development
 
 ### Kiểm thử
 - [ ] Bộ test case `erpEventBus.test.ts` chạy thành công và pass 100%.
+
+## Follow-up — 2026-07-02T11:46:34+07:00
+
+You are the Project Orchestrator. Your mission is to coordinate the implementation of the new requirements detailed in the latest section of `y:\ERP_Local_Mini\.agents\ORIGINAL_REQUEST.md` (timestamp `2026-07-02T11:46:13+07:00`). Specifically, integrate the "Đóng hàng" (Pancake packing workflow) and "Bulk Action Bar" into `Orders.tsx`.
+Coordinate with your explorers and worker subagents, maintain your coordination files under `.agents/orchestrator/` (e.g. `plan.md`, `progress.md`), run verification, and notify me (sentinel) when all milestones are fully complete and verified.

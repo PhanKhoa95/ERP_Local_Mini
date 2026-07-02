@@ -29,7 +29,7 @@ export interface Order {
   id: string;
   company_id?: string | null;
   order_number: string;
-  status: "pending" | "confirmed" | "processing" | "shipping" | "delivered" | "cancelled" | "returned";
+  status: "pending" | "confirmed" | "processing" | "shipping" | "delivered" | "cancelled" | "returned" | "duplicate" | "waiting_goods" | "priority_ship" | "waiting_print" | "printed" | "ordered" | "packing" | "waiting_transfer" | "deleted" | "returned_partial" | "exchanging";
   total?: number | null;
   discount?: number | null;
   shipping_fee?: number | null;
@@ -664,6 +664,9 @@ function saveLocalOrders(orders: Order[]) {
 function deductLocalStock(items: any[], orderNumber: string) {
   const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
   const products = rawProducts ? JSON.parse(rawProducts) : [];
+  const rawCombos = localStorage.getItem("erp-mini-local-demo-combos");
+  const combos = rawCombos ? JSON.parse(rawCombos) : [];
+
   for (const item of items) {
     if (!item.product_id) continue;
     const prod = products.find((p: any) => p.id === item.product_id);
@@ -674,6 +677,24 @@ function deductLocalStock(items: any[], orderNumber: string) {
         continue;
       }
     }
+
+    const combo = combos.find((c: any) => c.id === item.product_id);
+    if (combo && combo.items && combo.items.length > 0) {
+      for (const comboItem of combo.items) {
+        try {
+          createLocalInventoryTransaction({
+            product_id: comboItem.product_id,
+            transaction_type: "out",
+            quantity: (comboItem.quantity || 1) * (item.quantity || 1),
+            notes: `Trừ tồn kho (Combo: ${prod?.name || "N/A"}) - Đơn hàng ${orderNumber}`,
+          });
+        } catch (err) {
+          console.warn(`[Stock] Không thể trừ tồn kho combo item ${comboItem.product_id}:`, err);
+        }
+      }
+      continue;
+    }
+
     try {
       createLocalInventoryTransaction({
         product_id: item.product_id,
@@ -682,7 +703,6 @@ function deductLocalStock(items: any[], orderNumber: string) {
         notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
       });
     } catch (err) {
-      // Log but don't block order creation for stock errors
       console.warn(`[Stock] Không thể trừ tồn kho cho ${item.product_id}:`, err);
     }
   }
@@ -692,6 +712,9 @@ function deductLocalStock(items: any[], orderNumber: string) {
 function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: string) {
   const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
   const products = rawProducts ? JSON.parse(rawProducts) : [];
+  const rawCombos = localStorage.getItem("erp-mini-local-demo-combos");
+  const combos = rawCombos ? JSON.parse(rawCombos) : [];
+
   for (const item of items) {
     if (!item.product_id) continue;
     const prod = products.find((p: any) => p.id === item.product_id);
@@ -702,6 +725,24 @@ function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: stri
         continue;
       }
     }
+
+    const combo = combos.find((c: any) => c.id === item.product_id);
+    if (combo && combo.items && combo.items.length > 0) {
+      for (const comboItem of combo.items) {
+        try {
+          createLocalInventoryTransaction({
+            product_id: comboItem.product_id,
+            transaction_type: "in",
+            quantity: (comboItem.quantity || 1) * (item.quantity || 1),
+            notes: `Hoàn tồn kho (Combo: ${prod?.name || "N/A"}) (${reason}) - Đơn hàng ${orderNumber}`,
+          });
+        } catch (err) {
+          console.warn(`[Stock] Không thể hoàn tồn kho combo item ${comboItem.product_id}:`, err);
+        }
+      }
+      continue;
+    }
+
     try {
       createLocalInventoryTransaction({
         product_id: item.product_id,
@@ -1001,18 +1042,28 @@ export function useOrders() {
           const order = all[idx];
           const prevStatus = order.status;
 
-          // Status transition guard
+          // Status transition guard supporting all Pancake statuses
           const allowedTransitions: Record<string, string[]> = {
-            pending: ["confirmed", "cancelled"],
-            confirmed: ["processing", "cancelled"],
-            processing: ["shipping", "cancelled"],
-            shipping: ["delivered", "returned"],
-            delivered: ["returned"],
-            cancelled: [],
+            pending: ["confirmed", "cancelled", "duplicate", "waiting_goods", "priority_ship", "waiting_print", "printed", "ordered", "packing", "waiting_transfer", "shipping", "deleted"],
+            duplicate: ["pending", "confirmed", "cancelled", "deleted"],
+            waiting_goods: ["pending", "confirmed", "cancelled", "deleted", "priority_ship", "packing"],
+            priority_ship: ["pending", "confirmed", "cancelled", "deleted", "packing", "shipping"],
+            waiting_print: ["pending", "confirmed", "cancelled", "deleted", "printed", "packing"],
+            printed: ["pending", "confirmed", "cancelled", "deleted", "ordered", "packing", "shipping"],
+            ordered: ["pending", "confirmed", "cancelled", "deleted", "packing", "shipping"],
+            confirmed: ["pending", "cancelled", "processing", "packing", "waiting_transfer", "shipping", "duplicate", "deleted"],
+            packing: ["pending", "confirmed", "cancelled", "deleted", "waiting_transfer", "shipping"],
+            waiting_transfer: ["pending", "confirmed", "cancelled", "deleted", "shipping"],
+            shipping: ["pending", "confirmed", "cancelled", "deleted", "delivered", "returned", "returned_partial", "exchanging"],
+            processing: ["shipping", "cancelled", "deleted"],
+            delivered: ["returned", "returned_partial", "exchanging"],
+            cancelled: ["pending", "confirmed"],
             returned: [],
+            returned_partial: [],
+            exchanging: ["pending", "confirmed", "shipping"],
           };
           const allowed = allowedTransitions[prevStatus] || [];
-          if (!allowed.includes(status)) {
+          if (allowed.length > 0 && !allowed.includes(status)) {
             throw new Error(`Không thể chuyển trạng thái từ "${prevStatus}" sang "${status}"`);
           }
 
@@ -1072,7 +1123,7 @@ export function useOrders() {
       const { error } = await supabase
         .from("orders")
         .update({
-          status,
+          status: status as any,
           updated_at: new Date().toISOString()
         })
         .eq("id", id);

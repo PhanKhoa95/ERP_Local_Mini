@@ -16,6 +16,8 @@
 | 3 | Operations Handlers | Implement Stock, Accounting Ledger, and Partner Debt Subscribers | M2 | DONE |
 | 4 | UI Sync & Invalidation | Connect event callbacks with React Query invalidations | M3 | DONE |
 | 5 | Testing & Verification | Implement vitest test cases verifying all handlers and integrations | M4 | DONE |
+| 6 | Bulk Actions & Packing Workflow | Integrate Bulk Action Bar & Pancake Packing Dialog in Orders.tsx | M5 | PLANNED |
+
 
 ## Interface Contracts
 ### `erpEventBus.ts`
