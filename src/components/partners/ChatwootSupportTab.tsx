@@ -24,7 +24,8 @@ import {
   CheckCircle,
   Clock,
   Radio,
-  FileCheck
+  FileCheck,
+  Brain
 } from "lucide-react";
 
 interface ChatwootMessage {
@@ -264,6 +265,111 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
       description: "Đã nhận tin nhắn từ Phạm Minh Quân. Đã tự động tạo hồ sơ khách hàng mới và đơn hàng nháp.",
       duration: 4000
     });
+  };
+
+  // AI Long-Term Memory States & Handlers
+  interface CustomerMemory {
+    id: string;
+    customerPhone: string;
+    fact: string;
+    importance: 1 | 2 | 3;
+    createdAt: string;
+  }
+
+  const [memories, setMemories] = useState<CustomerMemory[]>(() => {
+    const raw = localStorage.getItem("erp-mini-local-demo-customer-memories");
+    return raw ? JSON.parse(raw) : [
+      { id: "mem-1", customerPhone: "0982738492", fact: "Ưu tiên vận chuyển qua Viettel Post", importance: 2, createdAt: new Date().toISOString() },
+      { id: "mem-2", customerPhone: "0982738492", fact: "Thích túi màu đen size lớn", importance: 3, createdAt: new Date().toISOString() }
+    ];
+  });
+  const [newMemoryFact, setNewMemoryFact] = useState("");
+  const [isExtractingMemory, setIsExtractingMemory] = useState(false);
+
+  const saveMemories = (updated: CustomerMemory[]) => {
+    setMemories(updated);
+    localStorage.setItem("erp-mini-local-demo-customer-memories", JSON.stringify(updated));
+  };
+
+  const handleAddMemory = (phone: string) => {
+    if (!newMemoryFact.trim() || !phone) return;
+    const newMem: CustomerMemory = {
+      id: `mem-${Date.now()}`,
+      customerPhone: phone,
+      fact: newMemoryFact.trim(),
+      importance: 3,
+      createdAt: new Date().toISOString()
+    };
+    saveMemories([newMem, ...memories]);
+    setNewMemoryFact("");
+    toast({ title: "Đã lưu trí nhớ AI cho khách hàng!" });
+  };
+
+  const handleDeleteMemory = (id: string) => {
+    saveMemories(memories.filter(m => m.id !== id));
+    toast({ title: "Đã xóa sự kiện ghi nhớ!" });
+  };
+
+  const handleExtractAIMemory = (phone: string, name: string) => {
+    if (!phone) {
+      toast({
+        variant: "destructive",
+        title: "Thiếu thông tin",
+        description: "Khách hàng phải có số điện thoại để lưu trữ bộ nhớ AI định danh."
+      });
+      return;
+    }
+    setIsExtractingMemory(true);
+    setTimeout(() => {
+      let facts: string[] = [];
+      if (name.includes("Nam") || phone === "0963847593") {
+        facts = [
+          "Thích mẫu túi VC20 màu sáng",
+          "Thường ship về Cầu Giấy Hà Nội",
+          "Hỏi về chính sách đồng giá ship"
+        ];
+      } else if (name.includes("Quân") || phone === "0849283749") {
+        facts = [
+          "Mua Túi Xách ZL18 làm quà tặng bạn gái",
+          "Thanh toán bằng COD nhận hàng kiểm tra",
+          "Yêu cầu giao nhanh nội thành Hà Nội"
+        ];
+      } else {
+        facts = [
+          "Khách hàng mới quan tâm đến chính sách tích điểm",
+          "Hỏi về thời gian bảo hành khóa kéo"
+        ];
+      }
+
+      // Filter duplicates
+      const currentCustomerMems = memories.filter(m => m.customerPhone === phone);
+      const newMems: CustomerMemory[] = [];
+      facts.forEach((fact, i) => {
+        if (!currentCustomerMems.some(m => m.fact === fact)) {
+          newMems.push({
+            id: `mem-extracted-${Date.now()}-${i}`,
+            customerPhone: phone,
+            fact,
+            importance: 3,
+            createdAt: new Date().toISOString()
+          });
+        }
+      });
+
+      if (newMems.length > 0) {
+        saveMemories([...newMems, ...memories]);
+        toast({
+          title: "Trích xuất thành công! 🤖",
+          description: `AI đã phân tích đoạn chat và ghi nhớ thêm ${newMems.length} sự thật về khách hàng.`
+        });
+      } else {
+        toast({
+          title: "Không có thông tin mới",
+          description: "AI chưa phát hiện thêm sự thật/sở thích mới nào từ cuộc hội thoại."
+        });
+      }
+      setIsExtractingMemory(false);
+    }, 1500);
   };
 
   // Webhook Test Console States & Handlers
@@ -1103,6 +1209,89 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
                   <p className="font-bold text-sm text-foreground mt-0.5">15 điểm</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Customer Memory Card */}
+          <Card className="border border-border shadow-none">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Brain className="h-4 w-4 text-purple-500" />
+                  Trí nhớ khách hàng AI (Long-Term Memory)
+                </CardTitle>
+                <CardDescription className="text-[10px] mt-0.5">Sự thật và sở thích được AI tự ghi nhớ</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-[9px] px-2 border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 font-semibold"
+                onClick={() => handleExtractAIMemory(activeConv.customerPhone, activeConv.customerName)}
+                disabled={isExtractingMemory || !activeConv.customerPhone}
+              >
+                {isExtractingMemory ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 animate-spin mr-1" />
+                    Đang quét...
+                  </>
+                ) : (
+                  <>
+                    <Bot className="h-3 w-3 mr-1" />
+                    AI Trích xuất
+                  </>
+                )}
+              </Button>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {/* Memories List */}
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {memories.filter(m => m.customerPhone === activeConv.customerPhone).length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground/60 italic text-center py-4">
+                    Chưa có sự kiện nào được ghi nhớ. Nhấn "AI Trích xuất" để tự động phân tích hội thoại.
+                  </p>
+                ) : (
+                  memories
+                    .filter(m => m.customerPhone === activeConv.customerPhone)
+                    .map(mem => (
+                      <div key={mem.id} className="p-2 border rounded-lg bg-purple-500/5 border-purple-500/10 flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-foreground leading-relaxed flex items-center gap-1">
+                          <span className="text-purple-500 text-[12px]">•</span>
+                          {mem.fact}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-4 w-4 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => handleDeleteMemory(mem.id)}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))
+                )}
+              </div>
+
+              {/* Add Memory Input */}
+              {activeConv.customerPhone && (
+                <div className="flex gap-1.5 pt-2 border-t">
+                  <Input
+                    placeholder="Ghi nhớ thủ công sở thích..."
+                    value={newMemoryFact}
+                    onChange={e => setNewMemoryFact(e.target.value)}
+                    className="h-7 text-[10px] flex-1 bg-background"
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleAddMemory(activeConv.customerPhone);
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddMemory(activeConv.customerPhone)}
+                    className="h-7 text-[10px] px-2 font-semibold bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    Lưu
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
