@@ -165,6 +165,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
   // Zalo API Control States
   const defaultAPIFeatures: APIFeature[] = [
+    // 1. Nhóm tương tác & chat
     { id: "f1", name: "Chấp nhận kết bạn", sdk: "acceptFriendRequest", description: "Chấp nhận lời mời kết bạn từ người khác.", count: "0 / 0", enabled: true },
     { id: "f2", name: "Chặn thành viên nhóm", sdk: "addGroupBlockedMember", description: "Thêm người dùng vào danh sách chặn của nhóm.", count: "0 / 0", enabled: true },
     { id: "f3", name: "Bổ nhiệm phó nhóm", sdk: "addGroupDeputy", description: "Thăng cấp một thành viên trong nhóm làm phó nhóm.", count: "0 / 0", enabled: true },
@@ -173,7 +174,21 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     { id: "f6", name: "Đánh dấu chưa đọc", sdk: "addUnreadMark", description: "Đánh dấu cuộc hội thoại là chưa đọc.", count: "0 / 0", enabled: true },
     { id: "f7", name: "Thêm thành viên nhóm", sdk: "addUserToGroup", description: "Mời/thêm trực tiếp người dùng vào nhóm chat.", count: "0 / 0", enabled: true },
     { id: "f8", name: "Chặn người dùng", sdk: "blockUser", description: "Chặn người dùng gửi tin nhắn hoặc gọi điện.", count: "0 / 0", enabled: true },
-    { id: "f9", name: "Chặn xem bài đăng", sdk: "blockViewFeed", description: "Chặn người dùng xem các bài viết nhật ký.", count: "0 / 0", enabled: true }
+    { id: "f9", name: "Chặn xem bài đăng", sdk: "blockViewFeed", description: "Chặn người dùng xem các bài viết nhật ký.", count: "0 / 0", enabled: true },
+    { id: "f10", name: "Gửi tin nhắn văn bản", sdk: "sendMessage", description: "Gửi tin nhắn văn bản thủ công hoặc qua chatbot tự động.", count: "125 / 0", rate: "100%", enabled: true },
+    { id: "f11", name: "Gửi tệp đính kèm/PDF", sdk: "sendFile", description: "Gửi tài liệu, ảnh, hóa đơn điện tử PDF qua chat Zalo.", count: "12 / 0", rate: "100%", enabled: true },
+    { id: "f12", name: "Gửi vị trí", sdk: "sendLocation", description: "Gửi định vị bản đồ cửa hàng/chi nhánh gần nhất cho khách.", count: "2 / 0", rate: "100%", enabled: true },
+    
+    // 2. Nhóm ZNS & OTP
+    { id: "f13", name: "Gửi mã OTP xác thực", sdk: "sendZNSOTP", description: "Gửi mã PIN/OTP xác minh tài khoản khi đăng ký Loyalty.", count: "140 / 0", rate: "99.8%", enabled: true },
+    { id: "f14", name: "Gửi ZNS Trạng thái đơn hàng", sdk: "sendZNSTransaction", description: "Tự động gửi thông báo ZNS khi tạo đơn, giao hàng hoặc hoàn tất đơn.", count: "98 / 0", rate: "100%", enabled: true },
+    { id: "f15", name: "Gửi ZNS Loyalty", sdk: "sendZNSLoyalty", description: "Gửi tin chúc mừng sinh nhật, khuyến mại cá nhân hóa cho khách hàng VIP.", count: "0 / 0", enabled: true },
+    
+    // 3. Nhóm Profile & Marketing
+    { id: "f16", name: "Lấy chi tiết người dùng", sdk: "getUserProfile", description: "Lấy Tên, Avatar, giới tính, vùng miền của khách từ API Zalo.", count: "45 / 0", rate: "100%", enabled: true },
+    { id: "f17", name: "Lấy người quan tâm OA", sdk: "getFollowerList", description: "Tải danh sách các khách hàng đã bấm quan tâm Official Account.", count: "2 / 0", rate: "100%", enabled: true },
+    { id: "f18", name: "Gửi tin Broadcast hàng loạt", sdk: "sendBroadcast", description: "Gửi tin nhắn quảng bá chương trình ưu đãi định kỳ hàng tháng.", count: "1 / 0", rate: "100%", enabled: true },
+    { id: "f19", name: "Cấu hình Menu nhanh", sdk: "setupOAContextMenu", description: "Thiết lập menu nút nhấn tương tác nhanh dưới khung chat.", count: "1 / 0", rate: "100%", enabled: true }
   ];
 
   const [apiFeatures, setApiFeatures] = useState<APIFeature[]>(defaultAPIFeatures);
