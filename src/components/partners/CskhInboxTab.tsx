@@ -36,6 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -378,7 +379,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       const activePronoun = (profiledInfo as any).pronoun || activeConv.pronoun || "anh";
       const greeting = activePronoun === "anh" ? "anh" : activePronoun === "chị" ? "chị" : "bạn";
 
-      setTimeout(() => {
+      setTimeout(async () => {
         const latestConv = JSON.parse(localStorage.getItem("erp-mini-cskh-conversations") || "[]")
           .find((c: any) => c.id === activeConvId) || activeConv;
 
@@ -414,10 +415,33 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             description: "Hệ thống đã tự động ngắt Autopilot và báo động nhân viên hỗ trợ."
           });
         } else {
-          // Normal AI Auto Reply matching pronoun
-          const botReplyText = messageContent.includes("ví da")
-            ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
-            : `Cảm ơn ${greeting} đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, ${greeting} cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+          // Live LLM Autopilot Reply
+          let botReplyText = "";
+          try {
+            const promptMsgs = messagesList.map(m => ({
+              role: m.sender === "customer" ? ("user" as const) : ("assistant" as const),
+              content: m.content
+            }));
+            promptMsgs.push({
+              role: "user" as const,
+              content: `Phản hồi lại khách hàng (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Giới thiệu sản phẩm ví da (189k) hoặc túi đeo chéo nếu khách hỏi, và chủ động xin số điện thoại + địa chỉ nhận hàng để chốt đơn. Trả lời dưới 3 câu.`
+            });
+
+            const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
+              body: { messages: promptMsgs }
+            });
+            if (!error && data?.answer) {
+              botReplyText = data.answer;
+            }
+          } catch (e) {
+            console.warn("Autopilot live LLM fail, using fallback template:", e);
+          }
+
+          if (!botReplyText) {
+            botReplyText = messageContent.includes("ví da")
+              ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+              : `Cảm ơn ${greeting} đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, ${greeting} cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+          }
 
           const botMsg: Message = {
             id: `m-bot-${Date.now()}`,
@@ -605,12 +629,40 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     }, 1500);
   };
 
-  // Simulate AI suggest reply
-  const handleGenerateAISuggestion = () => {
+  // Suggest reply using real Gemini API (or other active provider) if configured, else fallback
+  const handleGenerateAISuggestion = async () => {
     if (!activeConv) return;
     setIsGeneratingSuggestion(true);
     const activePronoun = activeConv.pronoun || "anh";
     const greeting = activePronoun === "anh" ? "anh" : activePronoun === "chị" ? "chị" : "bạn";
+
+    try {
+      const messagesPrompt = activeConv.messages.map(m => ({
+        role: m.sender === "customer" ? ("user" as const) : ("assistant" as const),
+        content: m.content
+      }));
+
+      messagesPrompt.push({
+        role: "user" as const,
+        content: `Soạn tin nhắn trả lời khách hàng (Hãy xưng hô là em và gọi khách là ${greeting} một cách lịch sự, thân thiện). Khách hàng tên: ${activeConv.customerName}. Trả lời ngắn gọn dưới 3 câu.`
+      });
+
+      const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
+        body: { messages: messagesPrompt }
+      });
+
+      if (!error && data?.answer) {
+        setAiSuggestedReply(data.answer);
+        toast({
+          title: "Đề xuất AI từ Gemini! 🤖",
+          description: "Câu trả lời đã được soạn thảo trực tiếp bằng mô hình AI Gemini của bạn."
+        });
+        setIsGeneratingSuggestion(false);
+        return;
+      }
+    } catch (err) {
+      console.warn("Failed to get suggestion from live LLM, falling back to local simulation:", err);
+    }
 
     setTimeout(() => {
       const customerName = activeConv.customerName;
@@ -635,7 +687,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       setIsGeneratingSuggestion(false);
       toast({
         title: "AI Suggestion Ready! 🤖",
-        description: "AI đã phân tích ngữ cảnh và đề xuất nội dung câu trả lời."
+        description: "AI đã phân tích ngữ cảnh và đề xuất nội dung câu trả lời (Giả lập)."
       });
     }, 1200);
   };
