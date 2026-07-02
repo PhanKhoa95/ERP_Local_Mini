@@ -104,6 +104,7 @@ const menuSections: MenuSection[] = [
           { title: "Lịch sử giao dịch", icon: History, path: "/partners?tab=transactions" },
           { title: "Thống kê", icon: BarChart2, path: "/partners?tab=insights" },
           { title: "CSKH Chatwoot", icon: MessageSquare, path: "/partners?tab=chatwoot" },
+          { title: "Zalo Cá Nhân", icon: MessageSquare, path: "/partners?tab=zalo-personal" },
           { title: "Thẻ thành viên", icon: CreditCard, path: "/memberships" },
           { title: "Tích điểm & Hạng thẻ", icon: Award, path: "/settings?tab=loyalty" },
         ]
