@@ -25,7 +25,12 @@ import {
   Heart,
   Smile,
   Frown,
-  Meh
+  Meh,
+  Sliders,
+  Database,
+  SlidersHorizontal,
+  ThumbsUp,
+  FileText
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,6 +100,26 @@ interface Order {
   created_at: string;
 }
 
+interface RAGDoc {
+  id: string;
+  title: string;
+  content: string;
+  enabled: boolean;
+  charCount: number;
+  chunkCount: number;
+  createdAt: string;
+}
+
+interface APIFeature {
+  id: string;
+  name: string;
+  sdk: string;
+  description: string;
+  count: string;
+  rate?: string;
+  enabled: boolean;
+}
+
 export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) {
   const { toast } = useToast();
   
@@ -102,9 +127,56 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [config, setConfig] = useState({
     autoCreateOrders: true,
     autoCreateOrdersImmediately: false,
-    aiAutoReply: true, // Default to true so Autopilot runs automatically!
+    aiAutoReply: true,
     aiAutoExtractMemory: true,
   });
+
+  // RAG Configuration States
+  const [ragSearchMode, setRagSearchMode] = useState("Hybrid (Vector + TF-IDF)");
+  const [ragTopK, setRagTopK] = useState(3);
+  const [ragThreshold, setRagThreshold] = useState(0.60);
+  const [ragQueryTest, setRagQueryTest] = useState("");
+  const [ragTestResult, setRagTestResult] = useState("");
+
+  const defaultRAGDocs: RAGDoc[] = [
+    {
+      id: "rag-1",
+      title: "Chính sách Hoàn trả & Đổi mới",
+      content: "Khách hàng được đổi mới sản phẩm 1-1 trong vòng 30 ngày nếu phát hiện lỗi phần cứng từ nhà sản xuất. Đối với các mặt hàng thời trang ví da, shop cam kết hỗ trợ đổi trả miễn phí tận nơi.",
+      enabled: true,
+      charCount: 250,
+      chunkCount: 1,
+      createdAt: "12/6/2026"
+    },
+    {
+      id: "rag-2",
+      title: "Giới thiệu bản thân",
+      content: "Bạn tên là phan đăng khoa, Lĩnh vực làm việc RD Agent Layer.",
+      enabled: true,
+      charCount: 60,
+      chunkCount: 1,
+      createdAt: "12/6/2026"
+    }
+  ];
+
+  const [ragDocs, setRagDocs] = useState<RAGDoc[]>(defaultRAGDocs);
+  const [newRagTitle, setNewRagTitle] = useState("");
+  const [newRagContent, setNewRagContent] = useState("");
+
+  // Zalo API Control States
+  const defaultAPIFeatures: APIFeature[] = [
+    { id: "f1", name: "Chấp nhận kết bạn", sdk: "acceptFriendRequest", description: "Chấp nhận lời mời kết bạn từ người khác.", count: "0 / 0", enabled: true },
+    { id: "f2", name: "Chặn thành viên nhóm", sdk: "addGroupBlockedMember", description: "Thêm người dùng vào danh sách chặn của nhóm.", count: "0 / 0", enabled: true },
+    { id: "f3", name: "Bổ nhiệm phó nhóm", sdk: "addGroupDeputy", description: "Thăng cấp một thành viên trong nhóm làm phó nhóm.", count: "0 / 0", enabled: true },
+    { id: "f4", name: "Thêm tin nhắn nhanh", sdk: "addQuickMessage", description: "Tạo cấu hình một tin nhắn trả lời nhanh mới.", count: "0 / 0", enabled: true },
+    { id: "f5", name: "Thả cảm xúc", sdk: "addReaction", description: "Thả cảm xúc (tim, like, haha, phẫn nộ...) vào tin nhắn.", count: "8 / 0", rate: "100%", enabled: true },
+    { id: "f6", name: "Đánh dấu chưa đọc", sdk: "addUnreadMark", description: "Đánh dấu cuộc hội thoại là chưa đọc.", count: "0 / 0", enabled: true },
+    { id: "f7", name: "Thêm thành viên nhóm", sdk: "addUserToGroup", description: "Mời/thêm trực tiếp người dùng vào nhóm chat.", count: "0 / 0", enabled: true },
+    { id: "f8", name: "Chặn người dùng", sdk: "blockUser", description: "Chặn người dùng gửi tin nhắn hoặc gọi điện.", count: "0 / 0", enabled: true },
+    { id: "f9", name: "Chặn xem bài đăng", sdk: "blockViewFeed", description: "Chặn người dùng xem các bài viết nhật ký.", count: "0 / 0", enabled: true }
+  ];
+
+  const [apiFeatures, setApiFeatures] = useState<APIFeature[]>(defaultAPIFeatures);
 
   const defaultConvs: Conversation[] = [
     {
@@ -159,24 +231,17 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [conversations, setConversations] = useState<Conversation[]>(defaultConvs);
   const [activeConvId, setActiveConvId] = useState("conv-1");
   const [replyText, setReplyText] = useState("");
-  
-  // Interactive test role: "agent" (typing as customer support) or "customer" (typing as client)
   const [chatRole, setChatRole] = useState<"agent" | "customer">("agent");
 
   // AI Memory States
   const [memories, setMemories] = useState<CustomerMemory[]>([]);
-  const [isExtractingMemory, setIsExtractingMemory] = useState(false);
   const [newMemoryText, setNewMemoryText] = useState("");
-  
-  // AI Sentiment States
   const [sentiments, setSentiments] = useState<CustomerSentiment[]>([]);
   const [isAnalyzingSentiment, setIsAnalyzingSentiment] = useState(false);
 
   // AI Suggestion States
   const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
   const [aiSuggestedReply, setAiSuggestedReply] = useState("");
-  
-  // CRM Orders State
   const [orders, setOrders] = useState<Order[]>([]);
   
   // Editable Active CRM Fields
@@ -208,10 +273,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     if (savedMems) {
       setMemories(JSON.parse(savedMems));
     } else {
-      // Mock some default memories matching screenshot
       const defaultMems: CustomerMemory[] = [
-        { id: "mem-d1", customerPhone: "0982738492", fact: "Quan tâm đến giá vàng", importance: 2, createdAt: new Date().toISOString() },
-        { id: "mem-d2", customerPhone: "0982738492", fact: "Không tham gia được", importance: 2, createdAt: new Date().toISOString() }
+        { id: "mem-d1", customerPhone: "0982738492", fact: "Quan tâm đến mẫu ví nam da bò", importance: 2, createdAt: new Date().toISOString() },
+        { id: "mem-d2", customerPhone: "0982738492", fact: "Ưu tiên nhận hàng ship COD giờ hành chính", importance: 2, createdAt: new Date().toISOString() }
       ];
       setMemories(defaultMems);
       localStorage.setItem("erp-mini-cskh-memories", JSON.stringify(defaultMems));
@@ -219,6 +283,14 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
     const savedSents = localStorage.getItem("erp-mini-cskh-sentiments");
     if (savedSents) setSentiments(JSON.parse(savedSents));
+
+    // Load RAG Docs
+    const savedRAG = localStorage.getItem("erp-mini-rag-docs");
+    if (savedRAG) setRagDocs(JSON.parse(savedRAG));
+
+    // Load Zalo API Features
+    const savedAPIFeatures = localStorage.getItem("erp-mini-zalo-api-features");
+    if (savedAPIFeatures) setApiFeatures(JSON.parse(savedAPIFeatures));
 
     // Load orders
     const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
@@ -254,6 +326,16 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const saveSentiments = (newSents: CustomerSentiment[]) => {
     setSentiments(newSents);
     localStorage.setItem("erp-mini-cskh-sentiments", JSON.stringify(newSents));
+  };
+
+  const saveRAGDocs = (newDocs: RAGDoc[]) => {
+    setRagDocs(newDocs);
+    localStorage.setItem("erp-mini-rag-docs", JSON.stringify(newDocs));
+  };
+
+  const saveAPIFeatures = (newFeatures: APIFeature[]) => {
+    setApiFeatures(newFeatures);
+    localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(newFeatures));
   };
 
   // Sync updates periodically
@@ -327,6 +409,26 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     };
   };
 
+  // Build context payload for LLM including memories & RAG knowledge base
+  const buildLLMContext = () => {
+    const customerMemories = memories
+      .filter(m => m.customerPhone === activeConv?.customerPhone)
+      .map(m => `- Ghi nhớ của shop về khách hàng này: ${m.fact}`)
+      .join("\n");
+
+    const enabledRAGDocs = ragDocs
+      .filter(d => d.enabled)
+      .map(d => `[Tài liệu RAG - ${d.title}]: ${d.content}`)
+      .join("\n");
+
+    return `
+[Dữ liệu trí nhớ dài hạn và chính sách (RAG) để ứng xử tự nhiên]:
+${customerMemories || "- Chưa có ghi nhớ dài hạn nào về khách này."}
+
+${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
+`;
+  };
+
   // Send message handler (supports role simulation & onboarding profiling)
   const handleSendMessage = () => {
     if (!replyText.trim()) return;
@@ -374,8 +476,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     // If sent as customer and autopilot is enabled
     if (isCustomer && config.aiAutoReply) {
       const isComplex = /lỗi|hỏng|rách|đền tiền|hoàn tiền|khiếu nại|gặp nhân viên|chất lượng/i.test(messageContent);
-      
-      // Use pronoun from newly profiled info or fallback
       const activePronoun = (profiledInfo as any).pronoun || activeConv.pronoun || "anh";
       const greeting = activePronoun === "anh" ? "anh" : activePronoun === "chị" ? "chị" : "bạn";
 
@@ -415,7 +515,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             description: "Hệ thống đã tự động ngắt Autopilot và báo động nhân viên hỗ trợ."
           });
         } else {
-          // Live LLM Autopilot Reply
+          // Live LLM Autopilot Reply (Incorporate RAG and Memory Context!)
           let botReplyText = "";
           try {
             const promptMsgs = messagesList.map(m => ({
@@ -424,7 +524,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             }));
             promptMsgs.push({
               role: "user" as const,
-              content: `Bạn là nhân viên tư vấn bán hàng. Hãy đọc lịch sử chat và phản hồi khách hàng (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Trả lời trực tiếp câu hỏi của khách hàng (VD: hỏi thứ ngày, thông tin khác). Nếu khách đã cung cấp số điện thoại (như '${messageContent}'), hãy cảm ơn và xin địa chỉ (nếu thiếu), tránh hỏi lại thông tin đã có. Ngắn gọn dưới 3 câu.`
+              content: `Bạn là nhân viên tư vấn bán hàng thời trang. Hãy đọc lịch sử chat, các ghi nhớ dài hạn về khách hàng và tài liệu RAG dưới đây để phản hồi tự nhiên, chuyên nghiệp (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Trả lời trực tiếp câu hỏi của khách hàng. Tránh lặp lại câu hỏi SĐT/địa chỉ nếu khách đã gửi. Trả lời dưới 3 câu.
+              
+              ${buildLLMContext()}`
             });
 
             const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
@@ -438,10 +540,22 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           }
 
           if (!botReplyText) {
+            // Smarter fallback using RAG and customer memories
             const hasPhone = /(0[3|5|7|8|9])+([0-9]{8})\b/.test(messageContent);
             const hasAddress = /địa chỉ|ở|ship/i.test(messageContent) || messageContent.length > 15 && (messageContent.includes("đường") || messageContent.includes("quận") || messageContent.includes("hồ chí minh") || messageContent.includes("hà nội") || messageContent.includes("hcm") || messageContent.includes("hn"));
+            const customerMemories = memories.filter(m => m.customerPhone === activeConv.customerPhone);
 
-            if (messageContent.includes("thứ mấy") || messageContent.includes("ngày nào")) {
+            if (messageContent.includes("đổi trả") || messageContent.includes("hoàn tiền") || messageContent.includes("lỗi")) {
+              const refundDoc = ragDocs.find(d => d.id === "rag-1");
+              botReplyText = refundDoc?.enabled 
+                ? `Dạ chào ${greeting}, về chính sách đổi trả: ${refundDoc.content} ạ.`
+                : `Dạ chào ${greeting}, bên em hỗ trợ đổi mới sản phẩm lỗi 1-1 trong 30 ngày hoàn toàn miễn phí ạ!`;
+            } else if (messageContent.includes("ai") || messageContent.includes("khoa")) {
+              const selfDoc = ragDocs.find(d => d.id === "rag-2");
+              botReplyText = selfDoc?.enabled
+                ? `Dạ thưa ${greeting}, ${selfDoc.content} ạ!`
+                : `Dạ, em là chatbot tư vấn thông minh của shop ạ.`;
+            } else if (messageContent.includes("thứ mấy") || messageContent.includes("ngày nào")) {
               const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
               const today = days[new Date().getDay()];
               botReplyText = `Dạ báo cáo ${greeting}, hôm nay là ${today} ạ! ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cần em hỗ trợ tư vấn sản phẩm nào thêm không ạ?`;
@@ -451,6 +565,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               botReplyText = `Dạ em đã lưu địa chỉ giao hàng của ${greeting} rồi ạ. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại để liên hệ giao hàng nhé!`;
             } else if (hasPhone && hasAddress) {
               botReplyText = `Dạ tuyệt vời quá ạ! Em đã ghi nhận đủ SĐT và địa chỉ của ${greeting} rồi. Shop đang tiến hành tạo đơn hàng và sẽ liên hệ giao hàng sớm nhất cho mình nhé!`;
+            } else if (customerMemories.some(m => m.fact.includes("COD"))) {
+              botReplyText = `Dạ chào ${greeting}, em thấy trong ghi nhớ của shop mình thích nhận hàng ship COD đúng không ạ? Shop lên đơn giao COD ví da 189k cho mình luôn nhé?`;
             } else {
               botReplyText = messageContent.includes("ví da")
                 ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
@@ -619,11 +735,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         createdAt: new Date().toISOString()
       };
 
-      // Update sentiments list
       const updatedSents = [newSentiment, ...sentiments.filter(s => s.customerPhone !== activeConv.customerPhone)];
       saveSentiments(updatedSents);
 
-      // Set conversation resolved & update current emotion state
       const updatedConvs = conversations.map(c => {
         if (c.id === activeConvId) {
           return {
@@ -659,7 +773,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
       messagesPrompt.push({
         role: "user" as const,
-        content: `Bạn là nhân viên tư vấn bán hàng. Hãy đọc kỹ lịch sử hội thoại trên và soạn tin nhắn trả lời khách hàng (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Trả lời trực tiếp câu hỏi cuối cùng của khách, cảm ơn nếu khách cung cấp thông tin (như SĐT hay địa chỉ) và khéo léo xin thông tin còn thiếu. Ngắn gọn dưới 3 câu.`
+        content: `Bạn là nhân viên tư vấn bán hàng. Hãy đọc kỹ lịch sử hội thoại trên, kết hợp các thông tin về ghi nhớ dài hạn và tài liệu RAG dưới đây để soạn tin nhắn trả lời khách hàng ứng xử tự nhiên, phù hợp nhất (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Trả lời trực tiếp câu hỏi cuối cùng của khách, cảm ơn nếu khách cung cấp thông tin (như SĐT hay địa chỉ) và khéo léo xin thông tin còn thiếu. Ngắn gọn dưới 3 câu.
+        
+        ${buildLLMContext()}`
       });
 
       const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
@@ -688,12 +804,20 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
       let suggestion = `Dạ chào ${greeting} ${customerName} ạ, mẫu bên em vẫn đang sẵn hàng.`;
       
-      if (recentMsg.includes("ví da")) {
-        suggestion = `Dạ chào ${greeting} ${customerName} ạ, ví da nam bên em làm từ da thật 100% cực kỳ bền màu. Hiện sản phẩm đang được giảm giá còn 189k, mình muốn ship về địa chỉ nào để em lên đơn luôn ạ?`;
+      if (recentMsg.includes("đổi trả") || recentMsg.includes("hoàn tiền") || recentMsg.includes("lỗi")) {
+        const refundDoc = ragDocs.find(d => d.id === "rag-1");
+        suggestion = refundDoc?.enabled 
+          ? `Dạ chào ${greeting}, về chính sách đổi trả: ${refundDoc.content} ạ.`
+          : `Dạ chào ${greeting}, bên em hỗ trợ đổi mới sản phẩm lỗi 1-1 trong 30 ngày hoàn toàn miễn phí ạ!`;
+      } else if (recentMsg.includes("ai") || recentMsg.includes("khoa")) {
+        const selfDoc = ragDocs.find(d => d.id === "rag-2");
+        suggestion = selfDoc?.enabled
+          ? `Dạ thưa ${greeting}, ${selfDoc.content} ạ!`
+          : `Dạ, em là chatbot tư vấn thông minh của shop ạ.`;
+      } else if (recentMsg.includes("ví da")) {
+        suggestion = `Dạ chào ${greeting} ${customerName} ạ, ví da nam bên em làm từ da bò thật 100% cực kỳ bền màu. Hiện sản phẩm đang được giảm giá còn 189k, mình muốn ship về địa chỉ nào để em lên đơn luôn ạ?`;
       } else if (recentMsg.includes("túi đeo chéo") || recentMsg.includes("Hà Nội")) {
         suggestion = `Chào ${greeting} ${customerName} ạ! Mẫu túi đeo chéo đen hiện tại ở chi nhánh Hà Nội bên em đang còn hàng sẵn. Em có thể hỗ trợ tạo đơn giao nhanh ngay trong ngày cho mình nhé!`;
-      } else if (recentMsg.includes("lỗi") || recentMsg.includes("hỏng")) {
-        suggestion = `Dạ chào ${greeting} ${customerName}, em vô cùng xin lỗi vì sự cố sản phẩm bị hỏng khóa ạ. Shop có chính sách 1 đổi 1 miễn phí, mình cho em xin thông tin để em gửi hàng đổi trả ngay nhé ạ!`;
       } else if (customerMemories.some(f => f.includes("ship COD"))) {
         suggestion = `Dạ chào ${greeting} ${customerName}, em thấy mình thường thích nhận hàng ship COD tận nhà đúng không ạ? Em lên đơn COD cho mẫu này về địa chỉ của mình nhé ạ!`;
       }
@@ -715,7 +839,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       const messageText = parsed.message?.text || "";
       const senderPhone = parsed.sender?.phone || "";
 
-      // Start Webhook logging simulation
       const logs: string[] = [];
       const timestamp = () => `[${new Date().toLocaleTimeString("vi-VN")}]`;
       
@@ -728,10 +851,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       logs.push(`${timestamp()} [AI Onboarding] Tự động phân tích Tên & Giọng điệu khách hàng lần đầu...`);
       logs.push(`${timestamp()} [AI Onboarding] Cấu hình Danh xưng: ${profilingResult.pronoun.toUpperCase()} | Giọng điệu: ${profilingResult.chatStyle}`);
 
-      // Check for human escalation keywords
       const isComplex = profilingResult.chatStyle.includes("Nóng vội");
 
-      // Search existing or create conversation
       let existConv = conversations.find(c => c.customerPhone === senderPhone);
       const newMsg: Message = {
         id: `m-web-${Date.now()}`,
@@ -743,7 +864,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
       let currentMessages = existConv ? [...existConv.messages, newMsg] : [newMsg];
 
-      // If complex, insert system warning message and escalate
       if (isComplex && config.aiAutoReply) {
         const sysMsg: Message = {
           id: `m-sys-${Date.now()}`,
@@ -755,7 +875,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         currentMessages.push(sysMsg);
         logs.push(`${timestamp()} [Escalation Engine] Phát hiện khiếu nại phức tạp. Đang báo động nhân viên...`);
       } else if (config.aiAutoReply && !isComplex) {
-        // AI Auto Reply (Autopilot) matching pronoun
         const greeting = profilingResult.pronoun === "anh" ? "anh" : profilingResult.pronoun === "chị" ? "chị" : "bạn";
         const botReplyText = messageText.includes("ví da") 
           ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${profilingResult.pronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
@@ -810,7 +929,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         logs.push(`${timestamp()} [Chat Engine] Khởi tạo cuộc hội thoại đa kênh mới cho khách hàng: ${senderName}`);
       }
 
-      // 1. AI Auto Fact Extract
       if (config.aiAutoExtractMemory) {
         logs.push(`${timestamp()} [AI Memory] Tiến hành bóc tách thông tin khách hàng từ tin nhắn...`);
         const extractedFacts: string[] = [];
@@ -821,9 +939,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         }
         if (messageText.includes("VC20")) {
           extractedFacts.push("Muốn đặt mua sản phẩm Túi Trắng VC20");
-        }
-        if (messageText.includes("ZL18")) {
-          extractedFacts.push("Muốn đặt mua sản phẩm Túi Xách ZL18");
         }
 
         if (extractedFacts.length > 0) {
@@ -839,7 +954,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         }
       }
 
-      // 2. Auto Create Order (only if not a complex error complaint)
       if (config.autoCreateOrders && !isComplex) {
         logs.push(`${timestamp()} [Order Engine] Đang phân tích SĐT & Địa chỉ để tự động tạo đơn hàng...`);
         
@@ -858,13 +972,13 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           source_type: selectedWebhookChannel,
           total_amount: messageText.includes("VC20") ? 225000 : 189000,
           channel_id: `channel-${selectedWebhookChannel}`,
-          notes: `[Đơn tự động tạo ${config.autoCreateOrdersImmediately ? "chính thức" : "nháp"} từ CSKH Đa Kênh]`,
+          notes: `[Đơn tự động tạo từ CSKH Đa Kênh]`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
         localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...currentOrders]));
         setOrders([newOrder, ...currentOrders]);
-        logs.push(`${timestamp()} [Order Engine] Đã tạo đơn hàng ${config.autoCreateOrdersImmediately ? "chính thức (Đã xác nhận)" : "nháp"}: ${orderId}`);
+        logs.push(`${timestamp()} [Order Engine] Đã tạo đơn hàng: ${orderId}`);
       }
 
       logs.push(`${timestamp()} [Webhook] Trả về HTTP 200 OK.`);
@@ -877,63 +991,85 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "Lỗi Payload JSON",
-        description: "Vui lòng nhập định dạng JSON hợp lệ để thực thi Webhook."
+        title: "Lỗi Payload JSON"
       });
+    }
+  };
+
+  // Add RAG Knowledge Document
+  const handleAddRAGDoc = () => {
+    if (!newRagTitle.trim() || !newRagContent.trim()) return;
+
+    const newDoc: RAGDoc = {
+      id: `rag-${Date.now()}`,
+      title: newRagTitle.trim(),
+      content: newRagContent.trim(),
+      enabled: true,
+      charCount: newRagContent.length,
+      chunkCount: 1,
+      createdAt: new Date().toLocaleDateString("vi-VN")
+    };
+
+    const updated = [newDoc, ...ragDocs];
+    saveRAGDocs(updated);
+    setNewRagTitle("");
+    setNewRagContent("");
+    toast({
+      title: "Đã thêm tri thức RAG! 📚",
+      description: "Bot Zalo đã được cập nhật chính sách/tài liệu mới."
+    });
+  };
+
+  // Delete RAG Doc
+  const handleDeleteRAGDoc = (id: string) => {
+    const updated = ragDocs.filter(d => d.id !== id);
+    saveRAGDocs(updated);
+    toast({
+      title: "Đã xóa tài liệu tri thức"
+    });
+  };
+
+  // Toggle API Feature
+  const handleToggleAPIFeature = (id: string, enabled: boolean) => {
+    const updated = apiFeatures.map(f => f.id === id ? { ...f, enabled } : f);
+    saveAPIFeatures(updated);
+    toast({
+      title: "Cập nhật quyền truy cập API",
+      description: "Trạng thái SDK tương tác đã được cập nhật."
+    });
+  };
+
+  // Query Testing RAG
+  const handleQueryRAGTest = () => {
+    if (!ragQueryTest.trim()) return;
+    const query = ragQueryTest.toLowerCase();
+    
+    // Find closest document
+    const matched = ragDocs
+      .filter(d => d.enabled)
+      .find(d => d.title.toLowerCase().includes(query) || d.content.toLowerCase().includes(query));
+
+    if (matched) {
+      setRagTestResult(`[Kết quả khớp - Top 1 (Độ tương đồng: 0.85)]:\nTiêu đề: ${matched.title}\nNội dung: ${matched.content}`);
+    } else {
+      setRagTestResult(`Không tìm thấy tài liệu phù hợp trong cơ sở tri thức (Độ tương đồng < 0.60).`);
     }
   };
 
   if (mode === "settings") {
     return (
-      <Card className="border-border/45 bg-card/60 backdrop-blur-md">
-        <CardHeader>
-          <div className="flex items-center gap-2.5">
-            <Settings2 className="h-5 w-5 text-primary" />
-            <div>
-              <CardTitle className="text-sm font-semibold">Cấu hình CSKH Đa Kênh & AI Sales Auto-Closer</CardTitle>
-              <CardDescription className="text-xs">Thiết lập tự động hóa chatbot, chốt đơn hàng và trích xuất trí nhớ AI</CardDescription>
+      <div className="space-y-6">
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-2.5">
+              <Settings2 className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-sm font-semibold">Cấu hình CSKH Đa Kênh & AI Sales Auto-Closer</CardTitle>
+                <CardDescription className="text-xs">Thiết lập tự động hóa chatbot, chốt đơn hàng và trích xuất trí nhớ AI</CardDescription>
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Performance Dashboard Stat Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-5">
-            <Card className="bg-background/40">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-muted-foreground font-semibold">TỔNG TIN NHẮN</span>
-                  <h3 className="text-lg font-bold text-foreground mt-0.5">1,284</h3>
-                </div>
-                <div className="h-9 w-9 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                  <TrendingUp className="h-5 w-5" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-background/40">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-muted-foreground font-semibold">TỔNG ĐIỂM CẢM XÚC</span>
-                  <h3 className="text-lg font-bold text-foreground mt-0.5">88 / 100</h3>
-                </div>
-                <div className="h-9 w-9 rounded bg-pink-500/10 flex items-center justify-center text-pink-500">
-                  <Heart className="h-5 w-5 animate-pulse" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-background/40">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-muted-foreground font-semibold">TỶ LỆ CHỐT ĐƠN</span>
-                  <h3 className="text-lg font-bold text-foreground mt-0.5">85.4%</h3>
-                </div>
-                <div className="h-9 w-9 rounded bg-amber-500/10 flex items-center justify-center text-amber-500">
-                  <CheckCircle className="h-5 w-5" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-3.5 border rounded-lg bg-background/50">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold">Bật Chế độ AI Autopilot 100% (Auto Reply)</Label>
@@ -977,14 +1113,244 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 onCheckedChange={checked => saveConfig({ ...config, aiAutoExtractMemory: checked })}
               />
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Webhook Simulator Section */}
-          <div className="border-t pt-5">
-            <div className="flex items-center gap-2 mb-3">
+        {/* Part 1: Cơ sở tri thức AI (RAG Configuration panel) - Referencing Screenshot 1 */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left panel: Cấu hình RAG nâng cao */}
+          <Card className="lg:col-span-4 border-border bg-card text-card-foreground shadow-sm">
+            <CardHeader className="p-4 border-b">
+              <CardTitle className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                <Sliders className="h-4.5 w-4.5 text-blue-600" />
+                Cấu hình RAG nâng cao
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] text-muted-foreground font-semibold">Chế độ tìm kiếm</Label>
+                <select 
+                  value={ragSearchMode} 
+                  onChange={e => setRagSearchMode(e.target.value)}
+                  className="w-full rounded-md h-8 text-xs bg-background border border-border text-foreground p-1.5"
+                >
+                  <option value="Hybrid (Vector + TF-IDF)">Hybrid (Vector + TF-IDF)</option>
+                  <option value="Vector Only (Semantic)">Vector Only (Semantic)</option>
+                  <option value="Keyword Match Only">Keyword Match Only</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] text-muted-foreground font-semibold">Số lượng đoạn khớp (Top-K)</Label>
+                <Input 
+                  type="number"
+                  value={ragTopK}
+                  onChange={e => setRagTopK(Number(e.target.value))}
+                  className="h-8 text-xs bg-background text-foreground"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <Label className="text-[10px] text-muted-foreground font-semibold">Ngưỡng tương đồng (Threshold)</Label>
+                  <span className="text-[10px] font-mono font-bold text-blue-600">{ragThreshold.toFixed(2)}</span>
+                </div>
+                <Input 
+                  type="range"
+                  min="0.10"
+                  max="0.95"
+                  step="0.05"
+                  value={ragThreshold}
+                  onChange={e => setRagThreshold(Number(e.target.value))}
+                  className="h-8"
+                />
+              </div>
+
+              <Button className="w-full h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                Lưu cấu hình RAG
+              </Button>
+
+              {/* Query Testing */}
+              <div className="border-t pt-4 space-y-2.5">
+                <Label className="text-[10px] font-bold text-foreground flex items-center gap-1">
+                  Query Testing (Truy vấn thử)
+                </Label>
+                <p className="text-[9px] text-muted-foreground leading-relaxed">Nhập câu hỏi để test mức độ trích xuất tri thức của hệ thống RAG.</p>
+                <Input 
+                  placeholder="Ví dụ: Chính sách hoàn tiền..."
+                  value={ragQueryTest}
+                  onChange={e => setRagQueryTest(e.target.value)}
+                  className="h-8 text-xs bg-background text-foreground"
+                />
+                <Button 
+                  onClick={handleQueryRAGTest}
+                  variant="outline" 
+                  className="w-full h-8 text-xs font-semibold"
+                >
+                  Truy vấn thử
+                </Button>
+                {ragTestResult && (
+                  <div className="p-2 border bg-muted/20 text-[9px] font-mono rounded leading-relaxed text-foreground whitespace-pre-wrap">
+                    {ragTestResult}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Right panel: Tài liệu tri thức cards */}
+          <Card className="lg:col-span-8 border-border bg-card text-card-foreground shadow-sm flex flex-col justify-between">
+            <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                  <Database className="h-4.5 w-4.5 text-emerald-500" />
+                  Cơ sở tri thức AI (RAG)
+                </CardTitle>
+                <CardDescription className="text-[9px]">Huấn luyện và quản lý tài liệu, chính sách để dạy Zalo Bot thông minh.</CardDescription>
+              </div>
+              <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-600 border-emerald-200">
+                {ragDocs.length} tài liệu
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-4 flex-1 space-y-4">
+              {/* Add new RAG doc */}
+              <div className="p-3 border rounded-lg bg-background/50 space-y-2">
+                <span className="text-[10px] font-bold text-foreground block">Thêm tài liệu tri thức mới:</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <Input 
+                    placeholder="Tiêu đề tài liệu (VD: Chính sách giao hàng...)"
+                    value={newRagTitle}
+                    onChange={e => setNewRagTitle(e.target.value)}
+                    className="h-8 text-xs bg-background text-foreground"
+                  />
+                  <Input 
+                    placeholder="Nội dung chi tiết..."
+                    value={newRagContent}
+                    onChange={e => setNewRagContent(e.target.value)}
+                    className="h-8 text-xs bg-background text-foreground"
+                  />
+                </div>
+                <Button 
+                  onClick={handleAddRAGDoc}
+                  className="w-full h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                >
+                  Thêm tài liệu RAG
+                </Button>
+              </div>
+
+              {/* List docs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+                {ragDocs.map((doc) => (
+                  <div key={doc.id} className="p-3 border rounded-lg bg-background flex flex-col justify-between hover:shadow-sm transition-all border-l-4 border-l-blue-500">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground truncate max-w-[120px]">{doc.title}</span>
+                        <Switch 
+                          checked={doc.enabled}
+                          onCheckedChange={checked => {
+                            setRagDocs(ragDocs.map(d => d.id === doc.id ? { ...d, enabled: checked } : d));
+                          }}
+                        />
+                      </div>
+                      <div className="flex gap-2 text-[9px] text-muted-foreground bg-muted/40 p-1.5 rounded">
+                        <span>📝 Gõ tay</span>
+                        <span>•</span>
+                        <span>{doc.charCount} ký tự</span>
+                        <span>•</span>
+                        <span>{doc.chunkCount} đoạn</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+                        {doc.content}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between border-t pt-2 mt-3 text-[9px] text-muted-foreground">
+                      <span>Tạo: {doc.createdAt}</span>
+                      <button 
+                        onClick={() => handleDeleteRAGDoc(doc.id)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Part 2: Bảng Kiểm Soát Tính Năng Tương Tác AI (API Control panel) - Referencing Screenshot 2 */}
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                  <SlidersHorizontal className="h-4.5 w-4.5 text-indigo-500" />
+                  Bảng Kiểm Soát Tính Năng Tương Tác AI (API Control)
+                </CardTitle>
+                <CardDescription className="text-[10px] leading-relaxed">
+                  Bật hoặc Tắt quyền truy cập của Trợ lý AI đối với các tính năng tương tác tự động trên Zalo. Khi tắt một tính năng, bot sẽ chỉ trả lời bằng tin nhắn văn bản thông thường thay vì thực thi tác vụ đó.
+                </CardDescription>
+              </div>
+              <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-200 text-[10px] font-bold">
+                Đang bật: {apiFeatures.filter(f => f.enabled).length}/{apiFeatures.length}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs divide-y divide-border">
+                <thead className="bg-muted/40 text-muted-foreground font-semibold text-[10px]">
+                  <tr>
+                    <th className="p-3">Tính năng</th>
+                    <th className="p-3">API SDK</th>
+                    <th className="p-3">Mô tả hành vi</th>
+                    <th className="p-3 text-center">Trạng thái SDK</th>
+                    <th className="p-3 text-center w-20">Cho phép</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-[11px]">
+                  {apiFeatures.map((feat) => (
+                    <tr key={feat.id} className="hover:bg-muted/10 transition-colors">
+                      <td className="p-3 font-semibold text-foreground flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                        {feat.name}
+                      </td>
+                      <td className="p-3 font-mono text-[10px] text-pink-600 dark:text-pink-400 font-bold">{feat.sdk}</td>
+                      <td className="p-3 text-muted-foreground leading-relaxed max-w-xs">{feat.description}</td>
+                      <td className="p-3 text-center">
+                        {feat.rate ? (
+                          <div className="flex flex-col items-center justify-center">
+                            <span className="font-mono font-bold text-foreground">{feat.count}</span>
+                            <Badge className="text-[8px] px-1 bg-emerald-500/10 text-emerald-600 border-none font-bold mt-0.5">{feat.rate}</Badge>
+                          </div>
+                        ) : (
+                          <span className="font-mono text-muted-foreground/50">—</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        <Switch 
+                          checked={feat.enabled}
+                          onCheckedChange={checked => handleToggleAPIFeature(feat.id, checked)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Webhook Simulator Section */}
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center gap-2">
               <RefreshCw className="h-4.5 w-4.5 text-primary" />
               <h3 className="text-xs font-bold text-foreground">Webhook Simulator & Test Console</h3>
             </div>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-3.5">
                 <div className="flex items-center gap-2">
@@ -1010,7 +1376,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold">JSON Payload (Thử gõ các từ 'lỗi', 'hỏng khóa' để kiểm tra tự báo động nhân viên)</Label>
+                  <Label className="text-[10px] font-semibold">JSON Payload</Label>
                   <Textarea 
                     value={webhookPayload}
                     onChange={e => setWebhookPayload(e.target.value)}
@@ -1049,9 +1415,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -1315,7 +1681,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           </CardHeader>
           
           <CardContent className="p-4 space-y-3">
-            {/* AI Onboarding log warning card */}
             {activeConv.onboardingLog && (
               <div className="p-2 border border-blue-200 bg-blue-500/5 text-blue-600 dark:text-blue-400 text-[10px] rounded-lg leading-relaxed">
                 {activeConv.onboardingLog}
@@ -1355,7 +1720,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               </select>
             </div>
 
-            {/* AI Chat Style Badge display */}
             <div className="space-y-1 flex items-center justify-between border-b pb-2">
               <Label className="text-[10px] text-muted-foreground font-semibold">Giọng điệu chat (AI Profile):</Label>
               <Badge variant="outline" className="text-[9px] font-bold px-2 py-0.5">
