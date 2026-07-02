@@ -132,7 +132,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       autopilotEnabled: false,
       messages: [
         { id: "m4", sender: "customer", senderName: "Nguyễn Thị Mai", content: "Sản phẩm bị lỗi hỏng khóa rồi, shop đổi cho tôi hoặc gặp nhân viên xử lý gấp!", timestamp: "11:02" },
-        { id: "m-sys-1", sender: "bot", senderName: "Hệ thống AI", content: "[Báo động] Phát hiện khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và phát cảnh báo yêu cầu nhân viên can thiệp.", timestamp: "11:03" }
+        { id: "m-sys-1", sender: "bot", senderName: "Hệ thống AI", content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và phát cảnh báo yêu cầu nhân viên can thiệp.", timestamp: "11:03" }
       ]
     }
   ];
@@ -141,6 +141,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [activeConvId, setActiveConvId] = useState("conv-1");
   const [replyText, setReplyText] = useState("");
   
+  // Interactive test role: "agent" (typing as customer support) or "customer" (typing as client)
+  const [chatRole, setChatRole] = useState<"agent" | "customer">("agent");
+
   // AI Memory States
   const [memories, setMemories] = useState<CustomerMemory[]>([]);
   const [isExtractingMemory, setIsExtractingMemory] = useState(false);
@@ -228,38 +231,142 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     s => s.customerPhone === activeConv?.customerPhone
   );
 
+  // Send message handler (supports role simulation)
   const handleSendMessage = () => {
     if (!replyText.trim()) return;
     
+    const messageContent = replyText;
+    const isCustomer = chatRole === "customer";
+    
     const newMsg: Message = {
       id: `m-new-${Date.now()}`,
-      sender: "agent",
-      senderName: "Admin POS",
-      content: replyText,
+      sender: isCustomer ? "customer" : "agent",
+      senderName: isCustomer ? activeConv.customerName : "Admin POS",
+      content: messageContent,
       timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
     };
 
-    const updated = conversations.map(c => {
+    let updatedConvs = conversations.map(c => {
       if (c.id === activeConvId) {
         return {
           ...c,
-          lastMessage: replyText,
-          unread: false,
-          needsHuman: false, // Resolve human alarm on response
+          lastMessage: messageContent,
+          unread: isCustomer,
           messages: [...c.messages, newMsg]
         };
       }
       return c;
     });
 
-    saveConversations(updated);
+    saveConversations(updatedConvs);
     setReplyText("");
-    setAiSuggestedReply(""); // Clear suggestion after send
+    setAiSuggestedReply("");
 
     toast({
-      title: "Tin nhắn đã gửi",
-      description: "Đã phản hồi trực tiếp tới khách hàng."
+      title: isCustomer ? "Khách gửi tin nhắn" : "Tin nhắn đã gửi",
+      description: isCustomer ? "Đã giả lập tin nhắn khách hàng thành công." : "Đã phản hồi trực tiếp tới khách hàng."
     });
+
+    // If sent as customer and autopilot is enabled
+    if (isCustomer && config.aiAutoReply) {
+      const isComplex = /lỗi|hỏng|rách|đền tiền|hoàn tiền|khiếu nại|gặp nhân viên|chất lượng/i.test(messageContent);
+      
+      setTimeout(() => {
+        const latestConv = JSON.parse(localStorage.getItem("erp-mini-cskh-conversations") || "[]")
+          .find((c: any) => c.id === activeConvId) || activeConv;
+
+        let messagesList = [...latestConv.messages];
+
+        if (isComplex) {
+          // Trigger Escalation Alarm
+          const sysMsg: Message = {
+            id: `m-sys-${Date.now()}`,
+            sender: "bot",
+            senderName: "Hệ thống AI",
+            content: "[Báo động] Phát hiện khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và phát cảnh báo yêu cầu nhân viên can thiệp.",
+            timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+          };
+          messagesList.push(sysMsg);
+
+          const updated = conversations.map(c => {
+            if (c.id === activeConvId) {
+              return {
+                ...c,
+                needsHuman: true,
+                autopilotEnabled: false,
+                messages: messagesList
+              };
+            }
+            return c;
+          });
+          saveConversations(updated);
+          toast({
+            variant: "destructive",
+            title: "Phát hiện khiếu nại! 🚨",
+            description: "Hệ thống đã tự động ngắt Autopilot và báo động nhân viên hỗ trợ."
+          });
+        } else {
+          // Normal AI Auto Reply
+          const botReplyText = messageContent.includes("ví da")
+            ? `[Bot AI] Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+            : `[Bot AI] Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+
+          const botMsg: Message = {
+            id: `m-bot-${Date.now()}`,
+            sender: "bot",
+            senderName: "Bot AI Assistant",
+            content: botReplyText,
+            timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+          };
+          messagesList.push(botMsg);
+
+          const updated = conversations.map(c => {
+            if (c.id === activeConvId) {
+              return {
+                ...c,
+                messages: messagesList
+              };
+            }
+            return c;
+          });
+          saveConversations(updated);
+        }
+
+        // Live Auto-Closer Order Creation
+        const hasPhone = /(0[3|5|7|8|9])+([0-9]{8})\b/.test(messageContent);
+        const hasAddress = /địa chỉ|ở|ship/i.test(messageContent);
+
+        if (hasPhone && hasAddress && config.autoCreateOrders && !isComplex) {
+          // Parse values
+          const phoneMatch = messageContent.match(/(0[3|5|7|8|9])+([0-9]{8})\b/);
+          const customerPhone = phoneMatch ? phoneMatch[0] : activeConv.customerPhone;
+          
+          const currentOrders = JSON.parse(localStorage.getItem("erp-mini-local-demo-orders") || "[]");
+          const orderId = `DH-${Date.now().toString().slice(-6)}`;
+          const newOrder = {
+            id: orderId,
+            order_number: orderId,
+            customer_name: activeConv.customerName,
+            customer_phone: customerPhone,
+            shipping_address: activeConv.customerAddress,
+            status: config.autoCreateOrdersImmediately ? "confirmed" : "pending",
+            source_type: activeConv.channel,
+            total_amount: 189000,
+            channel_id: `channel-${activeConv.channel}`,
+            notes: `[Tự chốt đơn tự động khi khách hàng chat trực tiếp]`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...currentOrders]));
+          setOrders([newOrder, ...currentOrders]);
+          
+          toast({
+            title: "Tự động chốt đơn thành công! 🛍️",
+            description: `Hệ thống phát hiện đủ SĐT & Địa chỉ, đã tự tạo đơn ${orderId}.`
+          });
+        }
+      }, 1000);
+    }
   };
 
   // Takeover chat from Autopilot
@@ -507,7 +614,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           id: `m-sys-${Date.now()}`,
           sender: "bot",
           senderName: "Hệ thống AI",
-          content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã tạm dừng Autopilot và báo động yêu cầu nhân viên can thiệp.",
+          content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và báo động yêu cầu nhân viên can thiệp.",
           timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
         };
         currentMessages.push(sysMsg);
@@ -993,17 +1100,44 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         )}
 
         {/* Message Input Box */}
-        <div className="p-3 border-t bg-background/50 flex gap-2">
-          <Input 
-            placeholder="Nhập nội dung phản hồi..."
-            value={replyText}
-            onChange={e => setReplyText(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleSendMessage()}
-            className="h-8.5 text-xs bg-background"
-          />
-          <Button onClick={handleSendMessage} size="icon" className="h-8.5 w-8.5 flex-shrink-0">
-            <Send className="h-4 w-4" />
-          </Button>
+        <div className="p-3 border-t bg-background/50 flex flex-col gap-2">
+          {/* Role selection tab */}
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground border-b pb-1.5 mb-0.5">
+            <span className="font-semibold">Vai trò gửi tin nhắn (Thử nghiệm live):</span>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setChatRole("agent")}
+                className={cn(
+                  "px-2 py-0.5 rounded transition-colors text-[9px] font-bold",
+                  chatRole === "agent" ? "bg-primary text-primary-foreground" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-foreground"
+                )}
+              >
+                Nhân viên (Shop)
+              </button>
+              <button
+                onClick={() => setChatRole("customer")}
+                className={cn(
+                  "px-2 py-0.5 rounded transition-colors text-[9px] font-bold",
+                  chatRole === "customer" ? "bg-indigo-500 text-white" : "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-foreground"
+                )}
+              >
+                Khách hàng
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Input 
+              placeholder={chatRole === "agent" ? "Nhập tin nhắn phản hồi của nhân viên..." : "Nhập tin nhắn giả lập của khách hàng gửi..."}
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSendMessage()}
+              className="h-8.5 text-xs bg-background"
+            />
+            <Button onClick={handleSendMessage} size="icon" className="h-8.5 w-8.5 flex-shrink-0">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </Card>
 
