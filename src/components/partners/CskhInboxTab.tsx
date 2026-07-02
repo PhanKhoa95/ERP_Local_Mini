@@ -1078,16 +1078,23 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
         // Run Zalo SDK addReaction if enabled
         const reactFeat = apiFeatures.find(f => f.sdk === "addReaction");
         if (reactFeat && reactFeat.enabled) {
-          const [success, fail] = reactFeat.count.split(" / ").map(Number);
-          const updatedFeatures = apiFeatures.map(f => {
-            if (f.sdk === "addReaction") {
-              return { ...f, count: `${success + 1} / ${fail}`, rate: "100%" };
-            }
-            return f;
-          });
-          setApiFeatures(updatedFeatures);
-          localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
-          logs.push(`${timestamp()} [Zalo SDK] addReaction: Tự động thả cảm xúc (tim/like) vào tin nhắn của khách.`);
+          const isAngryRuleEnabled = enableAIGuardrails && aiRules.find(r => r.id === "r1")?.enabled;
+          const isCustomerAngry = profilingResult.chatStyle.includes("Nóng vội");
+
+          if (isAngryRuleEnabled && isCustomerAngry) {
+            logs.push(`${timestamp()} [AI Guardrail] Chặn tự động thả tim (addReaction) do cảm xúc của khách đang nóng giận.`);
+          } else {
+            const [success, fail] = reactFeat.count.split(" / ").map(Number);
+            const updatedFeatures = apiFeatures.map(f => {
+              if (f.sdk === "addReaction") {
+                return { ...f, count: `${success + 1} / ${fail}`, rate: "100%" };
+              }
+              return f;
+            });
+            setApiFeatures(updatedFeatures);
+            localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
+            logs.push(`${timestamp()} [Zalo SDK] addReaction: Tự động thả cảm xúc (tim/like) vào tin nhắn của khách.`);
+          }
         }
       }
 
