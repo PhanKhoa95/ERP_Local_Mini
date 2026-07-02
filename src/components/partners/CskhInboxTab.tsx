@@ -122,6 +122,21 @@ interface APIFeature {
   channels: ("zalo" | "facebook" | "telegram" | "web")[];
 }
 
+interface CSKHStage {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+interface AIRule {
+  id: string;
+  condition: string;
+  effect: string;
+  description: string;
+  enabled: boolean;
+}
+
 export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) {
   const { toast } = useToast();
   
@@ -139,6 +154,30 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [ragThreshold, setRagThreshold] = useState(0.60);
   const [ragQueryTest, setRagQueryTest] = useState("");
   const [ragTestResult, setRagTestResult] = useState("");
+
+  // Custom CSKH Stage Configuration States
+  const defaultStages: CSKHStage[] = [
+    { id: "new", label: "Tiếp cận", icon: "🆕", color: "bg-blue-500" },
+    { id: "consulting", label: "Tư vấn", icon: "💬", color: "bg-amber-500" },
+    { id: "quoted", label: "Báo giá", icon: "💰", color: "bg-purple-500" },
+    { id: "closed_won", label: "Chốt đơn", icon: "🎉", color: "bg-emerald-500" },
+    { id: "post_purchase", label: "Chăm sóc", icon: "❤️", color: "bg-pink-500" }
+  ];
+
+  const [cskhStages, setCskhStages] = useState<CSKHStage[]>(defaultStages);
+  const [newStageLabel, setNewStageLabel] = useState("");
+  const [newStageIcon, setNewStageIcon] = useState("💬");
+  const [newStageColor, setNewStageColor] = useState("bg-blue-500");
+
+  // AI Auto Script Guardrails States
+  const defaultAIRules: AIRule[] = [
+    { id: "r1", condition: "Khách giận dữ 😡", effect: "Tắt Thả cảm xúc (addReaction)", description: "Tự động tắt thả tim nếu khách giận dữ để tránh gây khó chịu.", enabled: true },
+    { id: "r2", condition: "Khách VIP 💎", effect: "Bật kết bạn & ZNS Loyalty", description: "Bật gửi ZNS Loyalty và tự động gửi/đồng ý kết bạn.", enabled: true },
+    { id: "r3", condition: "Tin nhắn Spam ⚠️", effect: "Bật Chặn người dùng (blockUser)", description: "Tự động chặn nếu tin nhắn quấy phá hoặc có nội dung spam.", enabled: true }
+  ];
+
+  const [enableAIGuardrails, setEnableAIGuardrails] = useState(true);
+  const [aiRules, setAiRules] = useState<AIRule[]>(defaultAIRules);
 
   const defaultRAGDocs: RAGDoc[] = [
     {
@@ -308,6 +347,17 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     // Load Zalo API Features
     const savedAPIFeatures = localStorage.getItem("erp-mini-zalo-api-features");
     if (savedAPIFeatures) setApiFeatures(JSON.parse(savedAPIFeatures));
+
+    // Load Custom CSKH Stages
+    const savedStages = localStorage.getItem("erp-mini-cskh-stages");
+    if (savedStages) setCskhStages(JSON.parse(savedStages));
+
+    // Load AI Guardrails
+    const savedAIGuardrailsEnabled = localStorage.getItem("erp-mini-ai-guardrails-enabled");
+    if (savedAIGuardrailsEnabled) setEnableAIGuardrails(JSON.parse(savedAIGuardrailsEnabled));
+
+    const savedAIRules = localStorage.getItem("erp-mini-ai-rules");
+    if (savedAIRules) setAiRules(JSON.parse(savedAIRules));
 
     // Load orders
     const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
@@ -615,16 +665,28 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           // Simulate addReaction SDK trigger if enabled
           const reactionFeat = apiFeatures.find(f => f.sdk === "addReaction");
           if (reactionFeat && reactionFeat.enabled) {
-            const [success, fail] = reactionFeat.count.split(" / ").map(Number);
-            const updatedFeatures = apiFeatures.map(f => {
-              if (f.sdk === "addReaction") {
-                return { ...f, count: `${success + 1} / ${fail}`, rate: "100%" };
-              }
-              return f;
-            });
-            setApiFeatures(updatedFeatures);
-            localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
-            console.log("🤖 [Zalo SDK] addReaction: Tự động thả cảm xúc (tim/like) vào tin nhắn của khách.");
+            const isAngryRuleEnabled = enableAIGuardrails && aiRules.find(r => r.id === "r1")?.enabled;
+            const isCustomerAngry = editEmotion === "Giận dữ" || editEmotion === "Lo lắng";
+
+            if (isAngryRuleEnabled && isCustomerAngry) {
+              console.warn("🛡️ [AI Guardrail] Phát hiện khách hàng đang Giận dữ/Lo lắng. Đã chặn SDK thả cảm xúc (addReaction).");
+              toast({
+                variant: "destructive",
+                title: "AI Guardrail kích hoạt 🛡️",
+                description: "Chặn thả cảm xúc (addReaction) vì khách đang giận dữ/lo lắng."
+              });
+            } else {
+              const [success, fail] = reactionFeat.count.split(" / ").map(Number);
+              const updatedFeatures = apiFeatures.map(f => {
+                if (f.sdk === "addReaction") {
+                  return { ...f, count: `${success + 1} / ${fail}`, rate: "100%" };
+                }
+                return f;
+              });
+              setApiFeatures(updatedFeatures);
+              localStorage.setItem("erp-mini-zalo-api-features", JSON.stringify(updatedFeatures));
+              console.log("🤖 [Zalo SDK] addReaction: Tự động thả cảm xúc (tim/like) vào tin nhắn của khách.");
+            }
           }
         }
 
