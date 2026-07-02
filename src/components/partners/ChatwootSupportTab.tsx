@@ -109,9 +109,38 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
 
   // Simulated conversations representing omnichannel streams
   const [conversations, setConversations] = useState<ChatwootConversation[]>(defaultConvs);
+  const [isServerOnline, setIsServerOnline] = useState(false);
+
+  // Sync with local Express Chat server (Port 4500) if online
+  useEffect(() => {
+    const fetchServerConvs = async () => {
+      try {
+        const res = await fetch("http://localhost:4500/api/chat/conversations");
+        if (res.ok) {
+          const data = await res.json();
+          setConversations(data);
+          setIsServerOnline(true);
+        } else {
+          setIsServerOnline(false);
+        }
+      } catch (err) {
+        setIsServerOnline(false);
+      }
+    };
+
+    // Initial check
+    fetchServerConvs();
+
+    // Check & poll every 4 seconds
+    const interval = setInterval(fetchServerConvs, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load and persist conversations from localStorage so simulation updates instantly!
   useEffect(() => {
+    // Only use localStorage if server is offline
+    if (isServerOnline) return;
+
     const rawConvs = localStorage.getItem("erp-mini-local-demo-omnichannel-conversations");
     if (rawConvs) {
       try {
@@ -122,7 +151,7 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
     } else {
       localStorage.setItem("erp-mini-local-demo-omnichannel-conversations", JSON.stringify(defaultConvs));
     }
-  }, []);
+  }, [isServerOnline]);
 
   const saveConversations = (newConvs: ChatwootConversation[]) => {
     setConversations(newConvs);
@@ -507,6 +536,19 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
         logs.push(`${timestamp()} [Order Engine] Đã tạo thành công đơn hàng ${config.autoCreateOrdersImmediately ? "chính thức (Đã xác nhận)" : "nháp"}: ${orderId}`);
       }
 
+      // If server is online, trigger backend webhook too
+      if (isServerOnline) {
+        try {
+          await fetch(`http://localhost:4500/api/chat/webhooks/${selectedWebhookChannel}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: webhookPayload
+          });
+        } catch (err) {
+          console.error("Failed to post webhook to local Zalo Bot server:", err);
+        }
+      }
+
       logs.push(`${timestamp()} [Webhook] Trả về HTTP 200 OK.`);
       setWebhookLogs(logs);
 
@@ -525,7 +567,7 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
 
   const activeConv = conversations.find(c => c.id === activeConvId) || conversations[0];
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!replyText.trim()) return;
     
     const newMsg: ChatwootMessage = {
@@ -550,6 +592,22 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
 
     saveConversations(updated);
     setReplyText("");
+
+    if (isServerOnline) {
+      try {
+        await fetch(`http://localhost:4500/api/chat/conversations/${activeConvId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender: "agent",
+            senderName: "Admin POS",
+            content: replyText
+          })
+        });
+      } catch (err) {
+        console.error("Failed to send message to Zalo Bot server:", err);
+      }
+    }
 
     // Simulate dummy webhook trigger response if auto draft is active
     toast({
