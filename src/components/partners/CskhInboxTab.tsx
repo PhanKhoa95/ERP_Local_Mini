@@ -21,7 +21,11 @@ import {
   TrendingUp,
   Tag,
   ShoppingBag,
-  Trash2
+  Trash2,
+  Heart,
+  Smile,
+  Frown,
+  Meh
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,6 +63,15 @@ interface CustomerMemory {
   customerPhone: string;
   fact: string;
   importance: 1 | 2 | 3;
+  createdAt: string;
+}
+
+interface CustomerSentiment {
+  id: string;
+  customerPhone: string;
+  score: number; // 0-100
+  label: string; // "Rất hài lòng" | "Thân thiện" | "Khó tính" | "Giận dữ" | "Trung lập"
+  summary: string;
   createdAt: string;
 }
 
@@ -125,6 +138,10 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [memories, setMemories] = useState<CustomerMemory[]>([]);
   const [isExtractingMemory, setIsExtractingMemory] = useState(false);
   
+  // AI Sentiment States
+  const [sentiments, setSentiments] = useState<CustomerSentiment[]>([]);
+  const [isAnalyzingSentiment, setIsAnalyzingSentiment] = useState(false);
+
   // AI Suggestion States
   const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
   const [aiSuggestedReply, setAiSuggestedReply] = useState("");
@@ -155,6 +172,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     const savedMems = localStorage.getItem("erp-mini-cskh-memories");
     if (savedMems) setMemories(JSON.parse(savedMems));
 
+    const savedSents = localStorage.getItem("erp-mini-cskh-sentiments");
+    if (savedSents) setSentiments(JSON.parse(savedSents));
+
     // Load orders
     const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
     if (savedOrders) setOrders(JSON.parse(savedOrders));
@@ -175,7 +195,12 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     localStorage.setItem("erp-mini-cskh-memories", JSON.stringify(newMems));
   };
 
-  // Sync order updates periodically
+  const saveSentiments = (newSents: CustomerSentiment[]) => {
+    setSentiments(newSents);
+    localStorage.setItem("erp-mini-cskh-sentiments", JSON.stringify(newSents));
+  };
+
+  // Sync updates periodically
   useEffect(() => {
     const interval = setInterval(() => {
       const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
@@ -189,6 +214,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   // Filter orders matching active customer phone
   const activeCustomerOrders = orders.filter(
     o => o.customer_phone === activeConv?.customerPhone
+  );
+
+  // Active Customer Sentiment
+  const activeSentiment = sentiments.find(
+    s => s.customerPhone === activeConv?.customerPhone
   );
 
   const handleSendMessage = () => {
@@ -222,6 +252,60 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       title: "Tin nhắn đã gửi",
       description: "Đã phản hồi trực tiếp tới khách hàng."
     });
+  };
+
+  // Simulate AI sentiment & resolve flow
+  const handleResolveAndAnalyze = () => {
+    if (!activeConv) return;
+    setIsAnalyzingSentiment(true);
+
+    setTimeout(() => {
+      const messagesText = activeConv.messages.map(m => m.content).join(" ");
+      let score = 78;
+      let label = "Thân thiện/Tích cực";
+      let summary = "Khách hàng trao đổi cởi mở, hỏi thăm về các mẫu túi sẵn hàng và phản hồi nhanh chóng.";
+
+      if (messagesText.includes("Cảm ơn") || messagesText.includes("nhiệt tình")) {
+        score = 96;
+        label = "Rất hài lòng";
+        summary = "Khách hàng bày tỏ sự biết ơn đối với sự hỗ trợ nhiệt tình và nhanh chóng của tư vấn viên.";
+      } else if (messagesText.includes("ví da")) {
+        score = 85;
+        label = "Tích cực/Hài lòng";
+        summary = "Khách hàng quan tâm và muốn được tư vấn giá sỉ/chi tiết sản phẩm ví da nam.";
+      }
+
+      const newSentiment: CustomerSentiment = {
+        id: `sent-${Date.now()}`,
+        customerPhone: activeConv.customerPhone,
+        score,
+        label,
+        summary,
+        createdAt: new Date().toISOString()
+      };
+
+      // Update sentiments list
+      const updatedSents = [newSentiment, ...sentiments.filter(s => s.customerPhone !== activeConv.customerPhone)];
+      saveSentiments(updatedSents);
+
+      // Set conversation resolved
+      const updatedConvs = conversations.map(c => {
+        if (c.id === activeConvId) {
+          return {
+            ...c,
+            status: "resolved" as const
+          };
+        }
+        return c;
+      });
+      saveConversations(updatedConvs);
+      setIsAnalyzingSentiment(false);
+
+      toast({
+        title: "Hội thoại đã đóng & AI Phân tích xong! 📊",
+        description: `Cảm xúc: ${label} (${score}/100)`
+      });
+    }, 1500);
   };
 
   // Simulate AI suggest reply
@@ -514,11 +598,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             <Card className="bg-background/40">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-muted-foreground font-semibold">TỐC ĐỘ PHẢN HỒI</span>
-                  <h3 className="text-lg font-bold text-foreground mt-0.5">1.8 Phút</h3>
+                  <span className="text-[10px] text-muted-foreground font-semibold">TỔNG ĐIỂM CẢM XÚC</span>
+                  <h3 className="text-lg font-bold text-foreground mt-0.5">88 / 100</h3>
                 </div>
-                <div className="h-9 w-9 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                  <Clock className="h-5 w-5" />
+                <div className="h-9 w-9 rounded bg-pink-500/10 flex items-center justify-center text-pink-500">
+                  <Heart className="h-5 w-5 animate-pulse" />
                 </div>
               </CardContent>
             </Card>
@@ -716,6 +800,26 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            {activeConv.status === "open" ? (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleResolveAndAnalyze}
+                disabled={isAnalyzingSentiment}
+                className="h-7 text-[10px] font-semibold text-emerald-600 border-emerald-200 bg-emerald-500/5 hover:bg-emerald-500/10"
+              >
+                {isAnalyzingSentiment ? (
+                  <Sparkles className="h-3.5 w-3.5 mr-1 animate-spin text-emerald-500" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 mr-1 text-emerald-500" />
+                )}
+                Đóng & Phân tích AI
+              </Button>
+            ) : (
+              <Badge variant="outline" className="text-[9px] bg-slate-100 text-slate-600 border-slate-300">
+                Đã giải quyết
+              </Badge>
+            )}
             <Button 
               variant="outline" 
               size="sm" 
@@ -726,9 +830,6 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               <Bot className="h-3.5 w-3.5 mr-1" />
               AI Gợi ý
             </Button>
-            <Badge variant={activeConv.status === "open" ? "default" : "outline"} className="text-[9px] px-1.5 py-0 font-semibold">
-              {activeConv.status === "open" ? "Đang mở" : "Đã đóng"}
-            </Badge>
           </div>
         </CardHeader>
 
@@ -865,6 +966,54 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           </CardContent>
         </Card>
 
+        {/* AI Customer Sentiment Card */}
+        <Card className="border-border/45 bg-card/60 backdrop-blur-md">
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center gap-1.5">
+              <Heart className="h-4 w-4 text-primary" />
+              <CardTitle className="text-xs font-bold">Đo lường Cảm xúc AI</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            {!activeSentiment ? (
+              <div className="text-center py-6 text-slate-500 italic text-[10px] border border-dashed rounded-lg bg-background/50">
+                Chưa có dữ liệu cảm xúc. Bấm nút "Đóng & Phân tích AI" tại khung chat để bắt đầu đo lường.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground font-semibold">Chỉ số cảm xúc:</span>
+                  <span className="text-xs font-bold text-foreground">{activeSentiment.score} / 100</span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div className={cn(
+                    "h-full rounded-full transition-all duration-300",
+                    activeSentiment.score >= 80 ? "bg-emerald-500" : activeSentiment.score >= 60 ? "bg-blue-500" : "bg-red-500"
+                  )} style={{ width: `${activeSentiment.score}%` }} />
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {activeSentiment.score >= 80 ? (
+                    <Smile className="h-4.5 w-4.5 text-emerald-500" />
+                  ) : activeSentiment.score >= 60 ? (
+                    <Meh className="h-4.5 w-4.5 text-blue-500" />
+                  ) : (
+                    <Frown className="h-4.5 w-4.5 text-red-500" />
+                  )}
+                  <Badge variant="outline" className={cn(
+                    "text-[9px] font-semibold px-2 py-0",
+                    activeSentiment.score >= 80 ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
+                  )}>
+                    {activeSentiment.label}
+                  </Badge>
+                </div>
+                <p className="text-[10px] leading-relaxed text-muted-foreground italic border-t pt-2 mt-1">
+                  "{activeSentiment.summary}"
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* CRM Order History card */}
         <Card className="border-border/45 bg-card/60 backdrop-blur-md">
           <CardHeader className="p-4 border-b">
@@ -879,7 +1028,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 Chưa có đơn hàng nào được tạo cho SĐT này.
               </div>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                 {activeCustomerOrders.map((order) => (
                   <div 
                     key={order.id}
