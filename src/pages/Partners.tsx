@@ -17,6 +17,7 @@ import { CustomerInsights } from "@/components/partners/CustomerInsights";
 import { CashflowTab } from "@/components/partners/CashflowTab";
 import { TransactionsTab } from "@/components/partners/TransactionsTab";
 import { ChatwootSupportTab } from "@/components/partners/ChatwootSupportTab";
+import { ZaloPersonalTab } from "@/components/partners/ZaloPersonalTab";
 import { cn } from "@/lib/utils";
 import { usePartners } from "@/hooks/usePartners";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
@@ -59,7 +60,7 @@ const Partners = () => {
   // Sync tab from URL params (for sidebar submenu navigation)
   useEffect(() => {
     const tabVal = searchParams.get("tab");
-    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "chatwoot") {
+    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "chatwoot" || tabVal === "zalo-personal") {
       setActiveTab(tabVal);
     } else if (!tabVal) {
       setActiveTab("customers");
@@ -471,6 +472,10 @@ const Partners = () => {
                 <MessageSquare className="h-4 w-4 text-indigo-500" />
                 <span className="hidden sm:inline">CSKH Chatwoot</span>
               </TabsTrigger>
+              <TabsTrigger value="zalo-personal" className="gap-2 flex-1 lg:flex-none">
+                <MessageSquare className="h-4 w-4 text-blue-500" />
+                <span className="hidden sm:inline">Zalo Cá Nhân</span>
+              </TabsTrigger>
             </TabsList>
             {(activeTab === "customers" || activeTab === "suppliers") && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -532,6 +537,10 @@ const Partners = () => {
 
           <TabsContent value="chatwoot">
             <ChatwootSupportTab />
+          </TabsContent>
+
+          <TabsContent value="zalo-personal">
+            <ZaloPersonalTab />
           </TabsContent>
         </Tabs>
       </div>
