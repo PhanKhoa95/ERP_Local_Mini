@@ -103,6 +103,7 @@ const menuSections: MenuSection[] = [
           { title: "Thu chi", icon: Banknote, path: "/partners?tab=cashflow" },
           { title: "Lịch sử giao dịch", icon: History, path: "/partners?tab=transactions" },
           { title: "Thống kê", icon: BarChart2, path: "/partners?tab=insights" },
+          { title: "CSKH Đa Kênh", icon: MessageSquare, path: "/partners?tab=cskh-inbox" },
           { title: "Thẻ thành viên", icon: CreditCard, path: "/memberships" },
           { title: "Tích điểm & Hạng thẻ", icon: Award, path: "/settings?tab=loyalty" },
         ]

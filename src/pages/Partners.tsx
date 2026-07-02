@@ -17,6 +17,7 @@ import { CustomerInsights } from "@/components/partners/CustomerInsights";
 import { CashflowTab } from "@/components/partners/CashflowTab";
 import { TransactionsTab } from "@/components/partners/TransactionsTab";
 import { cn } from "@/lib/utils";
+import { CskhInboxTab } from "@/components/partners/CskhInboxTab";
 import { usePartners } from "@/hooks/usePartners";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
 import { useWarehouses } from "@/hooks/useWarehouses";
@@ -58,7 +59,7 @@ const Partners = () => {
   // Sync tab from URL params (for sidebar submenu navigation)
   useEffect(() => {
     const tabVal = searchParams.get("tab");
-    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights") {
+    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "cskh-inbox") {
       setActiveTab(tabVal);
     } else if (!tabVal) {
       setActiveTab("customers");
@@ -336,6 +337,10 @@ const Partners = () => {
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Phân tích RFM</span>
               </TabsTrigger>
+              <TabsTrigger value="cskh-inbox" className="gap-2 flex-1 lg:flex-none">
+                <MessageSquare className="h-4 w-4 text-indigo-500" />
+                <span className="hidden sm:inline">CSKH Đa Kênh</span>
+              </TabsTrigger>
             </TabsList>
             {(activeTab === "customers" || activeTab === "suppliers") && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -393,6 +398,9 @@ const Partners = () => {
 
           <TabsContent value="transactions">
             <TransactionsTab />
+          </TabsContent>
+          <TabsContent value="cskh-inbox">
+            <CskhInboxTab />
           </TabsContent>
         </Tabs>
       </div>
