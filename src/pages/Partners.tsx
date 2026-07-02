@@ -16,8 +16,6 @@ import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Do
 import { CustomerInsights } from "@/components/partners/CustomerInsights";
 import { CashflowTab } from "@/components/partners/CashflowTab";
 import { TransactionsTab } from "@/components/partners/TransactionsTab";
-import { ChatwootSupportTab } from "@/components/partners/ChatwootSupportTab";
-import { ZaloPersonalTab } from "@/components/partners/ZaloPersonalTab";
 import { cn } from "@/lib/utils";
 import { usePartners } from "@/hooks/usePartners";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
@@ -60,7 +58,7 @@ const Partners = () => {
   // Sync tab from URL params (for sidebar submenu navigation)
   useEffect(() => {
     const tabVal = searchParams.get("tab");
-    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "chatwoot" || tabVal === "zalo-personal") {
+    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights") {
       setActiveTab(tabVal);
     } else if (!tabVal) {
       setActiveTab("customers");
@@ -176,136 +174,6 @@ const Partners = () => {
   const getGroupInfo = (groupId: string | null) => {
     if (!groupId) return null;
     return customerGroups.find(g => g.id === groupId);
-  };
-
-  const PartnerCard = ({ partner }: { partner: any }) => {
-    const group = getGroupInfo(partner.group_id);
-    return (
-      <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-primary font-semibold">{partner.name.charAt(0)}</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">{partner.name}</h3>
-                <p className="text-sm text-muted-foreground">{partner.code}</p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <Badge
-                variant="outline"
-                className={cn(
-                  partner.partner_type === "customer" || partner.partner_type === "both"
-                    ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-info/10 text-info border-info/20"
-                )}
-              >
-                {partner.partner_type === "customer" && "Khách hàng"}
-                {partner.partner_type === "supplier" && "NCC"}
-                {partner.partner_type === "both" && "KH+NCC"}
-              </Badge>
-              {group && (
-                <Badge
-                  variant="outline"
-                  style={{ borderColor: group.color, color: group.color }}
-                  className="text-xs"
-                >
-                  <Award className="h-3 w-3 mr-1" />
-                  {group.name}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2 mb-4">
-            {partner.phone && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4" />
-                {partner.phone}
-              </div>
-            )}
-            {partner.email && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                {partner.email}
-              </div>
-            )}
-            
-            {/* Display classification metadata tags */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {partner.branch_id && (
-                <Badge variant="outline" className="text-[10px] bg-secondary/30">
-                  {partner.branch_id}
-                </Badge>
-              )}
-              {partner.warehouse_id && (
-                <Badge variant="outline" className="text-[10px] bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400">
-                  Kho: {warehouses.find(w => w.id === partner.warehouse_id)?.name || partner.warehouse_id}
-                </Badge>
-              )}
-              {partner.promo_segment && partner.promo_segment !== "all" && (
-                <Badge variant="outline" className="text-[10px] bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
-                  Tệp: {partner.promo_segment === "loyalty" ? "Loyalty/VIP" : "Wholesale"}
-                </Badge>
-              )}
-            </div>
-
-            {(partner.total_spent > 0 || partner.loyalty_points > 0 || partner.debt_amount) && (
-              <div className="flex items-center gap-4 text-sm flex-wrap pt-2">
-                {partner.debt_amount !== 0 && (
-                  <span className={partner.debt_amount > 0 ? "text-destructive" : "text-success"}>
-                    Công nợ: <strong>{Number(partner.debt_amount || 0).toLocaleString("vi-VN")}đ</strong>
-                  </span>
-                )}
-                {partner.total_spent > 0 && (
-                  <span className="text-muted-foreground">
-                    Chi tiêu: <strong className="text-foreground">{Number(partner.total_spent).toLocaleString("vi-VN")}đ</strong>
-                  </span>
-                )}
-                {partner.loyalty_points > 0 && (
-                  <span className="flex items-center gap-1 text-warning">
-                    <Star className="h-3 w-3" />
-                    {partner.loyalty_points} điểm
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-border">
-            {partner.debt_amount !== 0 && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  setPaymentPartner(partner);
-                  setPaymentDialogOpen(true);
-                }}
-              >
-                <Wallet className="h-4 w-4 mr-1" />
-                Thanh toán
-              </Button>
-            )}
-            <div className="flex items-center gap-1 ml-auto">
-              <Button variant="ghost" size="sm" onClick={() => { setDetailPartner(partner); setDetailDialogOpen(true); }}>
-                <Eye className="h-4 w-4 mr-1" />
-                Chi tiết
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(partner)}>
-                <Pencil className="h-4 w-4 mr-1" />
-                Sửa
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(partner)}>
-                <Trash2 className="h-4 w-4 mr-1 text-destructive" />
-                Xóa
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
   };
 
   const PartnerTable = ({ list }: { list: any[] }) => {
@@ -468,14 +336,6 @@ const Partners = () => {
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Phân tích RFM</span>
               </TabsTrigger>
-              <TabsTrigger value="chatwoot" className="gap-2 flex-1 lg:flex-none">
-                <MessageSquare className="h-4 w-4 text-indigo-500" />
-                <span className="hidden sm:inline">CSKH Chatwoot</span>
-              </TabsTrigger>
-              <TabsTrigger value="zalo-personal" className="gap-2 flex-1 lg:flex-none">
-                <MessageSquare className="h-4 w-4 text-blue-500" />
-                <span className="hidden sm:inline">Zalo Cá Nhân</span>
-              </TabsTrigger>
             </TabsList>
             {(activeTab === "customers" || activeTab === "suppliers") && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -533,14 +393,6 @@ const Partners = () => {
 
           <TabsContent value="transactions">
             <TransactionsTab />
-          </TabsContent>
-
-          <TabsContent value="chatwoot">
-            <ChatwootSupportTab />
-          </TabsContent>
-
-          <TabsContent value="zalo-personal">
-            <ZaloPersonalTab />
           </TabsContent>
         </Tabs>
       </div>
