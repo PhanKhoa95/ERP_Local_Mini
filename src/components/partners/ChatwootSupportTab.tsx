@@ -433,7 +433,7 @@ export function ChatwootSupportTab({ mode = "chat" }: { mode?: "chat" | "setting
     }
   }, [selectedWebhookChannel]);
 
-  const handleTriggerWebhook = () => {
+  const handleTriggerWebhook = async () => {
     try {
       const parsed = JSON.parse(webhookPayload);
       const senderName = parsed.sender?.name || "Khách hàng ẩn danh";
