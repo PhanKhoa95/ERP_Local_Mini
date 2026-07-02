@@ -66,6 +66,7 @@ export function ZaloPersonalTab() {
   const [qrProgress, setQrProgress] = useState(0);
   const [newAccPhone, setNewAccPhone] = useState("");
   const [newAccName, setNewAccName] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
 
   // Zalo Groups State
   const [groups, setGroups] = useState<ZaloGroup[]>([
@@ -101,7 +102,7 @@ export function ZaloPersonalTab() {
   // QR Scanner scan simulator progress
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (showQRModal && qrProgress < 100) {
+    if (showQRModal && isScanning && qrProgress < 100) {
       interval = setInterval(() => {
         setQrProgress(prev => {
           if (prev >= 95) {
@@ -118,6 +119,7 @@ export function ZaloPersonalTab() {
               addLog(`[Tài khoản] Liên kết thành công Zalo cá nhân: ${newAcc.name} (${newAcc.phone})`);
               setShowQRModal(false);
               setQrProgress(0);
+              setIsScanning(false);
               setNewAccName("");
               setNewAccPhone("");
               toast({
@@ -132,7 +134,7 @@ export function ZaloPersonalTab() {
       }, 400);
     }
     return () => clearInterval(interval);
-  }, [showQRModal, qrProgress]);
+  }, [showQRModal, isScanning, qrProgress, newAccName, newAccPhone]);
 
   // Bulk campaign messaging simulation
   const startCampaign = () => {
@@ -473,21 +475,7 @@ export function ZaloPersonalTab() {
           <CardDescription className="text-[10px] mt-0.5">Cập nhật hoạt động quét nhóm chat, xóa link spam, tự trả lời theo giây</CardDescription>
         </CardHeader>
         <CardContent className="p-3">
-          <div className="h-44 p-3.5 border rounded bg-slate-950 dark:bg-slate-900 font-mono text-[10px] text-blue-400 overflow-y-auto leading-relaxed shadow-inner">
-            {logs.length === 0 ? (
-              <span className="text-muted-foreground/45 italic block mt-12 text-center">[ Chưa có hoạt động nào phát sinh. Kích hoạt QR hoặc chạy chiến dịch để xem log ]</span>
-            ) : (
-              logs.map((log, index) => (
-                <div key={index} className="mb-1.5 last:mb-0 hover:bg-slate-900/50 py-0.5 rounded px-1 transition-colors">
-                  <span className="text-emerald-500">&gt;&gt;&gt;</span> {log}
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* QR Code login simulator dialog */}
+          <div className="h-44 p-3.5 border rounded bg-slate-950 dark:bg-slate-900 font-mono text-[10p      {/* QR Code login simulator dialog */}
       {showQRModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <Card className="w-full max-w-sm border border-border shadow-xl bg-background overflow-hidden">
@@ -506,7 +494,7 @@ export function ZaloPersonalTab() {
                     placeholder="Zalo Marketing Bot"
                     value={newAccName}
                     onChange={e => setNewAccName(e.target.value)}
-                    className="h-8 text-xs"
+                    className="h-8 text-xs bg-background"
                   />
                 </div>
                 <div className="space-y-1">
@@ -515,7 +503,7 @@ export function ZaloPersonalTab() {
                     placeholder="0988776655"
                     value={newAccPhone}
                     onChange={e => setNewAccPhone(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="h-8 text-xs font-mono bg-background"
                   />
                 </div>
               </div>
@@ -525,9 +513,66 @@ export function ZaloPersonalTab() {
                 <div className="w-40 h-40 bg-slate-100 flex items-center justify-center border-dashed border-2 rounded">
                   <QrCode className="w-24 h-24 text-slate-800" />
                 </div>
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center text-white p-3 text-[10px] font-semibold">
-                  <span className="text-sm font-bold text-blue-400 mb-1">{qrProgress}%</span>
-                  <p>Đang mô phỏng kết nối điện thoại...</p>
+                {isScanning && (
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-sm rounded-lg flex flex-col items-center justify-center text-white p-3 text-[10px] font-semibold">
+                    <span className="text-sm font-bold text-blue-400 mb-1">{qrProgress}%</span>
+                    <p>Đang mô phỏng kết nối điện thoại...</p>
+                    <div className="w-24 bg-slate-700 h-1 rounded-full mt-2 overflow-hidden">
+                      <div className="bg-blue-400 h-full transition-all duration-300" style={{ width: `${qrProgress}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!isScanning ? (
+                <Button
+                  onClick={() => {
+                    if (!newAccPhone.trim()) {
+                      toast({
+                        variant: "destructive",
+                        title: "Thiếu Số điện thoại",
+                        description: "Vui lòng nhập Số điện thoại để định danh tài khoản Zalo."
+                      });
+                      return;
+                    }
+                    setIsScanning(true);
+                  }}
+                  className="w-full h-8 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white mt-2"
+                >
+                  Bắt đầu liên kết (Quét QR)
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="w-full h-8 text-xs font-semibold bg-slate-600 text-white mt-2"
+                >
+                  Đang quét mã QR...
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowQRModal(false);
+                  setQrProgress(0);
+                  setIsScanning(false);
+                }}
+                className="w-full h-8 text-xs font-semibold mt-2"
+              >
+                Hủy bỏ
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}    </div>
+      )}
+    </div>
+  );
+}...</p>
                   <div className="w-24 bg-slate-700 h-1 rounded-full mt-2 overflow-hidden">
                     <div className="bg-blue-400 h-full transition-all duration-300" style={{ width: `${qrProgress}%` }} />
                   </div>
