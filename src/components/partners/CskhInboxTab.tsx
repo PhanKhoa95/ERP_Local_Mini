@@ -629,45 +629,94 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
 
         // Live Auto-Closer Order Creation
         const hasPhone = /(0[3|5|7|8|9])+([0-9]{8})\b/.test(messageContent);
-        const hasAddress = /địa chỉ|ở|ship/i.test(messageContent);
+        const hasAddress = /địa chỉ|ở|ship/i.test(messageContent) || (messageContent.length > 15 && (messageContent.includes("đường") || messageContent.includes("quận") || messageContent.includes("hồ chí minh") || messageContent.includes("hà nội") || messageContent.includes("hcm") || messageContent.includes("hn")));
 
-        if (hasPhone && hasAddress && config.autoCreateOrders && !isComplex) {
+        if ((hasPhone || hasAddress) && config.autoCreateOrders && !isComplex) {
           const phoneMatch = messageContent.match(/(0[3|5|7|8|9])+([0-9]{8})\b/);
-          const customerPhone = phoneMatch ? phoneMatch[0] : activeConv.customerPhone;
+          const customerPhone = phoneMatch ? phoneMatch[0] : activeConv.customerPhone || "";
+          
+          const addressMatch = messageContent.match(/(?:địa chỉ:?\s*|địa chỉ\s*)([^.]+)/i);
+          const customerAddress = addressMatch ? addressMatch[1].trim() : activeConv.customerAddress || "";
           
           const currentOrders = JSON.parse(localStorage.getItem("erp-mini-local-demo-orders") || "[]");
-          const orderId = `DH-${Date.now().toString().slice(-6)}`;
-          const newOrder = {
+          const isFullyComplete = customerPhone && customerAddress && customerAddress !== "Chưa xác định";
+
+          // Find if we already have an unfinished/draft order for this conversation
+          let existingOrderIndex = currentOrders.findIndex((o: any) => 
+            (o.customer_phone && o.customer_phone === customerPhone) || 
+            (o.customer_name === activeConv.customerName && o.notes?.includes("dang dở"))
+          );
+
+          const orderId = existingOrderIndex >= 0 ? currentOrders[existingOrderIndex].id : `DH-${Date.now().toString().slice(-6)}`;
+          
+          const updatedOrder = {
             id: orderId,
             order_number: orderId,
             customer_name: activeConv.customerName,
             customer_phone: customerPhone,
-            shipping_address: activeConv.customerAddress,
-            status: config.autoCreateOrdersImmediately ? "confirmed" : "pending",
+            shipping_address: customerAddress || "Chưa xác định",
+            status: isFullyComplete 
+              ? (config.autoCreateOrdersImmediately ? "confirmed" : "pending")
+              : "pending",
             source_type: activeConv.channel,
             total_amount: 189000,
             channel_id: `channel-${activeConv.channel}`,
-            notes: `[Tự chốt đơn tự động khi khách hàng chat trực tiếp]`,
-            created_at: new Date().toISOString(),
+            notes: isFullyComplete 
+              ? `[Tự chốt đơn tự động khi khách hàng chat trực tiếp]` 
+              : `[Đơn dang dở - Thiếu ${!customerPhone ? "SĐT" : "Địa chỉ"}]`,
+            created_at: existingOrderIndex >= 0 ? currentOrders[existingOrderIndex].created_at : new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
-          localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...currentOrders]));
-          setOrders([newOrder, ...currentOrders]);
 
-          // Automatically advance CSKH stage to Chốt đơn
-          const updatedConvs = conversations.map(c => {
-            if (c.id === activeConvId) {
-              return { ...c, cskhStage: "closed_won" as const };
-            }
-            return c;
-          });
-          saveConversations(updatedConvs);
-          setEditCskhStage("closed_won");
-          
-          toast({
-            title: "Tự động chốt đơn thành công! 🛍️",
-            description: `Hệ thống phát hiện đủ SĐT & Địa chỉ, đã tự tạo đơn ${orderId} và chuyển trạng thái chốt đơn.`
-          });
+          let newOrdersList = [];
+          if (existingOrderIndex >= 0) {
+            newOrdersList = [...currentOrders];
+            newOrdersList[existingOrderIndex] = updatedOrder;
+          } else {
+            newOrdersList = [updatedOrder, ...currentOrders];
+          }
+
+          localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(newOrdersList));
+          setOrders(newOrdersList);
+
+          if (isFullyComplete) {
+            // Automatically advance CSKH stage to Chốt đơn
+            const updatedConvs = conversations.map(c => {
+              if (c.id === activeConvId) {
+                return { ...c, cskhStage: "closed_won" as const, customerPhone, customerAddress };
+              }
+              return c;
+            });
+            saveConversations(updatedConvs);
+            setEditCskhStage("closed_won");
+            setEditPhone(customerPhone);
+            
+            toast({
+              title: "Tự động chốt đơn thành công! 🛍️",
+              description: `Hệ thống phát hiện đủ SĐT & Địa chỉ, đã tự tạo đơn ${orderId} và chuyển trạng thái chốt đơn.`
+            });
+          } else {
+            // Automatically advance CSKH stage to Đang tư vấn / Báo giá
+            const updatedConvs = conversations.map(c => {
+              if (c.id === activeConvId) {
+                return { 
+                  ...c, 
+                  cskhStage: "quoted" as const,
+                  customerPhone: customerPhone || c.customerPhone,
+                  customerAddress: customerAddress || c.customerAddress
+                };
+              }
+              return c;
+            });
+            saveConversations(updatedConvs);
+            setEditCskhStage("quoted");
+            if (customerPhone) setEditPhone(customerPhone);
+
+            toast({
+              title: "Lưu đơn hàng dang dở! ⚠️",
+              description: `Đã lưu đơn nháp ${orderId} (Thiếu ${!customerPhone ? "SĐT" : "Địa chỉ"}).`
+            });
+          }
         }
       }, 1000);
     }
@@ -1045,28 +1094,92 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
       if (config.autoCreateOrders && !isComplex) {
         logs.push(`${timestamp()} [Order Engine] Đang phân tích SĐT & Địa chỉ để tự động tạo đơn hàng...`);
         
+        const hasPhone = senderPhone || /(0[3|5|7|8|9])+([0-9]{8})\b/.test(messageText);
         const addressMatch = messageText.match(/(?:địa chỉ:?\s*|địa chỉ\s*)([^.]+)/i);
         const address = addressMatch ? addressMatch[1].trim() : "Chưa xác định";
-        
-        const currentOrders = JSON.parse(localStorage.getItem("erp-mini-local-demo-orders") || "[]");
-        const orderId = `DH-${Date.now().toString().slice(-6)}`;
-        const newOrder = {
-          id: orderId,
-          order_number: orderId,
-          customer_name: senderName,
-          customer_phone: senderPhone,
-          shipping_address: address,
-          status: config.autoCreateOrdersImmediately ? "confirmed" : "pending",
-          source_type: selectedWebhookChannel,
-          total_amount: messageText.includes("VC20") ? 225000 : 189000,
-          channel_id: `channel-${selectedWebhookChannel}`,
-          notes: `[Đơn tự động tạo từ CSKH Đa Kênh]`,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...currentOrders]));
-        setOrders([newOrder, ...currentOrders]);
-        logs.push(`${timestamp()} [Order Engine] Đã tạo đơn hàng: ${orderId}`);
+        const hasAddress = address !== "Chưa xác định";
+
+        if (hasPhone || hasAddress) {
+          const currentOrders = JSON.parse(localStorage.getItem("erp-mini-local-demo-orders") || "[]");
+          const isFullyComplete = hasPhone && hasAddress;
+
+          // Find if we already have an unfinished/draft order for this conversation
+          let existingOrderIndex = currentOrders.findIndex((o: any) => 
+            (o.customer_phone && o.customer_phone === senderPhone) || 
+            (o.customer_name === senderName && o.notes?.includes("dang dở"))
+          );
+
+          const orderId = existingOrderIndex >= 0 ? currentOrders[existingOrderIndex].id : `DH-${Date.now().toString().slice(-6)}`;
+          
+          const newOrder = {
+            id: orderId,
+            order_number: orderId,
+            customer_name: senderName,
+            customer_phone: senderPhone || "",
+            shipping_address: address,
+            status: isFullyComplete 
+              ? (config.autoCreateOrdersImmediately ? "confirmed" : "pending")
+              : "pending",
+            source_type: selectedWebhookChannel,
+            total_amount: messageText.includes("VC20") ? 225000 : 189000,
+            channel_id: `channel-${selectedWebhookChannel}`,
+            notes: isFullyComplete
+              ? `[Đơn tự động tạo từ CSKH Đa Kênh]`
+              : `[Đơn dang dở - Thiếu ${!senderPhone ? "SĐT" : "Địa chỉ"}]`,
+            created_at: existingOrderIndex >= 0 ? currentOrders[existingOrderIndex].created_at : new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          let newOrdersList = [];
+          if (existingOrderIndex >= 0) {
+            newOrdersList = [...currentOrders];
+            newOrdersList[existingOrderIndex] = newOrder;
+          } else {
+            newOrdersList = [newOrder, ...currentOrders];
+          }
+
+          localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(newOrdersList));
+          setOrders(newOrdersList);
+
+          // Update CSKH Stage in conversation list
+          const targetConvId = existConv ? existConv.id : `conv-webhook-${Date.now()}`;
+          const updatedConvs = conversations.map(c => {
+            if (c.id === targetConvId) {
+              return { 
+                ...c, 
+                cskhStage: isFullyComplete ? ("closed_won" as const) : ("quoted" as const),
+                customerPhone: senderPhone || c.customerPhone,
+                customerAddress: address !== "Chưa xác định" ? address : c.customerAddress
+              };
+            }
+            return c;
+          });
+          if (existConv) {
+            saveConversations(updatedConvs);
+          } else {
+            // New conversation gets created with cskhStage
+            const newConv: Conversation = {
+              id: targetConvId,
+              customerName: senderName,
+              customerPhone: senderPhone,
+              customerAddress: address,
+              lastMessage: messageText,
+              channel: selectedWebhookChannel,
+              status: "open",
+              unread: true,
+              tags: isComplex ? ["Cần nhân viên"] : ["Mới từ Webhook"],
+              needsHuman: isComplex,
+              autopilotEnabled: !isComplex,
+              messages: currentMessages,
+              cskhStage: isFullyComplete ? "closed_won" as const : "quoted" as const,
+              ...profilingResult
+            };
+            saveConversations([newConv, ...conversations]);
+            setActiveConvId(newConv.id);
+          }
+
+          logs.push(`${timestamp()} [Order Engine] ${isFullyComplete ? "Đã chốt đơn hàng hoàn chỉnh" : "Đã lưu đơn hàng dang dở (nháp)"}: ${orderId}`);
+        }
       }
 
       logs.push(`${timestamp()} [Webhook] Trả về HTTP 200 OK.`);
@@ -1921,8 +2034,69 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
                 value={editNotes}
                 onChange={e => setEditNotes(e.target.value)}
                 className="h-16 text-xs bg-background border-border text-foreground focus-visible:ring-primary p-2"
-                placeholder="Test notes"
+                placeholder="Ghi chú thêm về sở thích, lưu ý giao hàng..."
               />
+            </div>
+
+            {/* Danh sách đơn hàng & đơn dang dở */}
+            <div className="space-y-2 border-t border-border pt-3">
+              <Label className="text-[10px] text-muted-foreground font-semibold flex items-center justify-between">
+                <span>Đơn hàng & Đơn dang dở</span>
+                <Badge variant="outline" className="text-[8px] font-bold">
+                  {activeCustomerOrders.length} Đơn
+                </Badge>
+              </Label>
+              
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {activeCustomerOrders.length === 0 ? (
+                  <div className="text-center py-3 text-muted-foreground italic text-[9px] border border-dashed border-border rounded bg-muted/5">
+                    Chưa có đơn hàng nào của khách hàng này.
+                  </div>
+                ) : (
+                  activeCustomerOrders.map((ord) => {
+                    const isDraft = ord.notes?.includes("dang dở");
+                    return (
+                      <div 
+                        key={ord.id} 
+                        className={cn(
+                          "p-2 border rounded text-[10px] space-y-1 transition-colors",
+                          isDraft 
+                            ? "bg-amber-500/5 border-amber-200 dark:border-amber-900/50" 
+                            : "bg-muted/10 border-border"
+                        )}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold text-foreground">{ord.order_number}</span>
+                          <Badge 
+                            className={cn(
+                              "text-[8px] px-1 py-0 border-none font-bold",
+                              isDraft 
+                                ? "bg-amber-500 text-white" 
+                                : ord.status === "confirmed" 
+                                  ? "bg-emerald-600 text-white" 
+                                  : "bg-blue-500 text-white"
+                            )}
+                          >
+                            {isDraft ? "DANG DỞ ⚠️" : ord.status === "confirmed" ? "ĐÃ XÁC NHẬN" : "MỚI"}
+                          </Badge>
+                        </div>
+                        <div className="text-[9px] text-muted-foreground truncate">
+                          📍 {ord.shipping_address || "Chưa xác định"}
+                        </div>
+                        <div className="flex justify-between text-[9px] text-muted-foreground">
+                          <span>💰 {ord.total_amount?.toLocaleString("vi-VN")} đ</span>
+                          <span className="font-mono">{new Date(ord.created_at).toLocaleDateString("vi-VN")}</span>
+                        </div>
+                        {isDraft && (
+                          <div className="text-[8.5px] text-amber-600 dark:text-amber-400 font-medium">
+                            📝 {ord.notes}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             <Button 
