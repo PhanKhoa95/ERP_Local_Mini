@@ -424,7 +424,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             }));
             promptMsgs.push({
               role: "user" as const,
-              content: `Phản hồi lại khách hàng (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Giới thiệu sản phẩm ví da (189k) hoặc túi đeo chéo nếu khách hỏi, và chủ động xin số điện thoại + địa chỉ nhận hàng để chốt đơn. Trả lời dưới 3 câu.`
+              content: `Bạn là nhân viên tư vấn bán hàng. Hãy đọc lịch sử chat và phản hồi khách hàng (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Trả lời trực tiếp câu hỏi của khách hàng (VD: hỏi thứ ngày, thông tin khác). Nếu khách đã cung cấp số điện thoại (như '${messageContent}'), hãy cảm ơn và xin địa chỉ (nếu thiếu), tránh hỏi lại thông tin đã có. Ngắn gọn dưới 3 câu.`
             });
 
             const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
@@ -438,9 +438,24 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           }
 
           if (!botReplyText) {
-            botReplyText = messageContent.includes("ví da")
-              ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
-              : `Cảm ơn ${greeting} đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, ${greeting} cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+            const hasPhone = /(0[3|5|7|8|9])+([0-9]{8})\b/.test(messageContent);
+            const hasAddress = /địa chỉ|ở|ship/i.test(messageContent) || messageContent.length > 15 && (messageContent.includes("đường") || messageContent.includes("quận") || messageContent.includes("hồ chí minh") || messageContent.includes("hà nội") || messageContent.includes("hcm") || messageContent.includes("hn"));
+
+            if (messageContent.includes("thứ mấy") || messageContent.includes("ngày nào")) {
+              const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+              const today = days[new Date().getDay()];
+              botReplyText = `Dạ báo cáo ${greeting}, hôm nay là ${today} ạ! ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cần em hỗ trợ tư vấn sản phẩm nào thêm không ạ?`;
+            } else if (hasPhone && !hasAddress) {
+              botReplyText = `Dạ em đã ghi nhận số điện thoại của ${greeting} rồi ạ. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin thêm địa chỉ nhận hàng để em chốt gửi đơn đi sớm nhất nhé!`;
+            } else if (hasAddress && !hasPhone) {
+              botReplyText = `Dạ em đã lưu địa chỉ giao hàng của ${greeting} rồi ạ. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại để liên hệ giao hàng nhé!`;
+            } else if (hasPhone && hasAddress) {
+              botReplyText = `Dạ tuyệt vời quá ạ! Em đã ghi nhận đủ SĐT và địa chỉ của ${greeting} rồi. Shop đang tiến hành tạo đơn hàng và sẽ liên hệ giao hàng sớm nhất cho mình nhé!`;
+            } else {
+              botReplyText = messageContent.includes("ví da")
+                ? `Dạ chào ${greeting}, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. ${activePronoun === "bạn" ? "Bạn" : greeting.charAt(0).toUpperCase() + greeting.slice(1)} cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+                : `Cảm ơn ${greeting} đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, ${greeting} cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+            }
           }
 
           const botMsg: Message = {
@@ -644,7 +659,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
       messagesPrompt.push({
         role: "user" as const,
-        content: `Soạn tin nhắn trả lời khách hàng (Hãy xưng hô là em và gọi khách là ${greeting} một cách lịch sự, thân thiện). Khách hàng tên: ${activeConv.customerName}. Trả lời ngắn gọn dưới 3 câu.`
+        content: `Bạn là nhân viên tư vấn bán hàng. Hãy đọc kỹ lịch sử hội thoại trên và soạn tin nhắn trả lời khách hàng (Xưng là em/shop, gọi khách là ${greeting}). Tên khách hàng: ${activeConv.customerName}. Trả lời trực tiếp câu hỏi cuối cùng của khách, cảm ơn nếu khách cung cấp thông tin (như SĐT hay địa chỉ) và khéo léo xin thông tin còn thiếu. Ngắn gọn dưới 3 câu.`
       });
 
       const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
