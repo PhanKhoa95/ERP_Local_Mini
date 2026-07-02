@@ -1387,6 +1387,110 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           </CardContent>
         </Card>
 
+        {/* Panel 1.1: Thiết lập Quy trình CSKH (Custom Stages) */}
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
+          <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                <Sliders className="h-4.5 w-4.5 text-primary" />
+                Thiết lập Quy trình CSKH (Workflow Stages)
+              </CardTitle>
+              <CardDescription className="text-[9px]">Tự thiết lập các bước quy trình tư vấn và chốt đơn của cửa hàng.</CardDescription>
+            </div>
+            <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-600 border-blue-200">
+              {cskhStages.length} Bước quy trình
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            {/* Add new Stage Form */}
+            <div className="p-3 border rounded-lg bg-background/50 space-y-2">
+              <span className="text-[10px] font-bold text-foreground block">Thêm bước quy trình mới:</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <Input 
+                  placeholder="Tên bước (VD: Gửi mẫu...)"
+                  value={newStageLabel}
+                  onChange={e => setNewStageLabel(e.target.value)}
+                  className="h-8 text-xs bg-background text-foreground"
+                />
+                <select 
+                  value={newStageIcon}
+                  onChange={e => setNewStageIcon(e.target.value)}
+                  className="rounded-md h-8 text-xs bg-background border border-border text-foreground p-1.5"
+                >
+                  <option value="🆕">🆕 Tiếp cận</option>
+                  <option value="💬">💬 Tư vấn</option>
+                  <option value="💰">💰 Báo giá</option>
+                  <option value="📦">📦 Chuẩn bị</option>
+                  <option value="🎉">🎉 Chốt đơn</option>
+                  <option value="❤️">❤️ Chăm sóc</option>
+                  <option value="⚠️">⚠️ Cảnh báo</option>
+                </select>
+                <select 
+                  value={newStageColor}
+                  onChange={e => setNewStageColor(e.target.value)}
+                  className="rounded-md h-8 text-xs bg-background border border-border text-foreground p-1.5"
+                >
+                  <option value="bg-blue-500">Màu xanh dương</option>
+                  <option value="bg-amber-500">Màu vàng cam</option>
+                  <option value="bg-purple-500">Màu tím</option>
+                  <option value="bg-emerald-500">Màu xanh lá</option>
+                  <option value="bg-pink-500">Màu hồng</option>
+                  <option value="bg-red-500">Màu đỏ</option>
+                </select>
+              </div>
+              <Button 
+                onClick={() => {
+                  if (!newStageLabel.trim()) return;
+                  const newStage: CSKHStage = {
+                    id: `stage-${Date.now()}`,
+                    label: newStageLabel.trim(),
+                    icon: newStageIcon,
+                    color: newStageColor
+                  };
+                  const updated = [...cskhStages, newStage];
+                  setCskhStages(updated);
+                  localStorage.setItem("erp-mini-cskh-stages", JSON.stringify(updated));
+                  setNewStageLabel("");
+                  toast({ title: "Đã thêm bước quy trình mới! 🎉" });
+                }}
+                className="w-full h-8 text-xs bg-primary hover:bg-primary/90 text-white font-bold"
+              >
+                Thêm bước quy trình
+              </Button>
+            </div>
+
+            {/* List Stages */}
+            <div className="flex gap-2 flex-wrap">
+              {cskhStages.map((stg, index) => (
+                <div 
+                  key={stg.id} 
+                  className="flex items-center gap-2 p-2 border rounded-lg bg-background shadow-sm hover:shadow-md transition-all text-xs font-semibold"
+                >
+                  <span>{stg.icon}</span>
+                  <span className="text-foreground">{stg.label}</span>
+                  <Badge className={cn("text-[8px] py-0 px-1 text-white border-none", stg.color)}>
+                    Bước {index + 1}
+                  </Badge>
+                  {/* Delete button (except defaults) */}
+                  {!["new", "consulting", "quoted", "closed_won", "post_purchase"].includes(stg.id) && (
+                    <button 
+                      onClick={() => {
+                        const updated = cskhStages.filter(s => s.id !== stg.id);
+                        setCskhStages(updated);
+                        localStorage.setItem("erp-mini-cskh-stages", JSON.stringify(updated));
+                        toast({ title: "Đã xóa bước quy trình" });
+                      }}
+                      className="text-red-500 hover:text-red-700 transition-colors ml-1"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Part 1: Cơ sở tri thức AI (RAG Configuration panel) - Referencing Screenshot 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left panel: Cấu hình RAG nâng cao */}
@@ -1629,6 +1733,63 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
                   ))}
                 </tbody>
               </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Panel 2.2: Trí tuệ nhân tạo - Tự động Phân tích Kịch bản & Điều phối API (AI Guardrails) */}
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
+          <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                <Brain className="h-4.5 w-4.5 text-pink-500 animate-pulse" />
+                Trí tuệ nhân tạo - Tự động Phân tích Kịch bản & Điều phối API (AI Guardrails)
+              </CardTitle>
+              <CardDescription className="text-[9px]">Giám sát thông minh và tự động bật tắt/chặn API SDK theo điều kiện trạng thái của khách hàng.</CardDescription>
+            </div>
+            <Switch 
+              checked={enableAIGuardrails}
+              onCheckedChange={checked => {
+                setEnableAIGuardrails(checked);
+                localStorage.setItem("erp-mini-ai-guardrails-enabled", JSON.stringify(checked));
+                toast({ title: checked ? "Đã bật AI Guardrails 🛡️" : "Đã tắt AI Guardrails 🔓" });
+              }}
+            />
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {aiRules.map((rule) => (
+                <div 
+                  key={rule.id} 
+                  className={cn(
+                    "p-3 border rounded-lg flex flex-col justify-between space-y-2 transition-all",
+                    rule.enabled && enableAIGuardrails 
+                      ? "border-pink-200 bg-pink-500/5 dark:bg-pink-950/20" 
+                      : "border-border bg-background/50 opacity-60"
+                  )}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Badge className="text-[8px] px-1 bg-pink-500 text-white border-none font-bold">
+                        ĐIỀU KIỆN AI
+                      </Badge>
+                      <Switch 
+                        disabled={!enableAIGuardrails}
+                        checked={rule.enabled}
+                        onCheckedChange={checked => {
+                          const updated = aiRules.map(r => r.id === rule.id ? { ...r, enabled: checked } : r);
+                          setAiRules(updated);
+                          localStorage.setItem("erp-mini-ai-rules", JSON.stringify(updated));
+                          toast({ title: `Đã cập nhật quy tắc: ${rule.condition}` });
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-foreground block">{rule.condition}</span>
+                    <span className="text-[10px] text-pink-600 dark:text-pink-400 font-bold block">👉 {rule.effect}</span>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">{rule.description}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
