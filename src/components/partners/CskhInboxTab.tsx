@@ -17,7 +17,11 @@ import {
   RefreshCw,
   Search,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  TrendingUp,
+  Tag,
+  ShoppingBag,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +51,7 @@ interface Conversation {
   status: "open" | "resolved";
   unread: boolean;
   messages: Message[];
+  tags?: string[];
 }
 
 interface CustomerMemory {
@@ -55,6 +60,17 @@ interface CustomerMemory {
   fact: string;
   importance: 1 | 2 | 3;
   createdAt: string;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  shipping_address: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
 }
 
 export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) {
@@ -78,6 +94,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       channel: "zalo",
       status: "open",
       unread: false,
+      tags: ["VIP", "Hà Nội"],
       messages: [
         { id: "m1", sender: "customer", senderName: "Lê Văn Cường", content: "Shop ơi, mẫu túi đeo chéo đen còn hàng ở chi nhánh Hà Nội không?", timestamp: "10:30" },
         { id: "m2", sender: "agent", senderName: "Hải Yến", content: "Dạ dạ, mẫu đó chi nhánh Hà Nội còn 2 chiếc ạ. Anh qua xem hay muốn em ship COD luôn?", timestamp: "10:32" },
@@ -93,6 +110,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       channel: "facebook",
       status: "open",
       unread: true,
+      tags: ["Khách Sỉ"],
       messages: [
         { id: "m4", sender: "customer", senderName: "Nguyễn Thị Mai", content: "Báo giá sỉ mẫu ví da nam nhé shop.", timestamp: "11:02" }
       ]
@@ -107,6 +125,16 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [memories, setMemories] = useState<CustomerMemory[]>([]);
   const [isExtractingMemory, setIsExtractingMemory] = useState(false);
   
+  // AI Suggestion States
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
+  const [aiSuggestedReply, setAiSuggestedReply] = useState("");
+  
+  // CRM Orders State
+  const [orders, setOrders] = useState<Order[]>([]);
+  
+  // Customer Tag State
+  const [newTagText, setNewTagText] = useState("");
+
   // Webhook Simulator State
   const [selectedWebhookChannel, setSelectedWebhookChannel] = useState<"zalo" | "facebook">("zalo");
   const [webhookPayload, setWebhookPayload] = useState("");
@@ -126,6 +154,10 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
     const savedMems = localStorage.getItem("erp-mini-cskh-memories");
     if (savedMems) setMemories(JSON.parse(savedMems));
+
+    // Load orders
+    const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
+    if (savedOrders) setOrders(JSON.parse(savedOrders));
   }, []);
 
   const saveConfig = (newCfg: typeof config) => {
@@ -143,34 +175,21 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     localStorage.setItem("erp-mini-cskh-memories", JSON.stringify(newMems));
   };
 
-  // Update default payload template based on channel selection
+  // Sync order updates periodically
   useEffect(() => {
-    if (selectedWebhookChannel === "zalo") {
-      setWebhookPayload(JSON.stringify({
-        event: "message_created",
-        sender: {
-          name: "Nguyễn Hoàng Nam",
-          phone: "0963847593"
-        },
-        message: {
-          text: "Alo shop ơi, ship cho mình 1 chiếc Túi Trắng VC20 về địa chỉ: 320 Cầu Giấy nhé. SĐT liên hệ là 0963847593."
-        }
-      }, null, 2));
-    } else {
-      setWebhookPayload(JSON.stringify({
-        event: "message_created",
-        sender: {
-          name: "Phạm Minh Quân",
-          phone: "0849283749"
-        },
-        message: {
-          text: "Shop ơi ship cho mình 1 chiếc Túi Xách ZL18 về địa chỉ 72 Nguyễn Trãi, Thanh Xuân với. SĐT mình 0849283749."
-        }
-      }, null, 2));
-    }
-  }, [selectedWebhookChannel]);
+    const interval = setInterval(() => {
+      const savedOrders = localStorage.getItem("erp-mini-local-demo-orders");
+      if (savedOrders) setOrders(JSON.parse(savedOrders));
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const activeConv = conversations.find(c => c.id === activeConvId) || conversations[0];
+
+  // Filter orders matching active customer phone
+  const activeCustomerOrders = orders.filter(
+    o => o.customer_phone === activeConv?.customerPhone
+  );
 
   const handleSendMessage = () => {
     if (!replyText.trim()) return;
@@ -197,11 +216,83 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
     saveConversations(updated);
     setReplyText("");
+    setAiSuggestedReply(""); // Clear suggestion after send
 
     toast({
       title: "Tin nhắn đã gửi",
       description: "Đã phản hồi trực tiếp tới khách hàng."
     });
+  };
+
+  // Simulate AI suggest reply
+  const handleGenerateAISuggestion = () => {
+    if (!activeConv) return;
+    setIsGeneratingSuggestion(true);
+
+    setTimeout(() => {
+      const customerName = activeConv.customerName;
+      const recentMsg = activeConv.messages[activeConv.messages.length - 1]?.content || "";
+      const customerMemories = memories
+        .filter(m => m.customerPhone === activeConv.customerPhone)
+        .map(m => m.fact);
+
+      let suggestion = `Dạ chào ${customerName} ạ, mẫu bên em vẫn đang sẵn hàng.`;
+      
+      if (recentMsg.includes("ví da")) {
+        suggestion = `Dạ chào ${customerName} ạ, ví da nam bên em làm từ da thật 100% cực kỳ bền màu. Hiện sản phẩm đang được giảm giá còn 189k, mình muốn ship về địa chỉ nào để em lên đơn luôn ạ?`;
+      } else if (recentMsg.includes("túi đeo chéo") || recentMsg.includes("Hà Nội")) {
+        suggestion = `Chào ${customerName} ạ! Mẫu túi đeo chéo đen hiện tại ở chi nhánh Hà Nội bên em đang còn hàng sẵn. Em có thể hỗ trợ tạo đơn giao nhanh ngay trong ngày cho mình nhé!`;
+      } else if (customerMemories.some(f => f.includes("ship COD"))) {
+        suggestion = `Dạ chào ${customerName}, em thấy mình thường thích nhận hàng ship COD tận nhà đúng không ạ? Em lên đơn COD cho mẫu này về địa chỉ của mình nhé ạ!`;
+      }
+
+      setAiSuggestedReply(suggestion);
+      setIsGeneratingSuggestion(false);
+      toast({
+        title: "AI Suggestion Ready! 🤖",
+        description: "AI đã phân tích ngữ cảnh và đề xuất nội dung câu trả lời."
+      });
+    }, 1200);
+  };
+
+  // Add tag to customer profile
+  const handleAddTag = () => {
+    if (!newTagText.trim()) return;
+    const currentTags = activeConv.tags || [];
+    if (currentTags.includes(newTagText.trim())) {
+      toast({ title: "Nhãn đã tồn tại" });
+      return;
+    }
+
+    const updated = conversations.map(c => {
+      if (c.id === activeConvId) {
+        return {
+          ...c,
+          tags: [...currentTags, newTagText.trim()]
+        };
+      }
+      return c;
+    });
+
+    saveConversations(updated);
+    setNewTagText("");
+    toast({
+      title: "Gắn nhãn thành công",
+      description: `Đã thêm nhãn "${newTagText.trim()}" vào đối tác.`
+    });
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    const updated = conversations.map(c => {
+      if (c.id === activeConvId) {
+        return {
+          ...c,
+          tags: (c.tags || []).filter(t => t !== tagToRemove)
+        };
+      }
+      return c;
+    });
+    saveConversations(updated);
   };
 
   // AI Fact Memory Extraction Simulation
@@ -312,6 +403,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           channel: selectedWebhookChannel,
           status: "open",
           unread: true,
+          tags: ["Mới từ Webhook"],
           messages: [newMsg]
         };
         saveConversations([newConv, ...conversations]);
@@ -356,7 +448,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         const addressMatch = messageText.match(/(?:địa chỉ:?\s*|địa chỉ\s*)([^.]+)/i);
         const address = addressMatch ? addressMatch[1].trim() : "Chưa xác định";
         
-        const orders = JSON.parse(localStorage.getItem("erp-mini-local-demo-orders") || "[]");
+        const currentOrders = JSON.parse(localStorage.getItem("erp-mini-local-demo-orders") || "[]");
         const orderId = `DH-${Date.now().toString().slice(-6)}`;
         const newOrder = {
           id: orderId,
@@ -372,7 +464,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
-        localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...orders]));
+        localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify([newOrder, ...currentOrders]));
+        setOrders([newOrder, ...currentOrders]);
         logs.push(`${timestamp()} [Order Engine] Đã tạo đơn hàng ${config.autoCreateOrdersImmediately ? "chính thức (Đã xác nhận)" : "nháp"}: ${orderId}`);
       }
 
@@ -405,6 +498,43 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Performance Dashboard Stat Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-5">
+            <Card className="bg-background/40">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-muted-foreground font-semibold">TỔNG TIN NHẮN</span>
+                  <h3 className="text-lg font-bold text-foreground mt-0.5">1,284</h3>
+                </div>
+                <div className="h-9 w-9 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-background/40">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-muted-foreground font-semibold">TỐC ĐỘ PHẢN HỒI</span>
+                  <h3 className="text-lg font-bold text-foreground mt-0.5">1.8 Phút</h3>
+                </div>
+                <div className="h-9 w-9 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                  <Clock className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-background/40">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-muted-foreground font-semibold">TỶ LỆ CHỐT ĐƠN</span>
+                  <h3 className="text-lg font-bold text-foreground mt-0.5">85.4%</h3>
+                </div>
+                <div className="h-9 w-9 rounded bg-amber-500/10 flex items-center justify-center text-amber-500">
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3.5 border rounded-lg bg-background/50">
               <div className="space-y-1">
@@ -548,11 +678,18 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               )}
             >
               <div className="space-y-1 w-11/12">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-xs text-foreground block truncate">{conv.customerName}</span>
-                  <Badge variant="outline" className="text-[8px] px-1 py-0 capitalize">
-                    {conv.channel}
-                  </Badge>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-xs text-foreground block truncate max-w-[100px]">{conv.customerName}</span>
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 capitalize">
+                      {conv.channel}
+                    </Badge>
+                  </div>
+                  {conv.tags && conv.tags.length > 0 && (
+                    <Badge className="text-[7px] px-1 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200">
+                      {conv.tags[0]}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate leading-relaxed">{conv.lastMessage}</p>
               </div>
@@ -578,9 +715,21 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               </CardDescription>
             </div>
           </div>
-          <Badge variant={activeConv.status === "open" ? "default" : "outline"} className="text-[9px] px-1.5 py-0 font-semibold">
-            {activeConv.status === "open" ? "Đang mở" : "Đã đóng"}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleGenerateAISuggestion}
+              disabled={isGeneratingSuggestion}
+              className="h-7 text-[10px] font-semibold text-indigo-500 border-indigo-200 bg-indigo-500/5 hover:bg-indigo-500/10"
+            >
+              <Bot className="h-3.5 w-3.5 mr-1" />
+              AI Gợi ý
+            </Button>
+            <Badge variant={activeConv.status === "open" ? "default" : "outline"} className="text-[9px] px-1.5 py-0 font-semibold">
+              {activeConv.status === "open" ? "Đang mở" : "Đã đóng"}
+            </Badge>
+          </div>
         </CardHeader>
 
         {/* Message timeline */}
@@ -613,6 +762,28 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             </div>
           ))}
         </div>
+
+        {/* AI Suggested Reply Display Box */}
+        {aiSuggestedReply && (
+          <div className="p-3 border-t bg-indigo-500/5 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-900/20 m-2.5 rounded-lg">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 animate-pulse" /> Đề xuất trả lời từ AI Co-Pilot
+              </span>
+              <Button 
+                variant="link" 
+                onClick={() => {
+                  setReplyText(aiSuggestedReply);
+                  setAiSuggestedReply("");
+                }}
+                className="h-auto p-0 text-[10px] font-bold text-indigo-600 dark:text-indigo-400"
+              >
+                Áp dụng câu trả lời
+              </Button>
+            </div>
+            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300 italic">{aiSuggestedReply}</p>
+          </div>
+        )}
 
         {/* Message Input Box */}
         <div className="p-3 border-t bg-background/50 flex gap-2">
@@ -655,6 +826,82 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 <span className="text-xs leading-relaxed text-foreground">{activeConv.customerAddress || "Chưa cung cấp"}</span>
               </div>
             </div>
+
+            {/* Classification tags */}
+            <div className="space-y-2 border-t pt-3.5">
+              <Label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+                <Tag className="h-3 w-3" /> Thẻ/Nhãn đối tác
+              </Label>
+              <div className="flex gap-1 flex-wrap mb-2">
+                {(activeConv.tags || []).map((tag, i) => (
+                  <Badge 
+                    key={i} 
+                    variant="secondary" 
+                    className="text-[9px] pr-1 gap-1 flex items-center"
+                  >
+                    {tag}
+                    <button 
+                      onClick={() => handleRemoveTag(tag)}
+                      className="text-muted-foreground hover:text-destructive font-bold text-[8px] px-0.5 rounded"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <Input 
+                  placeholder="Thêm nhãn mới..."
+                  value={newTagText}
+                  onChange={e => setNewTagText(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddTag()}
+                  className="h-7 text-[10px]"
+                />
+                <Button onClick={handleAddTag} variant="outline" size="sm" className="h-7 text-[10px]">
+                  Thêm
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* CRM Order History card */}
+        <Card className="border-border/45 bg-card/60 backdrop-blur-md">
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center gap-1.5">
+              <ShoppingBag className="h-4 w-4 text-primary" />
+              <CardTitle className="text-xs font-bold">Lịch sử đơn hàng ({activeCustomerOrders.length})</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            {activeCustomerOrders.length === 0 ? (
+              <div className="text-center py-6 text-slate-500 italic text-[10px] border border-dashed rounded-lg bg-background/50">
+                Chưa có đơn hàng nào được tạo cho SĐT này.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {activeCustomerOrders.map((order) => (
+                  <div 
+                    key={order.id}
+                    className="p-2 border rounded bg-background/50 flex flex-col gap-1 hover:shadow-sm transition-shadow"
+                  >
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-bold font-mono text-foreground">{order.order_number}</span>
+                      <Badge variant="outline" className={cn(
+                        "text-[8px] px-1 py-0",
+                        order.status === "confirmed" ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
+                      )}>
+                        {order.status === "confirmed" ? "Đã xác nhận" : "Mới/Nháp"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>{Number(order.total_amount).toLocaleString("vi-VN")}đ</span>
+                      <span>{new Date(order.created_at).toLocaleDateString("vi-VN")}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
