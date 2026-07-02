@@ -56,6 +56,8 @@ interface Conversation {
   unread: boolean;
   messages: Message[];
   tags?: string[];
+  needsHuman?: boolean;
+  autopilotEnabled?: boolean;
 }
 
 interface CustomerMemory {
@@ -93,7 +95,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
   const [config, setConfig] = useState({
     autoCreateOrders: true,
     autoCreateOrdersImmediately: false,
-    aiAutoReply: false,
+    aiAutoReply: true, // Default to true so Autopilot runs automatically!
     aiAutoExtractMemory: true,
   });
 
@@ -108,6 +110,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       status: "open",
       unread: false,
       tags: ["VIP", "Hà Nội"],
+      needsHuman: false,
+      autopilotEnabled: true,
       messages: [
         { id: "m1", sender: "customer", senderName: "Lê Văn Cường", content: "Shop ơi, mẫu túi đeo chéo đen còn hàng ở chi nhánh Hà Nội không?", timestamp: "10:30" },
         { id: "m2", sender: "agent", senderName: "Hải Yến", content: "Dạ dạ, mẫu đó chi nhánh Hà Nội còn 2 chiếc ạ. Anh qua xem hay muốn em ship COD luôn?", timestamp: "10:32" },
@@ -124,8 +128,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       status: "open",
       unread: true,
       tags: ["Khách Sỉ"],
+      needsHuman: true,
+      autopilotEnabled: false,
       messages: [
-        { id: "m4", sender: "customer", senderName: "Nguyễn Thị Mai", content: "Báo giá sỉ mẫu ví da nam nhé shop.", timestamp: "11:02" }
+        { id: "m4", sender: "customer", senderName: "Nguyễn Thị Mai", content: "Sản phẩm bị lỗi hỏng khóa rồi, shop đổi cho tôi hoặc gặp nhân viên xử lý gấp!", timestamp: "11:02" },
+        { id: "m-sys-1", sender: "bot", senderName: "Hệ thống AI", content: "[Báo động] Phát hiện khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và phát cảnh báo yêu cầu nhân viên can thiệp.", timestamp: "11:03" }
       ]
     }
   ];
@@ -238,6 +245,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           ...c,
           lastMessage: replyText,
           unread: false,
+          needsHuman: false, // Resolve human alarm on response
           messages: [...c.messages, newMsg]
         };
       }
@@ -251,6 +259,25 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
     toast({
       title: "Tin nhắn đã gửi",
       description: "Đã phản hồi trực tiếp tới khách hàng."
+    });
+  };
+
+  // Takeover chat from Autopilot
+  const handleTakeover = () => {
+    const updated = conversations.map(c => {
+      if (c.id === activeConvId) {
+        return {
+          ...c,
+          needsHuman: false,
+          autopilotEnabled: false
+        };
+      }
+      return c;
+    });
+    saveConversations(updated);
+    toast({
+      title: "Đã tiếp quản cuộc chat! 🧑‍💼",
+      description: "Đã tắt chế độ Autopilot cho khách hàng này. Bạn có thể nhắn tin hỗ trợ trực tiếp."
     });
   };
 
@@ -273,6 +300,10 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         score = 85;
         label = "Tích cực/Hài lòng";
         summary = "Khách hàng quan tâm và muốn được tư vấn giá sỉ/chi tiết sản phẩm ví da nam.";
+      } else if (messagesText.includes("lỗi") || messagesText.includes("hỏng") || messagesText.includes("rách")) {
+        score = 35;
+        label = "Giận dữ/Bực bội";
+        summary = "Khách báo lỗi sản phẩm bị hỏng khóa, yêu cầu nhân viên thật vào giải quyết gấp.";
       }
 
       const newSentiment: CustomerSentiment = {
@@ -326,6 +357,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         suggestion = `Dạ chào ${customerName} ạ, ví da nam bên em làm từ da thật 100% cực kỳ bền màu. Hiện sản phẩm đang được giảm giá còn 189k, mình muốn ship về địa chỉ nào để em lên đơn luôn ạ?`;
       } else if (recentMsg.includes("túi đeo chéo") || recentMsg.includes("Hà Nội")) {
         suggestion = `Chào ${customerName} ạ! Mẫu túi đeo chéo đen hiện tại ở chi nhánh Hà Nội bên em đang còn hàng sẵn. Em có thể hỗ trợ tạo đơn giao nhanh ngay trong ngày cho mình nhé!`;
+      } else if (recentMsg.includes("lỗi") || recentMsg.includes("hỏng")) {
+        suggestion = `Dạ chào ${customerName}, em vô cùng xin lỗi vì sự cố sản phẩm bị hỏng khóa ạ. Shop có chính sách 1 đổi 1 miễn phí, anh/chị cho em xin thông tin để em gửi hàng đổi trả ngay nhé ạ!`;
       } else if (customerMemories.some(f => f.includes("ship COD"))) {
         suggestion = `Dạ chào ${customerName}, em thấy mình thường thích nhận hàng ship COD tận nhà đúng không ạ? Em lên đơn COD cho mẫu này về địa chỉ của mình nhé ạ!`;
       }
@@ -453,6 +486,9 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       logs.push(`${timestamp()} [Webhook] Xác thực Verify Token... Hợp lệ!`);
       logs.push(`${timestamp()} [AI Engine] Đang phân tích hội thoại và nội dung chat...`);
 
+      // Check for human escalation keywords
+      const isComplex = /lỗi|hỏng|rách|đền tiền|hoàn tiền|khiếu nại|gặp nhân viên|chất lượng/i.test(messageText);
+
       // Search existing or create conversation
       let existConv = conversations.find(c => c.customerPhone === senderPhone);
       const newMsg: Message = {
@@ -463,6 +499,36 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
       };
 
+      let currentMessages = existConv ? [...existConv.messages, newMsg] : [newMsg];
+
+      // If complex, insert system warning message and escalate
+      if (isComplex && config.aiAutoReply) {
+        const sysMsg: Message = {
+          id: `m-sys-${Date.now()}`,
+          sender: "bot",
+          senderName: "Hệ thống AI",
+          content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã tạm dừng Autopilot và báo động yêu cầu nhân viên can thiệp.",
+          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+        };
+        currentMessages.push(sysMsg);
+        logs.push(`${timestamp()} [Escalation Engine] Phát hiện khiếu nại phức tạp. Đang báo động nhân viên...`);
+      } else if (config.aiAutoReply && !isComplex) {
+        // AI Auto Reply (Autopilot)
+        const botReplyText = messageText.includes("ví da") 
+          ? `[Bot AI] Dạ chào anh/chị, ví da nam bên em làm từ da bò thật 100%, giá ưu đãi chỉ 189k. Anh/chị cho em xin số điện thoại và địa chỉ nhận hàng để em lên đơn giao ngay nhé ạ!`
+          : `[Bot AI] Cảm ơn anh/chị đã liên hệ, mẫu này bên em đang còn hàng sẵn ở kho ạ. Shop có hỗ trợ ship COD nhanh toàn quốc, anh/chị cho em xin thông tin SĐT và địa chỉ để shop lên đơn ngay ạ!`;
+        
+        const botMsg: Message = {
+          id: `m-bot-${Date.now()}`,
+          sender: "bot",
+          senderName: "Bot AI Assistant",
+          content: botReplyText,
+          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+        };
+        currentMessages.push(botMsg);
+        logs.push(`${timestamp()} [AI Autopilot] Tự động soạn thảo và gửi câu trả lời thành công.`);
+      }
+
       if (existConv) {
         const updated = conversations.map(c => {
           if (c.id === existConv!.id) {
@@ -470,13 +536,15 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
               ...c,
               lastMessage: messageText,
               unread: true,
-              messages: [...c.messages, newMsg]
+              needsHuman: isComplex ? true : c.needsHuman,
+              autopilotEnabled: isComplex ? false : c.autopilotEnabled,
+              messages: currentMessages
             };
           }
           return c;
         });
         saveConversations(updated);
-        logs.push(`${timestamp()} [Chat Engine] Đã cập nhật tin nhắn mới vào cuộc hội thoại có sẵn của ${senderName}.`);
+        logs.push(`${timestamp()} [Chat Engine] Đã cập nhật tin nhắn mới vào cuộc hội thoại của ${senderName}.`);
       } else {
         const newConv: Conversation = {
           id: `conv-webhook-${Date.now()}`,
@@ -487,8 +555,10 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           channel: selectedWebhookChannel,
           status: "open",
           unread: true,
-          tags: ["Mới từ Webhook"],
-          messages: [newMsg]
+          tags: isComplex ? ["Cần nhân viên"] : ["Mới từ Webhook"],
+          needsHuman: isComplex,
+          autopilotEnabled: !isComplex,
+          messages: currentMessages
         };
         saveConversations([newConv, ...conversations]);
         setActiveConvId(newConv.id);
@@ -524,8 +594,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         }
       }
 
-      // 2. Auto Create Order
-      if (config.autoCreateOrders) {
+      // 2. Auto Create Order (only if not a complex error complaint)
+      if (config.autoCreateOrders && !isComplex) {
         logs.push(`${timestamp()} [Order Engine] Đang phân tích SĐT & Địa chỉ để tự động tạo đơn hàng...`);
         
         // Simple address parsing
@@ -622,6 +692,17 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3.5 border rounded-lg bg-background/50">
               <div className="space-y-1">
+                <Label className="text-xs font-semibold">Bật Chế độ AI Autopilot 100% (Auto Reply)</Label>
+                <p className="text-[10px] text-muted-foreground">AI tự trả lời khách hàng. Tự động tắt và chuyển nhân viên hỗ trợ khi phát hiện khiếu nại phức tạp</p>
+              </div>
+              <Switch 
+                checked={config.aiAutoReply}
+                onCheckedChange={checked => saveConfig({ ...config, aiAutoReply: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 border rounded-lg bg-background/50">
+              <div className="space-y-1">
                 <Label className="text-xs font-semibold">Tự động tạo đơn hàng (Auto-Closer)</Label>
                 <p className="text-[10px] text-muted-foreground">Tự động chốt đơn khi phát hiện đủ SĐT và địa chỉ của khách hàng</p>
               </div>
@@ -685,7 +766,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-semibold">JSON Payload</Label>
+                  <Label className="text-[10px] font-semibold">JSON Payload (Thử gõ các từ 'lỗi', 'hỏng khóa' để kiểm tra tự báo động nhân viên)</Label>
                   <Textarea 
                     value={webhookPayload}
                     onChange={e => setWebhookPayload(e.target.value)}
@@ -713,6 +794,8 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                         log.includes("Lỗi") && "text-red-400",
                         log.includes("Thành công") && "text-emerald-400",
                         log.includes("AI Memory") && "text-indigo-400",
+                        log.includes("Escalation") && "text-red-400 font-bold",
+                        log.includes("AI Autopilot") && "text-indigo-400",
                         log.includes("Order Engine") && "text-amber-400"
                       )}>
                         {log}
@@ -763,17 +846,21 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
             >
               <div className="space-y-1 w-11/12">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-xs text-foreground block truncate max-w-[100px]">{conv.customerName}</span>
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 capitalize">
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <span className="font-semibold text-xs text-foreground block truncate max-w-[80px]">{conv.customerName}</span>
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 capitalize flex-shrink-0">
                       {conv.channel}
                     </Badge>
                   </div>
-                  {conv.tags && conv.tags.length > 0 && (
-                    <Badge className="text-[7px] px-1 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200">
+                  {conv.needsHuman ? (
+                    <Badge className="text-[7px] px-1 bg-red-500 text-white font-bold animate-pulse flex-shrink-0">
+                      Cần người
+                    </Badge>
+                  ) : conv.tags && conv.tags.length > 0 ? (
+                    <Badge className="text-[7px] px-1 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200 truncate max-w-[60px] flex-shrink-0">
                       {conv.tags[0]}
                     </Badge>
-                  )}
+                  ) : null}
                 </div>
                 <p className="text-[10px] text-muted-foreground truncate leading-relaxed">{conv.lastMessage}</p>
               </div>
@@ -833,6 +920,23 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
           </div>
         </CardHeader>
 
+        {/* Human Escalation Warning Panel */}
+        {activeConv.needsHuman && (
+          <div className="bg-red-500/10 border-b border-red-500/20 p-3 flex items-center justify-between text-xs text-red-600 dark:text-red-400">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4.5 w-4.5 text-red-500 animate-bounce flex-shrink-0" />
+              <span className="font-semibold leading-relaxed">AI đã dừng Autopilot và yêu cầu chuyển giao người thật do khách khiếu nại/báo lỗi.</span>
+            </div>
+            <Button 
+              onClick={handleTakeover}
+              size="sm"
+              className="h-7 text-[10px] font-semibold bg-red-600 hover:bg-red-700 text-white flex-shrink-0 ml-2"
+            >
+              Tiếp quản cuộc chat
+            </Button>
+          </div>
+        )}
+
         {/* Message timeline */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/50 dark:bg-slate-950/20">
           {activeConv.messages.map((msg) => (
@@ -853,9 +957,11 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
                   "p-3 rounded-lg text-xs leading-relaxed border",
                   msg.sender === "customer" 
                     ? "bg-background border-border text-foreground" 
-                    : msg.sender === "bot"
-                      ? "bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300"
-                      : "bg-primary border-primary/20 text-primary-foreground"
+                    : msg.senderName === "Hệ thống AI"
+                      ? "bg-red-500/15 dark:bg-red-950/30 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 font-semibold"
+                      : msg.sender === "bot"
+                        ? "bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-900/40 text-indigo-700 dark:text-indigo-300"
+                        : "bg-primary border-primary/20 text-primary-foreground"
                 )}
               >
                 {msg.content}
