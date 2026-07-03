@@ -337,7 +337,7 @@ export function PackingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[90vw] w-[90vw] max-h-[92vh] h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 shadow-xl rounded-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Package className="h-5 w-5 text-blue-600" />

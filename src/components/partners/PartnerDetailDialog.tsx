@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -62,7 +63,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
   const { warehouses } = useWarehouses();
   const { categories } = useProductCategories();
   const { getPoliciesForSegment } = useSalesPolicies();
-  const { orders, transactions, topProducts, purchasedItems = [], notes, stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
+  const { orders, transactions, topProducts, purchasedItems = [], notes, referredPartners = [], stats, isLoading, createNote, updateNote, deleteNote } = usePartnerDetail(partner?.id || null);
   const { memberships = [], tierConfigs = [] } = useMemberships();
   const partnerMemberships = useMemo(() => {
     if (!partner?.id) return [];
@@ -188,10 +189,21 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
               <span className="text-primary font-bold">{partner.name.charAt(0)}</span>
             </div>
-            <div>
-              <div>{partner.name}</div>
-              <div className="text-sm font-normal text-muted-foreground">{partner.code}</div>
-            </div>
+             <div>
+               <div>{partner.name}</div>
+               <div className="text-sm font-normal text-muted-foreground flex items-center gap-1.5 flex-wrap mt-0.5">
+                 <span>{partner.code}</span>
+                 <span 
+                   className="text-[9px] bg-pink-50 dark:bg-pink-950 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded font-mono font-bold flex items-center gap-0.5 cursor-pointer hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200/50" 
+                   onClick={() => {
+                     navigator.clipboard.writeText(partner.code || partner.phone || "");
+                     toast.success("Đã sao chép mã giới thiệu!");
+                   }}
+                 >
+                   Mã giới thiệu: {partner.code} 📋
+                 </span>
+               </div>
+             </div>
           </DialogTitle>
         </DialogHeader>
 
@@ -332,6 +344,65 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                       );
                     })
                   )}
+
+                  {/* Loyalty Points Tracker */}
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-4 border rounded-xl space-y-3.5 shadow-sm mt-4">
+                    <h5 className="font-extrabold text-xs uppercase text-slate-500 tracking-wider flex items-center gap-1">
+                      ✨ TIẾN TRÌNH THĂNG HẠNG
+                    </h5>
+                    
+                    {(() => {
+                      const ltv = partner.total_spent || 0;
+                      const ltfPoints = Math.floor(ltv / 100000);
+                      
+                      let nextTierName = "Silver";
+                      let nextTierPoints = 50;
+                      let currentTierName = "Normal";
+                      
+                      if (ltfPoints >= 300) {
+                        currentTierName = "VIP / Super";
+                        nextTierName = "Đạt Cấp Cao Nhất";
+                        nextTierPoints = 300;
+                      } else if (ltfPoints >= 150) {
+                        currentTierName = "Vàng";
+                        nextTierName = "VIP / Super";
+                        nextTierPoints = 300;
+                      } else if (ltfPoints >= 50) {
+                        currentTierName = "Silver";
+                        nextTierName = "Vàng";
+                        nextTierPoints = 150;
+                      }
+                      
+                      const progressPct = Math.min(100, Math.round((ltfPoints / nextTierPoints) * 100));
+                      const pointsNeeded = nextTierPoints - ltfPoints;
+                      
+                      return (
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between font-semibold">
+                            <span className="text-muted-foreground">Cấp hiện tại: <span className="text-indigo-650 font-bold">{currentTierName}</span></span>
+                            <span className="text-indigo-600 font-bold">{ltfPoints} / {nextTierPoints} điểm trọn đời</span>
+                          </div>
+                          
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                          
+                          {ltfPoints < 300 ? (
+                            <div className="text-[10px] text-muted-foreground italic">
+                              Cần tích lũy thêm <strong>{pointsNeeded} điểm trọn đời</strong> (tương đương <strong>{(pointsNeeded * 100000).toLocaleString()}đ</strong> chi tiêu) để thăng hạng <strong>{nextTierName}</strong>.
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-emerald-600 font-semibold">
+                              🎉 Chúc mừng! Khách hàng đã đạt cấp độ thành viên cao nhất (VIP / Super).
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             </TabsContent>
@@ -452,6 +523,53 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                       <div>Gặp mặt trực tiếp: <span className="font-semibold text-success">{notes.filter(n => n.note_type === "meeting").length}</span></div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Lịch sử giới thiệu khách hàng (Referral) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-pink-600">
+                    👥 Khách hàng đã giới thiệu ({referredPartners.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {referredPartners.length === 0 ? (
+                    <div className="p-6 text-center text-muted-foreground text-xs">
+                      Khách hàng chưa giới thiệu thành viên nào tham gia mua sắm.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Tên khách mới</TableHead>
+                          <TableHead className="text-xs">Mã khách</TableHead>
+                          <TableHead className="text-xs">Số điện thoại</TableHead>
+                          <TableHead className="text-xs text-right">Tổng chi tiêu (LTV)</TableHead>
+                          <TableHead className="text-xs text-center">Điểm tích lũy</TableHead>
+                          <TableHead className="text-xs text-right">Ngày tham gia</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {referredPartners.map((ref: any) => (
+                          <TableRow key={ref.id} className="text-xs hover:bg-muted/30">
+                            <TableCell className="font-semibold">{ref.name}</TableCell>
+                            <TableCell className="font-mono text-muted-foreground">{ref.code}</TableCell>
+                            <TableCell>{ref.phone || "Chưa có"}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {Number(ref.total_spent || 0).toLocaleString("vi-VN")}đ
+                            </TableCell>
+                            <TableCell className="text-center font-bold text-indigo-650 font-mono">
+                              {ref.loyalty_points || 0}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {ref.created_at ? new Date(ref.created_at).toLocaleDateString("vi-VN") : "N/A"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

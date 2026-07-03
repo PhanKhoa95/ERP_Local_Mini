@@ -598,7 +598,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
             });
 
             const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
-              body: { messages: promptMsgs }
+              body: { messages: promptMsgs, is_customer: true }
             });
             if (!error && data?.answer) {
               botReplyText = data.answer;
@@ -934,7 +934,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
       });
 
       const { data, error } = await supabase.functions.invoke("ai-erp-assistant", {
-        body: { messages: messagesPrompt }
+        body: { messages: messagesPrompt, is_customer: true }
       });
 
       if (!error && data?.answer) {

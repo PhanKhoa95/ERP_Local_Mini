@@ -28,6 +28,7 @@ export interface Partner {
   branch_id?: string;
   warehouse_id?: string;
   promo_segment?: "all" | "loyalty" | "wholesale";
+  referrer_id?: string | null;
 }
 
 // Helpers to serialize and deserialize partner metadata in notes field
@@ -35,6 +36,7 @@ export function parsePartnerMetadata(partner: any): Partner {
   let branch_id = "";
   let warehouse_id = "";
   let promo_segment: "all" | "loyalty" | "wholesale" = "all";
+  let referrer_id: string | null = null;
   let cleanNotes = partner.notes || "";
 
   if (partner.notes && partner.notes.trim().startsWith("{")) {
@@ -43,6 +45,7 @@ export function parsePartnerMetadata(partner: any): Partner {
       branch_id = meta.branch_id ?? "";
       warehouse_id = meta.warehouse_id ?? "";
       promo_segment = meta.promo_segment ?? "all";
+      referrer_id = meta.referrer_id ?? null;
       cleanNotes = meta.notes ?? "";
     } catch (e) {
       // Ignored
@@ -54,6 +57,7 @@ export function parsePartnerMetadata(partner: any): Partner {
     branch_id,
     warehouse_id,
     promo_segment,
+    referrer_id,
     notes: cleanNotes,
   };
 }
@@ -72,10 +76,11 @@ export function serializePartnerMetadata(partner: any, existingNotes?: string | 
     branch_id: partner.branch_id !== undefined ? partner.branch_id : (existingMeta.branch_id ?? ""),
     warehouse_id: partner.warehouse_id !== undefined ? partner.warehouse_id : (existingMeta.warehouse_id ?? ""),
     promo_segment: partner.promo_segment !== undefined ? partner.promo_segment : (existingMeta.promo_segment ?? "all"),
+    referrer_id: partner.referrer_id !== undefined ? partner.referrer_id : (existingMeta.referrer_id ?? null),
     notes: partner.notes !== undefined ? partner.notes : (existingMeta.notes ?? ""),
   };
 
-  const { branch_id, warehouse_id, promo_segment, ...rest } = partner;
+  const { branch_id, warehouse_id, promo_segment, referrer_id, ...rest } = partner;
   return {
     ...rest,
     notes: JSON.stringify(meta),

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Trash2, Search, RefreshCw, AlertCircle } from "lucide-react";
 import { useOrderReturns } from "@/hooks/useOrderReturns";
 import { useProducts } from "@/hooks/useProducts";
+import { useOrders } from "@/hooks/useOrders";
 import { useToast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -32,7 +33,8 @@ const PLATFORMS = [
 ];
 
 export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDialogProps) {
-  const { createReturn } = useOrderReturns();
+  const { createReturn, updateReturnStatus } = useOrderReturns();
+  const { createOrder } = useOrders();
   const { products = [] } = useProducts();
   const { toast } = useToast();
 
@@ -40,6 +42,7 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
   const [platform, setPlatform] = useState("manual");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [isRestock, setIsRestock] = useState(true);
   
   // Return items state
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
@@ -126,55 +129,110 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
   const netAdjustment = totalExchangeAmount + feeShip + feeRestock - totalReturnAmount;
 
   const handleSubmit = async () => {
-    const returnItems = Object.entries(selectedItems).map(([itemId, quantity]) => {
-      const item = order.order_items?.find(i => i.id === itemId);
-      return {
-        order_item_id: itemId,
-        product_id: item?.product_id,
-        product_name: item?.products?.name,
-        quantity,
-        unit_price: Number(item?.unit_price || 0),
-      };
-    });
+    try {
+      const returnItems = Object.entries(selectedItems).map(([itemId, quantity]) => {
+        const item = order.order_items?.find(i => i.id === itemId);
+        return {
+          order_item_id: itemId,
+          product_id: item?.product_id,
+          product_name: item?.products?.name,
+          quantity,
+          unit_price: Number(item?.unit_price || 0),
+        };
+      });
 
-    const isExchange = activeTab === "exchange";
+      const isExchange = activeTab === "exchange";
 
-    // Custom metadata payload for exchange items
-    const customMetadata = isExchange ? {
-      exchange_items: exchangeItems,
-      net_adjustment: netAdjustment,
-      shipping_fee: feeShip,
-      restocking_fee: feeRestock,
-    } : {};
+      // 1. Create return record
+      const returnRecord = await createReturn.mutateAsync({
+        order_id: order.id,
+        platform_source: platform,
+        reason,
+        notes: notes + (isExchange ? " (Đơn đổi hàng)" : ""),
+        refund_amount: isExchange ? (netAdjustment < 0 ? Math.abs(netAdjustment) : 0) : totalReturnAmount,
+        return_items: returnItems,
+        return_type: isExchange ? "customer_exchange" : (platform === "manual" ? "customer_return" : "platform_return"),
+      });
 
-    await createReturn.mutateAsync({
-      order_id: order.id,
-      platform_source: platform,
-      reason,
-      notes: notes + (isExchange ? " (Đơn đổi hàng)" : ""),
-      refund_amount: isExchange ? (netAdjustment < 0 ? Math.abs(netAdjustment) : 0) : totalReturnAmount,
-      return_items: returnItems,
-      return_type: isExchange ? "customer_exchange" : (platform === "manual" ? "customer_return" : "platform_return"),
-    });
+      // 2. If restock option is selected, approve and transition status immediately to receive/refund
+      if (isRestock && returnRecord && returnRecord.id) {
+        await updateReturnStatus.mutateAsync({ 
+          id: returnRecord.id, 
+          status: "received" 
+        });
+        
+        if (!isExchange) {
+          // If only return, mark refunded as well to post accounting journal entry
+          await updateReturnStatus.mutateAsync({
+            id: returnRecord.id,
+            status: "refunded"
+          });
+        }
+      }
 
-    toast({
-      title: isExchange ? "Đã tạo đơn đổi hàng" : "Đã tạo đơn trả hàng",
-      description: isExchange 
-        ? (netAdjustment > 0 ? `Khách cần thanh toán thêm ${netAdjustment.toLocaleString("vi-VN")}đ` : `Cần hoàn trả cho khách ${Math.abs(netAdjustment).toLocaleString("vi-VN")}đ`)
-        : `Tổng tiền hoàn dự kiến: ${totalReturnAmount.toLocaleString("vi-VN")}đ`
-    });
+      // 3. If exchange, create the actual exchange order to ship items
+      if (isExchange && exchangeItems.length > 0) {
+        const orderNumber = `EX-${order.order_number}-${Math.floor(100 + Math.random() * 900)}`;
+        
+        const orderPayload = {
+          order: {
+            company_id: order.company_id,
+            order_number: orderNumber,
+            customer_name: order.customer_name || "Khách đổi hàng",
+            customer_phone: order.customer_phone,
+            customer_email: order.customer_email || "",
+            customer_address: order.customer_address || "",
+            shipping_address: order.shipping_address || "",
+            status: "received_exchange" as any,
+            payment_status: netAdjustment <= 0 ? "paid" as any : "pending" as any,
+            payment_method: "cod",
+            source_type: order.source_type as any,
+            total: totalExchangeAmount + feeShip,
+            discount: 0,
+            shipping_fee: feeShip,
+            priority: "normal" as any,
+            notes: `Đơn đổi hàng từ đơn gốc #${order.order_number}. Phí phụ thu đổi trả: ${feeRestock.toLocaleString("vi-VN")}đ. ${notes}`,
+            warehouse_id: order.warehouse_id || "wh-1",
+          },
+          items: exchangeItems.map(it => ({
+            product_id: it.product_id,
+            quantity: it.quantity,
+            unit_price: it.price,
+            total_price: it.price * it.quantity
+          }))
+        };
 
-    onOpenChange(false);
-    setSelectedItems({});
-    setExchangeItems([]);
-    setReason("");
-    setNotes("");
-    setPlatform("manual");
+        await createOrder.mutateAsync(orderPayload);
+      }
+
+      toast({
+        title: isExchange ? "Đã tạo đơn đổi hàng thành công" : "Đã tạo đơn trả hàng thành công",
+        description: isExchange 
+          ? (netAdjustment > 0 ? `Khách cần thanh toán thêm ${netAdjustment.toLocaleString("vi-VN")}đ` : `Cần hoàn trả cho khách ${Math.abs(netAdjustment).toLocaleString("vi-VN")}đ`)
+          : `Tổng tiền hoàn dự kiến: ${totalReturnAmount.toLocaleString("vi-VN")}đ`
+      });
+
+      // Dispatch events to refresh parent views
+      window.dispatchEvent(new Event("local-orders-updated"));
+
+      onOpenChange(false);
+      setSelectedItems({});
+      setExchangeItems([]);
+      setReason("");
+      setNotes("");
+      setPlatform("manual");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi tạo đổi trả",
+        description: err.message || "Không thể hoàn tất quy trình đổi trả hàng."
+      });
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[85vw] w-[85vw] max-h-[90vh] h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 shadow-xl rounded-xl">
         <DialogHeader className="border-b pb-3">
           <DialogTitle className="text-sm font-bold flex items-center gap-2">
             <RefreshCw className="h-4.5 w-4.5 text-primary" />
@@ -231,6 +289,17 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
                       )}
                     </div>
                   ))}
+                </div>
+                
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox 
+                    id="restock-inv" 
+                    checked={isRestock} 
+                    onCheckedChange={(checked) => setIsRestock(!!checked)} 
+                  />
+                  <Label htmlFor="restock-inv" className="text-xs cursor-pointer text-muted-foreground font-medium select-none">
+                    Tự động cộng lại số lượng vào tồn kho
+                  </Label>
                 </div>
               </div>
             </div>

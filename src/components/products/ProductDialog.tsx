@@ -13,6 +13,8 @@ import type { Tables } from "@/integrations/supabase/types";
 import { ImageUpload } from "./ImageUpload";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useProducts } from "@/hooks/useProducts";
+import { supabase } from "@/integrations/supabase/client";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
 const productSchema = z.object({
   sku: z.string().max(50).optional().default(""),
@@ -68,6 +70,37 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
     is_service: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [wholesaleTiers, setWholesaleTiers] = useState<{ min_quantity: number; wholesale_price: number }[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      if (product) {
+        const loadWholesalePrices = async () => {
+          if (isLocalDemoAuthEnabled()) {
+            const raw = localStorage.getItem("erp-mini-local-demo-product-wholesale-prices");
+            const all = raw ? JSON.parse(raw) : [];
+            const tiers = all
+              .filter((p: any) => p.product_id === product.id && p.variant_id === null)
+              .map((p: any) => ({ min_quantity: p.min_quantity, wholesale_price: p.wholesale_price }));
+            setWholesaleTiers(tiers);
+          } else {
+            const { data, error } = await supabase
+              .from("product_wholesale_prices")
+              .select("min_quantity, wholesale_price")
+              .eq("product_id", product.id)
+              .is("variant_id", null)
+              .order("min_quantity", { ascending: true });
+            if (!error && data) {
+              setWholesaleTiers(data);
+            }
+          }
+        };
+        loadWholesalePrices();
+      } else {
+        setWholesaleTiers([]);
+      }
+    }
+  }, [product, open]);
 
   useEffect(() => {
     if (product) {
@@ -147,7 +180,8 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
         ...payload, 
         conversions, 
         is_combo: isCombo, 
-        combo_items: comboItems 
+        combo_items: comboItems,
+        wholesale_prices: wholesaleTiers
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -431,6 +465,74 @@ export function ProductDialog({ open, onOpenChange, product, onSubmit, isLoading
               )}
             </div>
           </div>
+
+        {/* Wholesale Price Configuration */}
+        <div className="space-y-2 pt-2 border-t">
+          <div className="flex justify-between items-center">
+            <Label className="text-sm font-semibold flex items-center gap-1">
+              Bậc giá bán sỉ
+            </Label>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setWholesaleTiers([...wholesaleTiers, { min_quantity: 5, wholesale_price: formData.selling_price * 0.9 }])} 
+              className="h-7 text-xs border-dashed"
+            >
+              + Thêm bậc sỉ
+            </Button>
+          </div>
+
+          {wholesaleTiers.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">Chưa cấu hình giá bán sỉ cho sản phẩm này.</p>
+          ) : (
+            <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+              {wholesaleTiers.map((tier, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-14 shrink-0 font-medium">Mua từ:</span>
+                  <Input 
+                    type="number" 
+                    placeholder="SL" 
+                    value={tier.min_quantity} 
+                    onChange={(e) => {
+                      const next = [...wholesaleTiers];
+                      next[index].min_quantity = parseFloat(e.target.value) || 0;
+                      setWholesaleTiers(next);
+                    }} 
+                    required 
+                    className="h-8 text-xs w-16 text-center" 
+                  />
+                  <span className="text-xs text-muted-foreground">{"cái -> Giá:"}</span>
+                  <Input 
+                    type="number" 
+                    placeholder="Đơn giá sỉ" 
+                    value={tier.wholesale_price} 
+                    onChange={(e) => {
+                      const next = [...wholesaleTiers];
+                      next[index].wholesale_price = parseFloat(e.target.value) || 0;
+                      setWholesaleTiers(next);
+                    }} 
+                    required 
+                    className="h-8 text-xs flex-1 text-right" 
+                  />
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-destructive shrink-0" 
+                    onClick={() => {
+                      const next = [...wholesaleTiers];
+                      next.splice(index, 1);
+                      setWholesaleTiers(next);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
           {/* Only show stock fields for non-service items */}
           {!formData.is_service && (

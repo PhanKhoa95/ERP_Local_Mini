@@ -642,7 +642,7 @@ export function ReconciliationTab() {
 
       {/* Dialog: Create Reconciliation Sheet */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl bg-card border border-border">
+        <DialogContent className="max-w-4xl bg-card border border-border shadow-xl rounded-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <Scale className="h-5 w-5 text-blue-600" /> Tạo phiếu đối soát mới

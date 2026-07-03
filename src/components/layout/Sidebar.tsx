@@ -6,7 +6,7 @@ import {
   ChevronDown, ClipboardList, FolderKanban, Stamp, Workflow, PackageSearch, Coins,
   FileSignature, CalendarDays, Activity, BookOpen, Bot, Database, CreditCard, Link2,
   Shirt, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, Layers, History, Boxes, Award,
-  PackageCheck, RotateCcw, Truck, FileBarChart, FileCheck, Banknote, BarChart2, Factory, MessageSquare
+  PackageCheck, RotateCcw, Truck, FileBarChart, FileCheck, Banknote, BarChart2, Factory, MessageSquare, Zap, Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,6 @@ const menuSections: MenuSection[] = [
           { title: "Tất cả đơn hàng", icon: Receipt, path: "/orders" },
           { title: "Đóng hàng", icon: PackageCheck, path: "/orders?view=list&status=packing" },
           { title: "Báo giá", icon: FileBarChart, path: "/orders?tab=quotations" },
-          { title: "Đổi / Trả hàng", icon: RotateCcw, path: "/orders?tab=returns" },
           { title: "Đối soát", icon: FileCheck, path: "/orders?tab=reconciliation" },
           { title: "Tra cứu vận đơn", icon: PackageSearch, path: "/tracking" },
           { title: "Hẹn giao", icon: Truck, path: "/orders?view=list&status=waiting_transfer" },
@@ -109,6 +108,19 @@ const menuSections: MenuSection[] = [
         ]
       },
       {
+        title: "Kênh bán",
+        icon: Store,
+        path: "/product-reviews",
+        subItems: [
+          { title: "Đánh giá sản phẩm", icon: Star, path: "/product-reviews" },
+          { title: "Trả hàng - hoàn tiền", icon: RotateCcw, path: "/orders?tab=returns" },
+          { title: "Khuyến mãi sàn TMĐT", icon: Ticket, path: "/promotions?tab=platforms" },
+          { title: "Đẩy sản phẩm", icon: Zap, path: "/product-boost" },
+          { title: "Sản phẩm tiêu điểm", icon: Award, path: "/featured-products" },
+          { title: "Chuẩn bị đơn hàng", icon: PackageCheck, path: "/prepare-orders" },
+        ]
+      },
+      {
         title: "Tài chính",
         icon: Wallet,
         path: "/finance",
@@ -122,38 +134,75 @@ const menuSections: MenuSection[] = [
           { title: "Quản lý giao dịch", icon: History, path: "/partners?tab=transactions" },
         ]
       },
-      { title: "E-Office", icon: Stamp, path: "/e-office" },
-      { title: "Dashboard Chỉ thị", icon: Activity, path: "/directive-dashboard", minRole: "manager" },
-      { title: "Hợp đồng", icon: FileSignature, path: "/contracts", minRole: "manager" },
-      { title: "Đặt lịch", icon: CalendarDays, path: "/bookings" },
-      { title: "Tự động hóa", icon: Workflow, path: "/workflows", minRole: "manager" },
-      { title: "Sales Agent AI", icon: Bot, path: "/sales-agent", minRole: "manager" },
-      { title: "Data Hub", icon: Database, path: "/data-hub", minRole: "manager" },
-      { title: "Tài sản số", icon: Coins, path: "/digital-assets", minRole: "manager" },
-      { title: "Kế toán", icon: BookOpen, path: "/accounting", minRole: "manager" },
-      { title: "Báo cáo", icon: BarChart3, path: "/reports", minRole: "manager" },
+      {
+        title: "Văn phòng số",
+        icon: Stamp,
+        path: "/e-office",
+        subItems: [
+          { title: "Tổng quan E-Office", icon: Stamp, path: "/e-office" },
+          { title: "Chỉ thị lãnh đạo", icon: Activity, path: "/directive-dashboard", minRole: "manager" },
+          { title: "Hợp đồng điện tử", icon: FileSignature, path: "/contracts", minRole: "manager" },
+          { title: "Đặt lịch làm việc", icon: CalendarDays, path: "/bookings" },
+        ]
+      },
+      {
+        title: "AI & Tự động hóa",
+        icon: Bot,
+        path: "/sales-agent",
+        minRole: "manager",
+        subItems: [
+          { title: "Trợ lý Sales AI", icon: Bot, path: "/sales-agent" },
+          { title: "Quy trình tự động", icon: Workflow, path: "/workflows" },
+          { title: "Trung tâm dữ liệu", icon: Database, path: "/data-hub" },
+          { title: "Tài sản số", icon: Coins, path: "/digital-assets" },
+        ]
+      },
+      {
+        title: "Kế toán & Báo cáo",
+        icon: BookOpen,
+        path: "/accounting",
+        minRole: "manager",
+        subItems: [
+          { title: "Sổ sách Kế toán", icon: BookOpen, path: "/accounting" },
+          { title: "Báo cáo quản trị", icon: BarChart3, path: "/reports" },
+        ]
+      },
     ],
   },
   {
     title: "Hiệu suất",
     items: [
-      { title: "Tổng quan", icon: Trophy, path: "/performance" },
-      { title: "KPI", icon: Target, path: "/performance/kpi" },
-      { title: "Gamification", icon: Gamepad2, path: "/performance/gamification" },
-      { title: "Quản lý Team", icon: UsersRound, path: "/performance/team", minRole: "manager" },
-      { title: "Báo cáo nhanh", icon: Mic, path: "/work-report" },
-      { title: "BC Chiến lược", icon: ClipboardList, path: "/strategic-report", minRole: "manager" },
-      { title: "Dự án & KPI", icon: FolderKanban, path: "/projects" },
-      { title: "Thiết lập", icon: Settings, path: "/performance/setup", minRole: "admin" },
+      {
+        title: "Hiệu suất",
+        icon: Trophy,
+        path: "/performance",
+        subItems: [
+          { title: "Tổng quan hiệu suất", icon: Trophy, path: "/performance" },
+          { title: "Chỉ tiêu KPI", icon: Target, path: "/performance/kpi" },
+          { title: "Dự án & KPI", icon: FolderKanban, path: "/projects" },
+          { title: "Gamification", icon: Gamepad2, path: "/performance/gamification" },
+          { title: "Quản lý Team", icon: UsersRound, path: "/performance/team", minRole: "manager" },
+          { title: "Báo cáo nhanh", icon: Mic, path: "/work-report" },
+          { title: "BC Chiến lược", icon: ClipboardList, path: "/strategic-report", minRole: "manager" },
+          { title: "Thiết lập hiệu suất", icon: Settings, path: "/performance/setup", minRole: "admin" },
+        ]
+      }
     ],
   },
   {
     title: "Tài liệu",
     items: [
-      { title: "Tra cứu AI", icon: Search, path: "/document-search" },
-      { title: "Quản lý tài liệu", icon: FolderOpen, path: "/documents" },
-      { title: "Trending", icon: TrendingUp, path: "/trending" },
-      { title: "Bookmarks", icon: Star, path: "/bookmarks" },
+      {
+        title: "Tài liệu & Tri thức",
+        icon: FolderOpen,
+        path: "/documents",
+        subItems: [
+          { title: "Quản lý tài liệu", icon: FolderOpen, path: "/documents" },
+          { title: "Tra cứu AI", icon: Search, path: "/document-search" },
+          { title: "Xu hướng (Trending)", icon: TrendingUp, path: "/trending" },
+          { title: "Bookmarks", icon: Star, path: "/bookmarks" },
+        ]
+      }
     ],
   },
 ];

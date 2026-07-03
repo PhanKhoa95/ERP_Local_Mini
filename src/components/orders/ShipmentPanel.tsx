@@ -6,6 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, ExternalLink, Loader2, Package, MapPin, BarChart3, Copy, Check } from "lucide-react";
 import { useShipments, useShippingCarriers } from "@/hooks/useShippingCarriers";
+import { useOrders } from "@/hooks/useOrders";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 const carrierStatusLabels: Record<string, string> = {
@@ -47,6 +50,7 @@ export function ShipmentPanel({ orderId, orderStatus }: ShipmentPanelProps) {
   const { toast } = useToast();
   const { shipments, isLoading, createShipment } = useShipments(orderId);
   const { carriers, callCarrierProxy } = useShippingCarriers();
+  const { updateOrderStatus } = useOrders();
   const [selectedCarrier, setSelectedCarrier] = useState("");
   const [creating, setCreating] = useState(false);
   const [tracking, setTracking] = useState(false);
@@ -113,6 +117,7 @@ export function ShipmentPanel({ orderId, orderStatus }: ShipmentPanelProps) {
   const handleCreateShipment = async () => {
     if (!selectedCarrier) return;
     setCreating(true);
+    let trackingCode = "";
     try {
       if (autoSend) {
         // Tự động đẩy đơn hàng: giả lập kết nối và đồng bộ API hãng
@@ -120,14 +125,15 @@ export function ShipmentPanel({ orderId, orderStatus }: ShipmentPanelProps) {
       }
 
       try {
-        await callCarrierProxy(selectedCarrier, "create_shipment", { order_id: orderId });
+        const result = await callCarrierProxy(selectedCarrier, "create_shipment", { order_id: orderId });
+        trackingCode = result?.tracking_code || `SHIP-${orderId}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
         toast({ title: "Đồng bộ hãng vận chuyển thành công!" });
       } catch (proxyError) {
         // Fallback: Tự sinh mã vận đơn local trong DB nếu không kết nối được API thật
         const selectedCarrierObj = activeCarriers.find(c => c.id === selectedCarrier);
         const codePrefix = selectedCarrierObj?.code?.toUpperCase() || "SHIP";
         const randomNum = Math.floor(100000000 + Math.random() * 900000000);
-        const mockTrackingCode = `${codePrefix}${randomNum}`;
+        trackingCode = `${codePrefix}${randomNum}`;
         
         const selectedQuote = feeQuotes.find(q => q.carrierId === selectedCarrier);
         const shippingFee = selectedQuote?.fee || 26000;
@@ -135,9 +141,41 @@ export function ShipmentPanel({ orderId, orderStatus }: ShipmentPanelProps) {
         await createShipment.mutateAsync({
           order_id: orderId,
           carrier_id: selectedCarrier,
-          tracking_code: mockTrackingCode,
+          tracking_code: trackingCode,
           cod_amount: 0,
           weight_grams: 500,
+        });
+      }
+
+      // Cập nhật trạng thái đơn hàng sang shipping và gán mã vận đơn vào platform_order_id
+      if (trackingCode) {
+        if (isLocalDemoAuthEnabled()) {
+          const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+          if (rawOrders) {
+            const all = JSON.parse(rawOrders);
+            const idx = all.findIndex((o: any) => o.id === orderId);
+            if (idx !== -1) {
+              all[idx].status = "shipping";
+              all[idx].platform_order_id = trackingCode;
+              all[idx].updated_at = new Date().toISOString();
+              localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(all));
+            }
+          }
+        } else {
+          await supabase
+            .from("orders")
+            .update({
+              status: "shipping",
+              platform_order_id: trackingCode,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", orderId);
+        }
+
+        await updateOrderStatus.mutateAsync({ id: orderId, status: "shipping" });
+        toast({
+          title: "Đơn hàng đang được giao",
+          description: `Vận đơn ${trackingCode} đã được gán vào đơn hàng.`
         });
       }
     } catch (err: any) {

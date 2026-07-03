@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useNavigate } from "react-router-dom";
 import { GlobalDateFilterBar } from "./GlobalDateFilterBar";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 
 interface HeaderProps {
   title: string;
@@ -55,6 +56,9 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
               className="w-64 pl-9 bg-secondary/50 border-0 focus-visible:ring-1"
             />
           </div>
+
+          {/* Keyboard Shortcuts Guide */}
+          <KeyboardShortcuts />
 
           {/* Notifications */}
           <NotificationBell />

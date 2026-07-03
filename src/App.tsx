@@ -15,6 +15,7 @@ import PublicOrder from "./pages/PublicOrder";
 import OrderTracking from "./pages/OrderTracking";
 import HelpCenter from "./pages/HelpCenter";
 import HealthCheck from "./pages/HealthCheck";
+import CustomerDisplay from "./pages/CustomerDisplay";
 import { initLocalDemoSync } from "@/lib/localDemoSync";
 
 const queryClient = new QueryClient({
@@ -55,6 +56,7 @@ const App = () => (
                 <Route path="/tracking" element={<OrderTracking />} />
                 <Route path="/order-tracking" element={<OrderTracking />} />
                 <Route path="/help" element={<HelpCenter />} />
+                <Route path="/customer-display" element={<CustomerDisplay />} />
                 <Route path="/*" element={
                   <ProtectedRoute>
                     <AppShell>

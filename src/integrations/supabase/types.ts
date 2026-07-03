@@ -14,6 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
+      product_variant_components: {
+        Row: {
+          id: string
+          parent_variant_id: string
+          child_variant_id: string
+          quantity: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          parent_variant_id: string
+          child_variant_id: string
+          quantity?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          parent_variant_id?: string
+          child_variant_id?: string
+          quantity?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variant_components_parent_variant_id_fkey"
+            columns: ["parent_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variant_components_child_variant_id_fkey"
+            columns: ["child_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      wholesale_settings: {
+        Row: {
+          id: string
+          company_id: string
+          apply_by_order_qty_enabled: boolean
+          apply_by_order_qty_threshold: number
+          apply_by_product_qty_enabled: boolean
+          apply_by_product_qty_threshold: number
+          apply_by_variant_qty_enabled: boolean
+          apply_by_order_tags_enabled: boolean
+          apply_by_order_tags: string[]
+          apply_by_customer_tags_enabled: boolean
+          apply_by_customer_tags: string[]
+          no_other_discounts: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          apply_by_order_qty_enabled?: boolean
+          apply_by_order_qty_threshold?: number
+          apply_by_product_qty_enabled?: boolean
+          apply_by_product_qty_threshold?: number
+          apply_by_variant_qty_enabled?: boolean
+          apply_by_order_tags_enabled?: boolean
+          apply_by_order_tags?: string[]
+          apply_by_customer_tags_enabled?: boolean
+          apply_by_customer_tags?: string[]
+          no_other_discounts?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          apply_by_order_qty_enabled?: boolean
+          apply_by_order_qty_threshold?: number
+          apply_by_product_qty_enabled?: boolean
+          apply_by_product_qty_threshold?: number
+          apply_by_variant_qty_enabled?: boolean
+          apply_by_order_tags_enabled?: boolean
+          apply_by_order_tags?: string[]
+          apply_by_customer_tags_enabled?: boolean
+          apply_by_customer_tags?: string[]
+          no_other_discounts?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wholesale_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      product_wholesale_prices: {
+        Row: {
+          id: string
+          product_id: string
+          variant_id: string | null
+          min_quantity: number
+          wholesale_price: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          variant_id?: string | null
+          min_quantity?: number
+          wholesale_price: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          variant_id?: string | null
+          min_quantity?: number
+          wholesale_price?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_wholesale_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_wholesale_prices_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+
       achievements: {
         Row: {
           badge_reward: string | null
@@ -2848,6 +2995,7 @@ export type Database = {
           quantity: number
           total: number
           unit_price: number
+          variant_id: string | null
         }
         Insert: {
           created_at?: string
@@ -2858,6 +3006,7 @@ export type Database = {
           quantity?: number
           total: number
           unit_price: number
+          variant_id?: string | null
         }
         Update: {
           created_at?: string
@@ -2868,6 +3017,7 @@ export type Database = {
           quantity?: number
           total?: number
           unit_price?: number
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -3002,10 +3152,19 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number | null
           total: number | null
+          tags: string[] | null
           updated_at: string
           voucher_discount: number | null
           voucher_id: string | null
           warehouse_id: string | null
+          cod_amount: number | null
+          prepaid_amount: number | null
+          only_collect_return_fee: boolean | null
+          expected_delivery_date: string | null
+          tags: string | null
+          assigned_to_name: string | null
+          marketer_name: string | null
+          print_count: number | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -3049,10 +3208,20 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number | null
           total?: number | null
+          tags?: string[] | null
+          tags?: string[] | null
           updated_at?: string
           voucher_discount?: number | null
           voucher_id?: string | null
           warehouse_id?: string | null
+          cod_amount?: number | null
+          prepaid_amount?: number | null
+          only_collect_return_fee?: boolean | null
+          expected_delivery_date?: string | null
+          tags?: string | null
+          assigned_to_name?: string | null
+          marketer_name?: string | null
+          print_count?: number | null
         }
         Update: {
           cancelled_at?: string | null
@@ -3096,10 +3265,20 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number | null
           total?: number | null
+          tags?: string[] | null
+          tags?: string[] | null
           updated_at?: string
           voucher_discount?: number | null
           voucher_id?: string | null
           warehouse_id?: string | null
+          cod_amount?: number | null
+          prepaid_amount?: number | null
+          only_collect_return_fee?: boolean | null
+          expected_delivery_date?: string | null
+          tags?: string | null
+          assigned_to_name?: string | null
+          marketer_name?: string | null
+          print_count?: number | null
         }
         Relationships: [
           {
@@ -3164,6 +3343,7 @@ export type Database = {
           phone: string | null
           tax_id: string | null
           total_spent: number | null
+          tags: string[] | null
           updated_at: string
         }
         Insert: {
@@ -3183,6 +3363,8 @@ export type Database = {
           phone?: string | null
           tax_id?: string | null
           total_spent?: number | null
+          tags?: string[] | null
+          tags?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -3202,6 +3384,8 @@ export type Database = {
           phone?: string | null
           tax_id?: string | null
           total_spent?: number | null
+          tags?: string[] | null
+          tags?: string[] | null
           updated_at?: string
         }
         Relationships: [
@@ -4868,6 +5052,7 @@ export type Database = {
           status: string
           subtotal: number | null
           total: number | null
+          tags: string[] | null
           updated_at: string
           valid_until: string | null
         }
@@ -4884,6 +5069,8 @@ export type Database = {
           status?: string
           subtotal?: number | null
           total?: number | null
+          tags?: string[] | null
+          tags?: string[] | null
           updated_at?: string
           valid_until?: string | null
         }
@@ -4900,6 +5087,8 @@ export type Database = {
           status?: string
           subtotal?: number | null
           total?: number | null
+          tags?: string[] | null
+          tags?: string[] | null
           updated_at?: string
           valid_until?: string | null
         }

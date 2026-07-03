@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PlatformPromotionsTab } from "@/components/promotions/PlatformPromotionsTab";
 import { useVouchers, type Voucher } from "@/hooks/useVouchers";
 import { useOrders } from "@/hooks/useOrders";
 import { useProducts } from "@/hooks/useProducts";
@@ -240,8 +241,13 @@ export default function Promotions() {
           </Card>
         </div>
 
-        {/* Filters and List */}
-        <div className="space-y-4">
+        <Tabs defaultValue="vouchers" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-4 bg-muted/65">
+            <TabsTrigger value="vouchers">Voucher cửa hàng</TabsTrigger>
+            <TabsTrigger value="platforms">Khuyến mãi & Khóa kho Sàn</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="vouchers" className="space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex gap-2">
               <Button
@@ -423,7 +429,12 @@ export default function Promotions() {
               </TableBody>
             </Table>
           </Card>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="platforms" className="space-y-4">
+            <PlatformPromotionsTab />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Creation & Edit Dialog */}

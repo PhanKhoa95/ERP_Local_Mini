@@ -1,504 +1,371 @@
 import { useState, useCallback } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Loader2, Download, X, PackageSearch } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, X } from "lucide-react";
+import { useProducts } from "@/hooks/useProducts";
 import { useToast } from "@/hooks/use-toast";
-import { useOrders } from "@/hooks/useOrders";
-import { useSalesChannels } from "@/hooks/useSalesChannels";
-import { useWarehouses } from "@/hooks/useWarehouses";
-import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { resolveSkus, type SkuResolutionResult } from "@/lib/skuResolution";
-import {
-  type ParsedRow,
-  autoMapHeaders,
-  parseRowsWithMapping,
-} from "@/lib/importUtils";
-
-interface ImportResult {
-  total: number;
-  success: number;
-  failed: number;
-  errors: string[];
-}
 
 interface ImportOrdersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onImport: (orders: ImportedOrder[]) => void;
+  isLoading?: boolean;
 }
 
-export function ImportOrdersDialog({ open, onOpenChange }: ImportOrdersDialogProps) {
-  const [step, setStep] = useState<"upload" | "preview" | "importing" | "result">("upload");
-  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
-  const [headerMapping, setHeaderMapping] = useState<Record<number, keyof ParsedRow>>({});
-  const [rawHeaders, setRawHeaders] = useState<string[]>([]);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [fileName, setFileName] = useState("");
-  const [skuResult, setSkuResult] = useState<SkuResolutionResult | null>(null);
-  const [skuResolving, setSkuResolving] = useState(false);
+interface ParsedRow {
+  row_number: number;
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  product_sku: string;
+  quantity: number;
+  notes: string;
+  // validation
+  errors: string[];
+  product_id?: string;
+  product_name?: string;
+  unit_price?: number;
+}
+
+export interface ImportedOrder {
+  customer_name: string;
+  customer_phone: string;
+  customer_address: string;
+  items: Array<{
+    product_id: string;
+    product_sku: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }>;
+  notes: string;
+}
+
+export function ImportOrdersDialog({ open, onOpenChange, onImport, isLoading }: ImportOrdersDialogProps) {
+  const { products } = useProducts();
   const { toast } = useToast();
-  const { createOrder } = useOrders();
-  const { channels } = useSalesChannels();
-  const { warehouses } = useWarehouses();
-  const { companyId } = useCompanyContext();
 
-  const reset = useCallback(() => {
-    setStep("upload");
-    setParsedRows([]);
-    setHeaderMapping({});
-    setRawHeaders([]);
-    setImportResult(null);
-    setProgress(0);
-    setFileName("");
-    setSkuResult(null);
-    setSkuResolving(false);
-  }, []);
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [fileName, setFileName] = useState("");
+  const [step, setStep] = useState<"upload" | "preview">("upload");
 
-  // Resolve SKUs when preview step is entered
-  const handleResolveSkus = async () => {
-    if (!companyId || skuResolving) return;
-    setSkuResolving(true);
-    try {
-      const skus = parsedRows
-        .map((r) => r.product_sku)
-        .filter((s): s is string => !!s);
-      if (skus.length > 0) {
-        const result = await resolveSkus(companyId, skus);
-        setSkuResult(result);
-        if (result.unresolved.length > 0) {
-          toast({
-            title: "SKU chưa khớp",
-            description: `${result.unresolved.length} SKU không tìm thấy sản phẩm tương ứng`,
-          });
-        } else {
-          toast({
-            title: "SKU đã khớp hoàn toàn",
-            description: `${result.resolved.length} SKU đã được ánh xạ thành công`,
-          });
-        }
-      }
-    } catch {
-      toast({ variant: "destructive", title: "Lỗi phân giải SKU" });
-    } finally {
-      setSkuResolving(false);
-    }
+  const handleDownloadTemplate = () => {
+    // Generate CSV template (Excel-compatible)
+    const headers = ["Tên khách hàng", "Số điện thoại", "Địa chỉ giao hàng", "Mã sản phẩm (SKU)", "Số lượng", "Ghi chú"];
+    const sampleData = [
+      ["Nguyễn Văn A", "0901234567", "123 Nguyễn Huệ, Q.1, HCM", "SP-001", "2", "Giao trước 5h"],
+      ["Trần Thị B", "0912345678", "456 Lê Lợi, Q.3, HCM", "SP-002", "1", ""],
+    ];
+
+    const csvContent = [
+      headers.join(","),
+      ...sampleData.map(row => row.map(cell => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "mau_nhap_don_hang.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    toast({ title: "Đã tải file mẫu", description: "Mở file CSV bằng Excel, điền dữ liệu rồi upload lại." });
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = [];
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      // Simple CSV parse (handles quoted fields)
+      const cells: string[] = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === "," && !inQuotes) {
+          cells.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+      cells.push(current.trim());
+      rows.push(cells);
+    }
+    return rows;
+  };
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setFileName(file.name);
 
-    try {
-      // Dynamic import xlsx to avoid bundle bloat
-      const XLSX = await import("@e965/xlsx");
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const rows = parseCSV(text);
 
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-
-      if (jsonData.length < 2) {
-        toast({ variant: "destructive", title: "File rỗng", description: "File cần ít nhất 1 dòng header và 1 dòng dữ liệu." });
+      if (rows.length < 2) {
+        toast({ title: "File rỗng", description: "File không có dữ liệu hoặc chỉ có header.", variant: "destructive" });
         return;
       }
 
-      const headers = (jsonData[0] as any[]).map(String);
-      setRawHeaders(headers);
+      // Skip header row
+      const dataRows = rows.slice(1);
 
-      // Auto-map columns
-      const mapping = autoMapHeaders(headers);
-      setHeaderMapping(mapping);
+      const parsed: ParsedRow[] = dataRows.map((cells, idx) => {
+        const errors: string[] = [];
 
-      // Parse rows
-      const rows = parseRowsWithMapping(jsonData, mapping);
+        const customerName = cells[0] || "";
+        const customerPhone = cells[1] || "";
+        const customerAddress = cells[2] || "";
+        const productSku = cells[3] || "";
+        const quantity = parseInt(cells[4] || "0", 10);
+        const notes = cells[5] || "";
 
-      setParsedRows(rows);
-      setStep("preview");
-
-      // Auto-resolve SKUs after parsing
-      if (companyId) {
-        const skusInFile = rows.map((r) => r.product_sku).filter(Boolean) as string[];
-        if (skusInFile.length > 0) {
-          resolveSkus(companyId, skusInFile)
-            .then((result) => setSkuResult(result))
-            .catch(() => {});
+        if (!customerName && !customerPhone) {
+          errors.push("Thiếu tên KH hoặc SĐT");
         }
-      }
-    } catch (err) {
-      toast({ variant: "destructive", title: "Lỗi đọc file", description: String(err) });
-    }
+        if (!productSku) {
+          errors.push("Thiếu mã SKU");
+        }
+        if (!quantity || quantity <= 0) {
+          errors.push("Số lượng không hợp lệ");
+        }
 
-    // Reset input
+        // Validate SKU
+        let product_id: string | undefined;
+        let product_name: string | undefined;
+        let unit_price: number | undefined;
+
+        if (productSku) {
+          const found = products.find(
+            p => p.sku?.toLowerCase() === productSku.toLowerCase()
+          );
+          if (found) {
+            product_id = found.id;
+            product_name = found.name;
+            unit_price = Number(found.selling_price) || 0;
+          } else {
+            errors.push(`SKU "${productSku}" không tồn tại`);
+          }
+        }
+
+        return {
+          row_number: idx + 2,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_address: customerAddress,
+          product_sku: productSku,
+          quantity,
+          notes,
+          errors,
+          product_id,
+          product_name,
+          unit_price,
+        };
+      });
+
+      setParsedRows(parsed);
+      setStep("preview");
+    };
+
+    reader.readAsText(file, "utf-8");
+    // Reset input so same file can be re-uploaded
     e.target.value = "";
-  };
+  }, [products, toast]);
 
-  const handleImport = async () => {
-    setStep("importing");
-    const result: ImportResult = { total: parsedRows.length, success: 0, failed: 0, errors: [] };
+  const validRows = parsedRows.filter(r => r.errors.length === 0);
+  const errorRows = parsedRows.filter(r => r.errors.length > 0);
 
-    // Group rows by order_number to batch items per order
-    const orderGroups = new Map<string, ParsedRow[]>();
-    parsedRows.forEach((row, idx) => {
-      const key = row.order_number || `import-${Date.now()}-${idx}`;
-      if (!orderGroups.has(key)) {
-        orderGroups.set(key, []);
+  const handleImport = () => {
+    // Group valid rows by customer (name + phone)
+    const grouped: Record<string, ImportedOrder> = {};
+
+    validRows.forEach(row => {
+      const key = `${row.customer_name}||${row.customer_phone}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          customer_name: row.customer_name,
+          customer_phone: row.customer_phone,
+          customer_address: row.customer_address,
+          items: [],
+          notes: row.notes,
+        };
       }
-      orderGroups.get(key)!.push(row);
+      if (row.product_id) {
+        grouped[key].items.push({
+          product_id: row.product_id,
+          product_sku: row.product_sku,
+          product_name: row.product_name || "",
+          quantity: row.quantity,
+          unit_price: row.unit_price || 0,
+          total: row.quantity * (row.unit_price || 0),
+        });
+      }
+      if (row.notes && !grouped[key].notes.includes(row.notes)) {
+        grouped[key].notes = [grouped[key].notes, row.notes].filter(Boolean).join("; ");
+      }
     });
 
-    const totalGroups = orderGroups.size;
-    let processed = 0;
-
-    for (const [orderKey, rows] of orderGroups) {
-      try {
-        const firstRow = rows[0];
-
-        // Resolve channel
-        let channelId = "";
-        if (firstRow.channel_name) {
-          const ch = channels.find(
-            c => c.name.toLowerCase().includes(firstRow.channel_name!.toLowerCase())
-          );
-          if (ch) channelId = ch.id;
-        }
-        if (!channelId && channels.length > 0) {
-          channelId = channels[0].id;
-        }
-
-        // Resolve warehouse
-        let warehouseId = "";
-        if (firstRow.warehouse_name) {
-          const wh = warehouses.find(
-            w => w.name.toLowerCase().includes(firstRow.warehouse_name!.toLowerCase())
-          );
-          if (wh) warehouseId = wh.id;
-        }
-
-        const orderNumber = firstRow.order_number || `IMP-${Date.now()}-${processed}`;
-
-        await createOrder.mutateAsync({
-          order: {
-            order_number: orderNumber,
-            platform_order_id: firstRow.platform_order_id || null,
-            channel_id: channelId || null,
-            source_type: firstRow.platform_order_id ? "platform" : "manual",
-            order_type: "b2c",
-            customer_name: firstRow.customer_name || null,
-            customer_phone: firstRow.customer_phone || null,
-            customer_address: firstRow.customer_address || null,
-            shipping_address: firstRow.shipping_address || firstRow.customer_address || null,
-            payment_method: firstRow.payment_method || "cod",
-            warehouse_id: warehouseId || null,
-            notes: firstRow.notes || `Import từ file: ${fileName}`,
-            status: "pending",
-            subtotal: rows.reduce((s, r) => s + (r.quantity || 1) * (r.unit_price || 0), 0),
-            total: rows.reduce((s, r) => s + (r.quantity || 1) * (r.unit_price || 0), 0),
-          },
-          items: rows
-            .filter(r => r.product_sku || r.product_name)
-            .map(r => {
-              // Resolve SKU to product_id using pre-computed resolution
-              let productId = "";
-              if (r.product_sku && skuResult) {
-                const match = skuResult.resolved.find(
-                  (m) => m.sku === r.product_sku || m.sku.toLowerCase() === r.product_sku!.toLowerCase()
-                );
-                if (match) productId = match.product_id;
-              }
-              return {
-                product_id: productId,
-                quantity: r.quantity || 1,
-                unit_price: r.unit_price || 0,
-                discount: 0,
-                total: (r.quantity || 1) * (r.unit_price || 0),
-              };
-            }),
-        });
-        result.success++;
-      } catch (err) {
-        result.failed++;
-        result.errors.push(`Đơn ${orderKey}: ${err instanceof Error ? err.message : String(err)}`);
-      }
-
-      processed++;
-      setProgress(Math.round((processed / totalGroups) * 100));
-    }
-
-    setImportResult(result);
-    setStep("result");
+    const orders = Object.values(grouped);
+    onImport(orders);
   };
 
-  const downloadTemplate = () => {
-    const headers = [
-      "Mã đơn", "Tên khách", "Số điện thoại", "Địa chỉ",
-      "Địa chỉ giao", "Mã sản phẩm", "Tên sản phẩm",
-      "Số lượng", "Đơn giá", "Thanh toán", "Ghi chú",
-      "Kênh", "Kho", "Mã đơn sàn"
-    ];
-    const sampleRow = [
-      "ORD-001", "Nguyễn Văn A", "0901234567", "123 Nguyễn Huệ, Q1, TP.HCM",
-      "123 Nguyễn Huệ, Q1, TP.HCM", "SKU001", "Áo thun trắng",
-      "2", "150000", "cod", "Giao nhanh",
-      "Shopee", "Kho chính", "SP-12345"
-    ];
-
-    const csv = [headers.join(","), sampleRow.join(",")].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "template_import_orders.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleReset = () => {
+    setParsedRows([]);
+    setFileName("");
+    setStep("upload");
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white/90 backdrop-blur-lg shadow-xl rounded-xl">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) handleReset(); onOpenChange(v); }}>
+      <DialogContent className="max-w-[90vw] w-[90vw] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 shadow-xl rounded-xl">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-semibold flex items-center gap-2">
-            <FileSpreadsheet className="h-6 w-6 text-primary" />
-            Import đơn hàng từ file
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+            Nhập đơn hàng từ Excel / CSV
           </DialogTitle>
+          <DialogDescription>
+            Tải file mẫu, điền dữ liệu, sau đó upload lại để tạo đơn hàng hàng loạt.
+          </DialogDescription>
         </DialogHeader>
 
-        {/* Step 1: Upload */}
         {step === "upload" && (
           <div className="space-y-6 py-4">
-            <div className="flex flex-col items-center justify-center gap-4 p-10 border-2 border-dashed rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors">
-              <Upload className="h-12 w-12 text-muted-foreground" />
-              <div className="text-center">
-                <p className="text-lg font-medium">Kéo thả file hoặc nhấn để chọn</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Hỗ trợ: .csv, .xlsx, .xls
-                </p>
-              </div>
-              <label>
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <Button variant="default" asChild>
-                  <span className="cursor-pointer">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Chọn file
-                  </span>
-                </Button>
-              </label>
+            {/* Step 1: Download template */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-foreground">Bước 1: Tải file mẫu</h3>
+              <Button variant="outline" onClick={handleDownloadTemplate} className="gap-2">
+                <Download className="h-4 w-4" /> Tải file mẫu (.csv)
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                File mẫu gồm các cột: Tên KH, SĐT, Địa chỉ, SKU sản phẩm, Số lượng, Ghi chú.
+                Mở bằng Excel hoặc Google Sheets để điền dữ liệu.
+              </p>
             </div>
 
-            <Separator />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Chưa có template?</p>
-                <p className="text-xs text-muted-foreground">
-                  Tải file mẫu để bắt đầu nhập liệu nhanh
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={downloadTemplate}>
-                <Download className="h-4 w-4 mr-2" />
-                Tải template CSV
-              </Button>
+            {/* Step 2: Upload */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-foreground">Bước 2: Upload file đã điền</h3>
+              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer hover:bg-secondary/30 transition-colors">
+                <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  Kéo thả hoặc nhấn để chọn file CSV / Excel
+                </span>
+                <span className="text-xs text-muted-foreground mt-1">Hỗ trợ: .csv</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                />
+              </label>
             </div>
           </div>
         )}
 
-        {/* Step 2: Preview */}
         {step === "preview" && (
-          <div className="space-y-4">
+          <div className="space-y-4 py-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{fileName}</Badge>
-                <span className="text-sm text-muted-foreground">
-                  {parsedRows.length} dòng dữ liệu
-                </span>
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary" className="gap-1">
+                  <FileSpreadsheet className="h-3 w-3" /> {fileName}
+                </Badge>
+                <Badge variant="default" className="bg-emerald-600">
+                  {validRows.length} dòng hợp lệ
+                </Badge>
+                {errorRows.length > 0 && (
+                  <Badge variant="destructive">
+                    {errorRows.length} lỗi
+                  </Badge>
+                )}
               </div>
-              <Button variant="ghost" size="sm" onClick={reset}>
-                <X className="h-4 w-4 mr-1" /> Chọn file khác
+              <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1">
+                <X className="h-3 w-3" /> Upload lại
               </Button>
             </div>
 
-            {/* Column mapping info */}
-            <Alert>
-              <AlertDescription className="text-sm">
-                <strong>Tự động nhận diện cột:</strong>{" "}
-                {Object.values(headerMapping).length}/{rawHeaders.length} cột đã map.
-                Các cột không nhận diện được sẽ bị bỏ qua.
-              </AlertDescription>
-            </Alert>
-
-            {/* SKU Resolution Status */}
-            {skuResult && (
-              <Alert variant={skuResult.unresolved.length > 0 ? "destructive" : "default"}>
-                <PackageSearch className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  <strong>Phân giải SKU:</strong>{" "}
-                  {skuResult.resolved.length} khớp
-                  {skuResult.unresolved.length > 0 && (
-                    <>, <span className="text-destructive font-medium">{skuResult.unresolved.length} không tìm thấy</span>
-                    {" "}({skuResult.unresolved.slice(0, 5).join(", ")}{skuResult.unresolved.length > 5 ? "..." : ""})
-                    </>
-                  )}
-                  {skuResult.resolved.filter((r) => r.match_type !== "exact_sku").length > 0 && (
-                    <>, {skuResult.resolved.filter((r) => r.match_type !== "exact_sku").length} khớp gần đúng</>
-                  )}
+            {errorRows.length > 0 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>{errorRows.length} dòng có lỗi</strong> sẽ bị bỏ qua khi nhập.
                 </AlertDescription>
               </Alert>
             )}
-            {!skuResult && parsedRows.some((r) => r.product_sku) && (
-              <Button variant="outline" size="sm" onClick={handleResolveSkus} disabled={skuResolving}>
-                {skuResolving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageSearch className="h-4 w-4 mr-2" />}
-                Phân giải SKU
-              </Button>
-            )}
 
-            {/* Data preview */}
-            <div className="border rounded-lg overflow-x-auto max-h-[400px]">
+            <div className="max-h-[400px] overflow-auto border rounded-lg">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12 text-center">#</TableHead>
-                    {rawHeaders.map((h, idx) => (
-                      <TableHead key={idx} className="min-w-[120px]">
-                        <div>
-                          <span className="text-xs text-muted-foreground">{h}</span>
-                          {headerMapping[idx] && (
-                            <Badge variant="outline" className="ml-1 text-[10px]">
-                              → {headerMapping[idx]}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableHead>
-                    ))}
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="text-xs w-12">Dòng</TableHead>
+                    <TableHead className="text-xs">Khách hàng</TableHead>
+                    <TableHead className="text-xs">SĐT</TableHead>
+                    <TableHead className="text-xs">SKU</TableHead>
+                    <TableHead className="text-xs">Sản phẩm</TableHead>
+                    <TableHead className="text-xs text-right">SL</TableHead>
+                    <TableHead className="text-xs text-right">Đơn giá</TableHead>
+                    <TableHead className="text-xs w-16">Trạng thái</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {parsedRows.slice(0, 10).map((row, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="text-center text-xs text-muted-foreground">{idx + 1}</TableCell>
-                      {rawHeaders.map((_, colIdx) => {
-                        const field = headerMapping[colIdx];
-                        const value = field ? (row as any)[field] : undefined;
-                        return (
-                          <TableCell key={colIdx} className="text-sm">
-                            {value !== undefined ? String(value) : (
-                              <span className="text-muted-foreground/40">—</span>
-                            )}
-                          </TableCell>
-                        );
-                      })}
+                  {parsedRows.map((row, idx) => (
+                    <TableRow
+                      key={idx}
+                      className={row.errors.length > 0 ? "bg-red-50/50" : "hover:bg-muted/10"}
+                    >
+                      <TableCell className="text-xs text-muted-foreground">{row.row_number}</TableCell>
+                      <TableCell className="text-xs font-medium">{row.customer_name || "—"}</TableCell>
+                      <TableCell className="text-xs">{row.customer_phone || "—"}</TableCell>
+                      <TableCell className="text-xs font-mono">{row.product_sku || "—"}</TableCell>
+                      <TableCell className="text-xs">{row.product_name || "—"}</TableCell>
+                      <TableCell className="text-xs text-right">{row.quantity}</TableCell>
+                      <TableCell className="text-xs text-right">
+                        {row.unit_price ? `${row.unit_price.toLocaleString("vi-VN")}đ` : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {row.errors.length > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            {row.errors.map((err, eIdx) => (
+                              <span key={eIdx} className="text-[10px] text-destructive">{err}</span>
+                            ))}
+                          </div>
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-              {parsedRows.length > 10 && (
-                <div className="text-center text-xs text-muted-foreground py-2 border-t">
-                  ... và {parsedRows.length - 10} dòng nữa
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={reset}>Hủy</Button>
-              <Button onClick={handleImport} disabled={parsedRows.length === 0}>
-                <Upload className="h-4 w-4 mr-2" />
-                Import {parsedRows.length} dòng
-              </Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Importing */}
-        {step === "importing" && (
-          <div className="flex flex-col items-center justify-center gap-6 py-12">
-            <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <div className="text-center">
-              <p className="text-lg font-medium">Đang import đơn hàng...</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Vui lòng không đóng cửa sổ này
-              </p>
-            </div>
-            <div className="w-full max-w-md">
-              <Progress value={progress} className="h-2" />
-              <p className="text-xs text-center text-muted-foreground mt-2">{progress}%</p>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Result */}
-        {step === "result" && importResult && (
-          <div className="space-y-6 py-4">
-            <div className="flex flex-col items-center gap-4">
-              {importResult.failed === 0 ? (
-                <CheckCircle2 className="h-16 w-16 text-green-500" />
-              ) : (
-                <AlertTriangle className="h-16 w-16 text-orange-500" />
-              )}
-              <div className="text-center">
-                <p className="text-xl font-semibold">
-                  Import hoàn tất
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {importResult.success}/{importResult.total} đơn hàng thành công
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-secondary/30 rounded-lg">
-                <p className="text-2xl font-bold">{importResult.total}</p>
-                <p className="text-xs text-muted-foreground">Tổng</p>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <p className="text-2xl font-bold text-green-600">{importResult.success}</p>
-                <p className="text-xs text-muted-foreground">Thành công</p>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <p className="text-2xl font-bold text-red-600">{importResult.failed}</p>
-                <p className="text-xs text-muted-foreground">Lỗi</p>
-              </div>
-            </div>
-
-            {importResult.errors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    {importResult.errors.slice(0, 10).map((err, idx) => (
-                      <li key={idx}>{err}</li>
-                    ))}
-                    {importResult.errors.length > 10 && (
-                      <li>... và {importResult.errors.length - 10} lỗi khác</li>
-                    )}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex justify-end">
-              <Button onClick={() => { reset(); onOpenChange(false); }}>
-                Đóng
-              </Button>
-            </div>
-          </div>
+        {step === "preview" && (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Hủy
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={isLoading || validRows.length === 0}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Nhập {validRows.length} đơn hàng
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

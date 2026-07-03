@@ -24,8 +24,188 @@ interface AutoMessageTemplate {
   isActive: boolean;
 }
 
+interface ProductLifecycleConfig {
+  id: string;
+  productId: string;
+  productName: string;
+  durationDays: number;
+  leadTimeDays: number;
+  templateContent: string;
+  isActive: boolean;
+}
+
+interface ScheduledReminder {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  productId: string;
+  productName: string;
+  remindDate: string;
+  status: "pending" | "sent" | "cancelled";
+}
+
 export function AutoMessagesTab() {
   const { toast } = useToast();
+
+  // Product lifecycle & reminder hooks
+  const [products, setProducts] = useState<any[]>(() => {
+    if (typeof window === "undefined") return [];
+    const raw = localStorage.getItem("erp-mini-local-demo-products");
+    return raw ? JSON.parse(raw) : [
+      { id: "local-prod-sticker", name: "Sticker logo decal giấy", sku: "PRD-STICKER" },
+      { id: "local-prod-combo-new", name: "Combo Shop Mới Khởi Nghiệp", sku: "PRD-COMBO-NEW" }
+    ];
+  });
+
+  const [lifecycles, setLifecycles] = useState<ProductLifecycleConfig[]>(() => {
+    if (typeof window === "undefined") return [];
+    const raw = localStorage.getItem("erp-mini-product-lifecycles");
+    if (raw) return JSON.parse(raw);
+    return [
+      {
+        id: "lc-1",
+        productId: "local-prod-sticker",
+        productName: "Sticker logo decal giấy",
+        durationDays: 30,
+        leadTimeDays: 3,
+        templateContent: "Chào {customer_name}, sticker decal giấy bạn mua ngày {purchase_date} sắp dùng hết rồi ạ. Bạn có muốn đặt thêm đợt in mới không để shop chuẩn bị mẫu trước nhé!",
+        isActive: true
+      },
+      {
+        id: "lc-2",
+        productId: "local-prod-combo-new",
+        productName: "Combo Shop Mới Khởi Nghiệp",
+        durationDays: 60,
+        leadTimeDays: 5,
+        templateContent: "Chào {customer_name}, các ấn phẩm thiết kế đợt trước shop gửi tặng bạn đã dùng được gần 2 tháng. Bạn cần thiết kế/in ấn thêm mẫu mã gì để phục vụ kinh doanh sắp tới không ạ? 🥰",
+        isActive: true
+      }
+    ];
+  });
+
+  const [reminders, setReminders] = useState<ScheduledReminder[]>(() => {
+    if (typeof window === "undefined") return [];
+    const raw = localStorage.getItem("erp-mini-scheduled-reminders");
+    if (raw) return JSON.parse(raw);
+    return [
+      {
+        id: "rem-1",
+        orderId: "ord-1",
+        orderNumber: "POS-ORD-001",
+        customerName: "Nguyễn Văn An",
+        customerPhone: "0912345678",
+        productId: "local-prod-sticker",
+        productName: "Sticker logo decal giấy",
+        remindDate: new Date(Date.now() + 3600000 * 24 * 5).toISOString(),
+        status: "pending"
+      },
+      {
+        id: "rem-2",
+        orderId: "ord-2",
+        orderNumber: "ORD-WS-002",
+        customerName: "Phan Văn Khoa",
+        customerPhone: "0987654321",
+        productId: "local-prod-combo-new",
+        productName: "Combo Shop Mới Khởi Nghiệp",
+        remindDate: new Date(Date.now() + 3600000 * 24 * 12).toISOString(),
+        status: "pending"
+      }
+    ];
+  });
+
+  const [newProductId, setNewProductId] = useState("");
+  const [newDuration, setNewDuration] = useState(30);
+  const [newLeadTime, setNewLeadTime] = useState(3);
+  const [newTemplate, setNewTemplate] = useState("Chào {customer_name}, sản phẩm {product_name} bạn mua ngày {purchase_date} sắp hết rồi ạ. Bạn có muốn mua lại không?");
+
+  const handleAddLifecycle = () => {
+    if (!newProductId) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Vui lòng chọn sản phẩm" });
+      return;
+    }
+    const prod = products.find(p => p.id === newProductId);
+    if (!prod) return;
+
+    const newLc: ProductLifecycleConfig = {
+      id: "lc-" + Date.now(),
+      productId: newProductId,
+      productName: prod.name,
+      durationDays: newDuration,
+      leadTimeDays: newLeadTime,
+      templateContent: newTemplate,
+      isActive: true
+    };
+    const updated = [...lifecycles, newLc];
+    setLifecycles(updated);
+    localStorage.setItem("erp-mini-product-lifecycles", JSON.stringify(updated));
+    toast({ title: "Thêm thành công", description: "Đã thêm cấu hình vòng đời sản phẩm." });
+    setNewProductId("");
+  };
+
+  const handleDeleteLifecycle = (id: string) => {
+    const updated = lifecycles.filter(l => l.id !== id);
+    setLifecycles(updated);
+    localStorage.setItem("erp-mini-product-lifecycles", JSON.stringify(updated));
+    toast({ title: "Đã xóa", description: "Đã xóa cấu hình vòng đời sản phẩm." });
+  };
+
+  const handleTriggerReminder = (remId: string) => {
+    const targetRem = reminders.find(r => r.id === remId);
+    if (!targetRem) return;
+
+    try {
+      const lc = lifecycles.find(l => l.productId === targetRem.productId) || {
+        templateContent: "Chào {customer_name}, sản phẩm {product_name} bạn mua ngày {purchase_date} sắp hết rồi ạ. Bạn có muốn mua lại không?"
+      };
+
+      let content = lc.templateContent;
+      content = content
+        .replace(/{customer_name}/g, targetRem.customerName)
+        .replace(/{product_name}/g, targetRem.productName)
+        .replace(/{purchase_date}/g, new Date().toLocaleDateString("vi-VN"))
+        .replace(/{voucher_code}/g, "LOYALTY10");
+
+      const rawConvs = localStorage.getItem("erp-mini-cskh-conversations");
+      if (rawConvs) {
+        const conversations = JSON.parse(rawConvs);
+        const targetPhone = targetRem.customerPhone;
+        const targetName = targetRem.customerName;
+
+        let convIndex = conversations.findIndex((c: any) => c.customerPhone === targetPhone && targetPhone !== "");
+        if (convIndex === -1 && targetName !== "") {
+          convIndex = conversations.findIndex((c: any) => c.customerName === targetName);
+        }
+
+        if (convIndex !== -1) {
+          const newMsg = {
+            id: "bot-msg-" + Date.now(),
+            sender: "bot" as const,
+            content,
+            timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+            status: "sent" as const
+          };
+          conversations[convIndex].messages.push(newMsg);
+          conversations[convIndex].lastMessageTime = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+          
+          localStorage.setItem("erp-mini-cskh-conversations", JSON.stringify(conversations));
+          window.dispatchEvent(new Event("storage"));
+        }
+      }
+
+      const updatedRems = reminders.map(r => r.id === remId ? { ...r, status: "sent" as const } : r);
+      setReminders(updatedRems);
+      localStorage.setItem("erp-mini-scheduled-reminders", JSON.stringify(updatedRems));
+
+      toast({
+        title: "Gửi tin nhắn thành công",
+        description: `Đã gửi lời nhắc mua lại "${targetRem.productName}" đến khách hàng ${targetRem.customerName}.`
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Lỗi", description: "Không thể gửi tin nhắn nhắc nhở: " + e.message });
+    }
+  };
 
   // Tab 1: Pancake settings
   const [autoSendInvoice, setAutoSendInvoice] = useState(true);
@@ -39,26 +219,30 @@ export function AutoMessagesTab() {
   const [hideTrackingLocation, setHideTrackingLocation] = useState(false);
   const [hideAttributes, setHideAttributes] = useState(false);
 
-  const [templates, setTemplates] = useState<AutoMessageTemplate[]>([
-    {
-      id: "tpl-1",
-      name: "Thông báo tạo đơn thành công",
-      triggerStatus: "Xác nhận đơn hàng",
-      source: "Tất cả",
-      carrier: "Tất cả",
-      content: "Chào {customer_name}, đơn hàng {order_number} của bạn đã được xác nhận. Tổng tiền: {total_amount}đ. Cảm ơn bạn đã mua sắm!",
-      isActive: true
-    },
-    {
-      id: "tpl-2",
-      name: "Thông báo đang giao hàng",
-      triggerStatus: "Gửi hàng đi",
-      source: "Shopee",
-      carrier: "Giao Hàng Tiết Kiệm",
-      content: "Đơn hàng {order_number} đang được vận chuyển qua GHTK. Mã vận đơn của bạn: {tracking_number}. Theo dõi hành trình đơn tại link sau: {tracking_url}",
-      isActive: true
-    }
-  ]);
+  const [templates, setTemplates] = useState<AutoMessageTemplate[]>(() => {
+    const raw = localStorage.getItem("erp-mini-auto-messages-templates");
+    if (raw) return JSON.parse(raw);
+    return [
+      {
+        id: "tpl-1",
+        name: "Thông báo tạo đơn thành công",
+        triggerStatus: "Xác nhận đơn hàng",
+        source: "Tất cả",
+        carrier: "Tất cả",
+        content: "Chào {customer_name}, đơn hàng {order_number} của bạn đã được xác nhận. Tổng tiền: {total_amount}đ. Cảm ơn bạn đã mua sắm!",
+        isActive: true
+      },
+      {
+        id: "tpl-2",
+        name: "Thông báo đang giao hàng",
+        triggerStatus: "Gửi hàng đi",
+        source: "Shopee",
+        carrier: "Giao Hàng Tiết Kiệm",
+        content: "Đơn hàng {order_number} đang được vận chuyển qua GHTK. Mã vận đơn của bạn: {tracking_number}. Theo dõi hành trình đơn tại link sau: {tracking_url}",
+        isActive: true
+      }
+    ];
+  });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AutoMessageTemplate | null>(null);
@@ -91,7 +275,9 @@ export function AutoMessagesTab() {
   };
 
   const handleDeleteTemplate = (id: string) => {
-    setTemplates(templates.filter(t => t.id !== id));
+    const updated = templates.filter(t => t.id !== id);
+    setTemplates(updated);
+    localStorage.setItem("erp-mini-auto-messages-templates", JSON.stringify(updated));
     toast({ title: "Đã xoá kịch bản", description: "Kịch bản tin nhắn tự động đã được gỡ bỏ." });
   };
 
@@ -101,8 +287,10 @@ export function AutoMessagesTab() {
       return;
     }
 
+    let updated: AutoMessageTemplate[] = [];
     if (editingTemplate) {
-      setTemplates(templates.map(t => t.id === editingTemplate.id ? { ...t, name: formName, triggerStatus: formTrigger, source: formSource, carrier: formCarrier, content: formContent } : t));
+      updated = templates.map(t => t.id === editingTemplate.id ? { ...t, name: formName, triggerStatus: formTrigger, source: formSource, carrier: formCarrier, content: formContent } : t);
+      setTemplates(updated);
       toast({ title: "Cập nhật thành công", description: "Đã lưu kịch bản thông báo." });
     } else {
       const newTpl: AutoMessageTemplate = {
@@ -114,9 +302,11 @@ export function AutoMessagesTab() {
         content: formContent,
         isActive: true
       };
-      setTemplates([...templates, newTpl]);
+      updated = [...templates, newTpl];
+      setTemplates(updated);
       toast({ title: "Tạo thành công", description: "Kịch bản tin nhắn tự động mới đã được thêm." });
     }
+    localStorage.setItem("erp-mini-auto-messages-templates", JSON.stringify(updated));
     setDialogOpen(false);
   };
 
@@ -139,14 +329,18 @@ export function AutoMessagesTab() {
   return (
     <>
       <Tabs defaultValue="pancake" className="w-full space-y-6">
-      <TabsList className="grid grid-cols-2 max-w-md">
-        <TabsTrigger value="pancake" className="gap-2">
-          <MessageSquare className="h-4 w-4" />
+      <TabsList className="grid grid-cols-3 max-w-lg">
+        <TabsTrigger value="pancake" className="gap-2 text-xs">
+          <MessageSquare className="h-3.5 w-3.5" />
           Pancake Messenger
         </TabsTrigger>
-        <TabsTrigger value="sms" className="gap-2">
-          <Mail className="h-4 w-4" />
-          SMS / Zalo ZNS Gateway
+        <TabsTrigger value="sms" className="gap-2 text-xs">
+          <Mail className="h-3.5 w-3.5" />
+          SMS / Zalo Gateway
+        </TabsTrigger>
+        <TabsTrigger value="lifecycle" className="gap-2 text-xs">
+          <History className="h-3.5 w-3.5" />
+          Vòng đời & Nhắc mua lại
         </TabsTrigger>
       </TabsList>
 
@@ -249,7 +443,11 @@ export function AutoMessagesTab() {
                       <TableCell className="py-2.5">
                         <Switch
                           checked={tpl.isActive}
-                          onCheckedChange={(checked) => setTemplates(templates.map(x => x.id === tpl.id ? { ...x, isActive: checked } : x))}
+                          onCheckedChange={(checked) => {
+                            const updated = templates.map(x => x.id === tpl.id ? { ...x, isActive: checked } : x);
+                            setTemplates(updated);
+                            localStorage.setItem("erp-mini-auto-messages-templates", JSON.stringify(updated));
+                          }}
                           className="scale-75 origin-left"
                         />
                       </TableCell>
@@ -360,6 +558,244 @@ export function AutoMessagesTab() {
             </div>
           </CardContent>
         </Card>
+      </TabsContent>
+
+      {/* Tab Vòng đời sản phẩm */}
+      <TabsContent value="lifecycle" className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Left column: Add/Configure lifecycle */}
+        <Card className="xl:col-span-5 border border-border">
+          <CardHeader className="border-b pb-3 mb-4">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <History className="h-4 w-4 text-blue-500" />
+              Thiết lập vòng đời sản phẩm
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Định nghĩa chu kỳ tiêu hao của sản phẩm tiêu dùng để hệ thống tự động lên lịch nhắc mua lại khi sắp hết.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Chọn sản phẩm tiêu hao *</Label>
+              <Select value={newProductId} onValueChange={setNewProductId}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Chọn sản phẩm..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover text-foreground z-50">
+                  {products.map(p => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.name} ({p.sku || "Chưa có SKU"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Vòng đời sử dụng (ngày) *</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={newDuration}
+                  onChange={(e) => setNewDuration(Number(e.target.value))}
+                  className="h-9 text-xs"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Nhắc trước (ngày) *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={newLeadTime}
+                  onChange={(e) => setNewLeadTime(Number(e.target.value))}
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Nội dung tin nhắn nhắc nhở *</Label>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground">Chèn nhanh:</span>
+                  {["{customer_name}", "{product_name}", "{purchase_date}", "{voucher_code}"].map(tag => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className="text-[9px] cursor-pointer hover:bg-secondary"
+                      onClick={() => setNewTemplate(newTemplate + tag)}
+                    >
+                      {tag.replace("{", "").replace("}", "")}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <Textarea
+                rows={4}
+                value={newTemplate}
+                onChange={(e) => setNewTemplate(e.target.value)}
+                placeholder="Biên soạn nội dung tin nhắn gửi khách..."
+                className="text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Tin nhắn sẽ tự động gửi qua Zalo/Messenger/SMS của khách hàng khi thời gian đếm ngược về đúng ngày nhắc nhở.
+              </p>
+            </div>
+
+            <Button onClick={handleAddLifecycle} size="sm" className="w-full h-9 text-xs cursor-pointer bg-blue-600 hover:bg-blue-700 gap-1.5">
+              <Plus className="h-4 w-4" />
+              Lưu cấu hình sản phẩm
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Right column: Config list & Scheduled reminders */}
+        <div className="xl:col-span-7 space-y-6">
+          {/* Lifecycles list */}
+          <Card className="border border-border">
+            <CardHeader className="pb-3 border-b mb-3">
+              <CardTitle className="text-sm font-semibold">Danh sách cấu hình hoạt động</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Sản phẩm</TableHead>
+                      <TableHead className="text-xs">Vòng đời</TableHead>
+                      <TableHead className="text-xs">Nhắc trước</TableHead>
+                      <TableHead className="text-xs w-16 text-center">Thao tác</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lifecycles.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-8">
+                          Chưa có sản phẩm nào được thiết lập vòng đời.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      lifecycles.map((lc) => (
+                        <TableRow key={lc.id}>
+                          <TableCell className="text-xs font-semibold py-2">
+                            {lc.productName}
+                          </TableCell>
+                          <TableCell className="text-xs py-2">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {lc.durationDays} ngày
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs py-2">
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+                              Trước {lc.leadTimeDays} ngày
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center py-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteLifecycle(lc.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Upcoming scheduled reminders */}
+          <Card className="border border-border">
+            <CardHeader className="pb-3 border-b mb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold">Lịch nhắc nhở mua lại sắp tới</CardTitle>
+                <CardDescription className="text-[10px]">
+                  Danh sách khách hàng đã nhận đơn và chuẩn bị được nhắc mua lại khi sản phẩm sắp hết.
+                </CardDescription>
+              </div>
+              <Badge className="bg-blue-500 text-white text-[10px]">
+                {reminders.filter(r => r.status === "pending").length} Đang chờ
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Đơn hàng</TableHead>
+                      <TableHead className="text-xs">Khách hàng</TableHead>
+                      <TableHead className="text-xs">Sản phẩm</TableHead>
+                      <TableHead className="text-xs">Ngày nhắc dự kiến</TableHead>
+                      <TableHead className="text-xs w-24 text-center">Hành động</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reminders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-8">
+                          Chưa có lịch nhắc nhở nào được lên lịch.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      reminders.map((rem) => {
+                        const daysLeft = Math.ceil(
+                          (new Date(rem.remindDate).getTime() - Date.now()) / (1000 * 3600 * 24)
+                        );
+                        return (
+                          <TableRow key={rem.id}>
+                            <TableCell className="text-xs font-mono py-2">
+                              {rem.orderNumber}
+                            </TableCell>
+                            <TableCell className="text-xs py-2">
+                              <div className="font-semibold">{rem.customerName}</div>
+                              <div className="text-[10px] text-muted-foreground">{rem.customerPhone || "—"}</div>
+                            </TableCell>
+                            <TableCell className="text-xs py-2">
+                              <span className="truncate max-w-[150px] block" title={rem.productName}>
+                                {rem.productName}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs py-2">
+                              <div className="text-[11px]">
+                                {new Date(rem.remindDate).toLocaleDateString("vi-VN")}
+                              </div>
+                              {rem.status === "pending" && (
+                                <span className={`text-[9px] font-bold ${daysLeft <= 3 ? "text-red-500" : "text-amber-500"}`}>
+                                  {daysLeft <= 0 ? "Hôm nay!" : `Còn ${daysLeft} ngày`}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center py-2">
+                              {rem.status === "sent" ? (
+                                <Badge variant="outline" className="text-[9px] bg-green-50 text-green-600 border-green-200 dark:bg-green-950/30 dark:text-green-400">
+                                  Đã nhắc
+                                </Badge>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px] px-2 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                                  onClick={() => handleTriggerReminder(rem.id)}
+                                >
+                                  Gửi ngay
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </TabsContent>
     </Tabs>
 

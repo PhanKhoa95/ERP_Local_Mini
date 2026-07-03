@@ -185,7 +185,7 @@ export function QuotationsTab() {
 
       {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-slate-900 shadow-xl rounded-xl">
           <DialogHeader>
             <DialogTitle>Tạo Báo giá mới</DialogTitle>
           </DialogHeader>

@@ -221,7 +221,7 @@ const Inventory = () => {
   };
 
   const handleSubmit = async (data: any) => {
-    const { conversions, is_combo, combo_items, ...productData } = data;
+    const { conversions, is_combo, combo_items, wholesale_prices, ...productData } = data;
     let savedProduct;
     if (editingProduct) {
       savedProduct = await updateProduct.mutateAsync({ id: editingProduct.id, ...productData });
@@ -235,7 +235,7 @@ const Inventory = () => {
             id: `conv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             product_id: savedProduct.id,
             from_unit: c.from_unit,
-            to_unit: savedProduct.unit || "cái",
+            to_unit: savedProduct.unit || "ci",
             factor: Number(c.factor),
             is_active: true
           });
@@ -257,6 +257,34 @@ const Inventory = () => {
         });
       }
       localStorage.setItem("erp-mini-local-demo-combos", JSON.stringify(filtered));
+
+      // Save wholesale prices for product (variant_id = null)
+      if (wholesale_prices) {
+        if (isLocalDemoAuthEnabled()) {
+          const raw = localStorage.getItem("erp-mini-local-demo-product-wholesale-prices");
+          const all = raw ? JSON.parse(raw) : [];
+          const remaining = all.filter((p: any) => !(p.product_id === targetId && p.variant_id === null));
+          const newPrices = wholesale_prices.map((p: any, idx: number) => ({
+            id: `local-wp-${Date.now()}-${idx}`,
+            product_id: targetId,
+            variant_id: null,
+            min_quantity: p.min_quantity,
+            wholesale_price: p.wholesale_price
+          }));
+          localStorage.setItem("erp-mini-local-demo-product-wholesale-prices", JSON.stringify([...remaining, ...newPrices]));
+        } else {
+          await supabase.from("product_wholesale_prices").delete().eq("product_id", targetId).is("variant_id", null);
+          if (wholesale_prices.length > 0) {
+            const tiers = wholesale_prices.map((t: any) => ({
+              product_id: targetId,
+              variant_id: null,
+              min_quantity: t.min_quantity,
+              wholesale_price: t.wholesale_price
+            }));
+            await supabase.from("product_wholesale_prices").insert(tiers);
+          }
+        }
+      }
     }
 
     setDialogOpen(false);

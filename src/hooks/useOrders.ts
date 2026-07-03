@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyContext } from "./useCompanyContext";
@@ -6,7 +7,266 @@ import { createLocalInventoryTransaction, logLocalAction } from "@/lib/localInve
 import { invalidateOrderRelated } from "@/lib/queryInvalidation";
 import { toast } from "sonner";
 import { erpEventBus } from "@/lib/erpEventBus";
-import { getLocalPartners, saveLocalPartners, serializePartnerMetadata, type Partner } from "./usePartners";
+import { getLocalPartners, saveLocalPartners, serializePartnerMetadata, parsePartnerMetadata, type Partner } from "./usePartners";
+
+function triggerAutoMessageForStatusChange(order: Order, newStatus: string) {
+  if (typeof window === "undefined") return;
+
+  const triggerStatusMap: Record<string, string> = {
+    pending: "Mới",
+    confirmed: "Xác nhận đơn hàng",
+    packing: "Đang đóng hàng",
+    shipping: "Gửi hàng đi",
+  };
+
+  const triggerStatus = triggerStatusMap[newStatus];
+  if (!triggerStatus) return;
+
+  try {
+    const rawTemplates = localStorage.getItem("erp-mini-auto-messages-templates");
+    const templates = rawTemplates ? JSON.parse(rawTemplates) : [
+      {
+        id: "tpl-1",
+        name: "Thông báo tạo đơn thành công",
+        triggerStatus: "Xác nhận đơn hàng",
+        source: "Tất cả",
+        carrier: "Tất cả",
+        content: "Chào {customer_name}, đơn hàng {order_number} của bạn đã được xác nhận. Tổng tiền: {total_amount}đ. Cảm ơn bạn đã mua sắm!",
+        isActive: true
+      },
+      {
+        id: "tpl-2",
+        name: "Thông báo đang giao hàng",
+        triggerStatus: "Gửi hàng đi",
+        source: "Shopee",
+        carrier: "Giao Hàng Tiết Kiệm",
+        content: "Đơn hàng {order_number} đang được vận chuyển qua GHTK. Mã vận đơn của bạn: {tracking_number}. Theo dõi hành trình đơn tại link sau: {tracking_url}",
+        isActive: true
+      }
+    ];
+
+    const matchingTemplate = templates.find((t: any) => t.isActive && t.triggerStatus === triggerStatus);
+    if (!matchingTemplate) return;
+
+    let content = matchingTemplate.content;
+    const orderNum = order.order_number || "";
+    const customerName = order.customer_name || "Khách hàng";
+    const totalVal = Number(order.total || 0).toLocaleString("vi-VN");
+    const trackingCode = (order as any).tracking_code || order.platform_order_id || "VN-SHIP-992";
+    const carrierName = "Giao Hàng Tiết Kiệm";
+    const trackingUrl = `https://pancake.express/track/${trackingCode}`;
+    const productsList = order.order_items?.map((i: any) => (i.products?.name || "Sản phẩm") + " x" + i.quantity).join(", ") || "";
+    const shippingFee = Number(order.shipping_fee || 0).toLocaleString("vi-VN");
+    const discount = Number(order.discount || 0).toLocaleString("vi-VN");
+    const prepaid = Number((order as any).prepaid_amount || 0).toLocaleString("vi-VN");
+    const cod = Number((order as any).cod_amount || 0).toLocaleString("vi-VN");
+    const expectedDate = (order as any).expected_delivery_date || "";
+
+    content = content
+      .replace(/{customer_name}/g, customerName)
+      .replace(/{order_number}/g, orderNum)
+      .replace(/{total_amount}/g, totalVal)
+      .replace(/{tracking_number}/g, trackingCode)
+      .replace(/{tracking_url}/g, trackingUrl)
+      .replace(/{products}/g, productsList)
+      .replace(/{shipping_fee}/g, shippingFee)
+      .replace(/{discount}/g, discount)
+      .replace(/{prepaid_amount}/g, prepaid)
+      .replace(/{cod_amount}/g, cod)
+      .replace(/{expected_delivery_date}/g, expectedDate)
+      .replace(/{carrier_name}/g, carrierName);
+
+    const rawConvs = localStorage.getItem("erp-mini-cskh-conversations");
+    if (rawConvs) {
+      const conversations = JSON.parse(rawConvs);
+      const targetPhone = order.customer_phone || "";
+      const targetName = order.customer_name || "";
+      
+      let convIndex = conversations.findIndex((c: any) => c.customerPhone === targetPhone && targetPhone !== "");
+      if (convIndex === -1 && targetName !== "") {
+        convIndex = conversations.findIndex((c: any) => c.customerName === targetName);
+      }
+
+      if (convIndex !== -1) {
+        const newMsg = {
+          id: "bot-msg-" + Date.now(),
+          sender: "bot" as const,
+          content,
+          timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+          status: "sent" as const
+        };
+        conversations[convIndex].messages.push(newMsg);
+        conversations[convIndex].lastMessageTime = new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+        
+        localStorage.setItem("erp-mini-cskh-conversations", JSON.stringify(conversations));
+        window.dispatchEvent(new Event("storage"));
+        toast.success(`Đã gửi tin nhắn tự động: "${matchingTemplate.name}"`);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to trigger automated message:", err);
+  }
+}
+
+function scheduleBuybackReminders(order: Order) {
+  if (typeof window === "undefined") return;
+  try {
+    const rawLifecycles = localStorage.getItem("erp-mini-product-lifecycles");
+    if (!rawLifecycles) return;
+    const lifecycles = JSON.parse(rawLifecycles);
+
+    const items = order.order_items || [];
+    if (items.length === 0) return;
+
+    const rawReminders = localStorage.getItem("erp-mini-scheduled-reminders");
+    const reminders = rawReminders ? JSON.parse(rawReminders) : [];
+
+    let scheduledCount = 0;
+    items.forEach((item: any) => {
+      const pId = item.product_id;
+      if (!pId) return;
+
+      const lc = lifecycles.find((l: any) => l.productId === pId && l.isActive);
+      if (lc) {
+        const durationDays = Number(lc.durationDays || 30);
+        const leadTimeDays = Number(lc.leadTimeDays || 3);
+        const daysToRemind = durationDays - leadTimeDays;
+        
+        const remindDate = new Date();
+        remindDate.setDate(remindDate.getDate() + (daysToRemind > 0 ? daysToRemind : 1));
+
+        const newRem = {
+          id: "rem-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9),
+          orderId: order.id,
+          orderNumber: order.order_number,
+          customerName: order.customer_name || "Khách hàng",
+          customerPhone: order.customer_phone || "",
+          productId: pId,
+          productName: item.products?.name || lc.productName || "Sản phẩm",
+          remindDate: remindDate.toISOString(),
+          status: "pending" as const
+        };
+        reminders.push(newRem);
+        scheduledCount++;
+      }
+    });
+
+    if (scheduledCount > 0) {
+      localStorage.setItem("erp-mini-scheduled-reminders", JSON.stringify(reminders));
+      toast.success(`Đã lên lịch nhắc mua lại tự động cho ${scheduledCount} sản phẩm tiêu hao!`);
+    }
+  } catch (err) {
+    console.error("Failed to schedule buyback reminders:", err);
+  }
+}
+
+async function updatePartnerPoints(companyId: string, partnerId: string | null, usedPoints: number, orderTotal: number) {
+  if (!partnerId) return;
+  const pointsEarned = Math.floor(orderTotal / 100000);
+  
+  if (isLocalDemoAuthEnabled()) {
+    const partners = getLocalPartners(companyId);
+    const idx = partners.findIndex(p => p.id === partnerId);
+    if (idx !== -1) {
+      const p = partners[idx];
+      const currentPoints = p.loyalty_points || 0;
+      const nextPoints = Math.max(0, currentPoints - usedPoints + pointsEarned);
+      const nextSpent = (p.total_spent || 0) + orderTotal;
+      const lifetimePoints = Math.floor(nextSpent / 100000);
+      
+      let promo_segment = p.promo_segment;
+      if (lifetimePoints >= 300) {
+        promo_segment = "loyalty"; // VIP / Super
+      }
+      
+      partners[idx] = {
+        ...p,
+        loyalty_points: nextPoints,
+        total_spent: nextSpent,
+        promo_segment,
+      };
+      saveLocalPartners(partners);
+    }
+  } else {
+    try {
+      const { data: partner } = await supabase.from("partners").select("*").eq("id", partnerId).single();
+      if (partner) {
+        const p = parsePartnerMetadata(partner);
+        const currentPoints = p.loyalty_points || 0;
+        const nextPoints = Math.max(0, currentPoints - usedPoints + pointsEarned);
+        const nextSpent = (p.total_spent || 0) + orderTotal;
+        const lifetimePoints = Math.floor(nextSpent / 100000);
+        
+        let promo_segment = p.promo_segment;
+        if (lifetimePoints >= 300) {
+          promo_segment = "loyalty";
+        }
+        
+        const serialized = serializePartnerMetadata({
+          ...p,
+          loyalty_points: nextPoints,
+          total_spent: nextSpent,
+          promo_segment,
+        });
+        
+        await supabase.from("partners").update(serialized).eq("id", partnerId);
+      }
+    } catch (err) {
+      console.warn("Failed to update partner loyalty points in Supabase:", err);
+    }
+  }
+}
+
+async function rewardReferrer(companyId: string, referrerId: string | null, refereeName: string, refereeId: string | null) {
+  if (!referrerId) return;
+  const rewardPoints = 50; // Thưởng 50 điểm
+
+  if (isLocalDemoAuthEnabled()) {
+    const partners = getLocalPartners(companyId);
+    const idx = partners.findIndex(p => p.id === referrerId);
+    if (idx !== -1) {
+      const p = partners[idx];
+      partners[idx] = {
+        ...p,
+        loyalty_points: (p.loyalty_points || 0) + rewardPoints,
+      };
+      saveLocalPartners(partners);
+
+      const rawNotes = localStorage.getItem("erp-mini-local-demo-partner-notes");
+      const notes = rawNotes ? JSON.parse(rawNotes) : [];
+      const newNote = {
+        id: `note-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        partner_id: referrerId,
+        note_type: "general",
+        content: `[GIỚI THIỆU KHÁCH MỚI] Giới thiệu thành công khách hàng mới ${refereeName} (ID: ${refereeId || "N/A"}) mua đơn hàng đầu tiên. Hệ thống tự động thưởng +${rewardPoints} điểm tích lũy!`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      notes.unshift(newNote);
+      localStorage.setItem("erp-mini-local-demo-partner-notes", JSON.stringify(notes));
+    }
+  } else {
+    try {
+      const { data: partner } = await supabase.from("partners").select("*").eq("id", referrerId).single();
+      if (partner) {
+        const p = parsePartnerMetadata(partner);
+        const serialized = serializePartnerMetadata({
+          ...p,
+          loyalty_points: (p.loyalty_points || 0) + rewardPoints,
+        });
+        await supabase.from("partners").update(serialized).eq("id", referrerId);
+
+        await supabase.from("partner_notes").insert({
+          partner_id: referrerId,
+          note_type: "general",
+          content: `[GIỚI THIỆU KHÁCH MỚI] Giới thiệu thành công khách hàng mới ${refereeName} mua đơn hàng đầu tiên. Hệ thống tự động thưởng +${rewardPoints} điểm tích lũy!`,
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to reward referrer in Supabase mode:", err);
+    }
+  }
+}
 
 export interface OrderItem {
   id: string;
@@ -58,6 +318,9 @@ export interface Order {
   voucher_id?: string | null;
   created_at: string;
   updated_at: string;
+  tags?: string | null;
+  assigned_to_name?: string | null;
+  fulfillment_type?: string | null;
   sales_channels?: {
     id: string;
     name: string;
@@ -68,6 +331,8 @@ export interface Order {
     name: string;
   } | null;
   order_items?: OrderItem[];
+  referrer_id?: string | null;
+  referral_discount?: number | null;
 }
 
 const LOCAL_ORDERS_KEY = "erp-mini-local-demo-orders";
@@ -641,6 +906,9 @@ function getLocalOrders(companyId: string): Order[] {
 
   try {
     const list = JSON.parse(raw) as Order[];
+    const rawVariants = localStorage.getItem("erp-mini-local-demo-product-variants");
+    const variantsList = rawVariants ? JSON.parse(rawVariants) : [];
+
     return list.map((o: any) => {
       if (!o.shipping_province) {
         const address = o.shipping_address || o.customer_address || "";
@@ -649,6 +917,19 @@ function getLocalOrders(companyId: string): Order[] {
         else if (address.includes("Đà Nẵng") || address.includes("ĐN")) o.shipping_province = "Đà Nẵng";
         else o.shipping_province = "Hồ Chí Minh";
       }
+
+      if (o.order_items && Array.isArray(o.order_items)) {
+        o.order_items = o.order_items.map((item: any) => {
+          if (item.variant_id && !item.product_variants) {
+            const varObj = variantsList.find((v: any) => v.id === item.variant_id);
+            if (varObj) {
+              item.product_variants = { id: varObj.id, name: varObj.name, sku: varObj.sku };
+            }
+          }
+          return item;
+        });
+      }
+
       return o;
     });
   } catch {
@@ -664,96 +945,146 @@ function saveLocalOrders(orders: Order[]) {
 function deductLocalStock(items: any[], orderNumber: string) {
   const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
   const products = rawProducts ? JSON.parse(rawProducts) : [];
-  const rawCombos = localStorage.getItem("erp-mini-local-demo-combos");
-  const combos = rawCombos ? JSON.parse(rawCombos) : [];
+  const rawVariants = localStorage.getItem("erp-mini-local-demo-product-variants");
+  const variants = rawVariants ? JSON.parse(rawVariants) : [];
+  const rawComponents = localStorage.getItem("erp-mini-local-demo-product-variant-components");
+  const components = rawComponents ? JSON.parse(rawComponents) : [];
 
   for (const item of items) {
     if (!item.product_id) continue;
     const prod = products.find((p: any) => p.id === item.product_id);
-    if (prod) {
-      const isService = prod.is_service === true;
-      const isLimitedService = isService && ((prod.stock_quantity || 0) > 0 || (prod.min_stock || 0) > 0);
-      if (isService && !isLimitedService) {
-        continue;
-      }
-    }
+    if (prod && prod.is_service) continue;
 
-    const combo = combos.find((c: any) => c.id === item.product_id);
-    if (combo && combo.items && combo.items.length > 0) {
-      for (const comboItem of combo.items) {
-        try {
-          createLocalInventoryTransaction({
-            product_id: comboItem.product_id,
-            transaction_type: "out",
-            quantity: (comboItem.quantity || 1) * (item.quantity || 1),
-            notes: `Trừ tồn kho (Combo: ${prod?.name || "N/A"}) - Đơn hàng ${orderNumber}`,
-          });
-        } catch (err) {
-          console.warn(`[Stock] Không thể trừ tồn kho combo item ${comboItem.product_id}:`, err);
+    if (item.variant_id) {
+      const compositeComponents = components.filter((c: any) => c.parent_variant_id === item.variant_id);
+      if (compositeComponents.length > 0) {
+        for (const comp of compositeComponents) {
+          const qtyToSubtract = (item.quantity || 1) * (comp.quantity || 1);
+          const childVarIdx = variants.findIndex((v: any) => v.id === comp.child_variant_id);
+          if (childVarIdx !== -1) {
+            variants[childVarIdx].stock_quantity = Math.max(0, (variants[childVarIdx].stock_quantity || 0) - qtyToSubtract);
+            const childProdIdx = products.findIndex((p: any) => p.id === variants[childVarIdx].product_id);
+            if (childProdIdx !== -1) {
+              products[childProdIdx].stock_quantity = Math.max(0, (products[childProdIdx].stock_quantity || 0) - qtyToSubtract);
+            }
+            
+            createLocalInventoryTransaction({
+              product_id: variants[childVarIdx].product_id,
+              variant_id: comp.child_variant_id,
+              transaction_type: "out",
+              quantity: -qtyToSubtract,
+              notes: `Tieu hao thanh phan Combo - Don ${orderNumber}`,
+            });
+          }
         }
-      }
-      continue;
-    }
+      } else {
+        const varIdx = variants.findIndex((v: any) => v.id === item.variant_id);
+        if (varIdx !== -1) {
+          variants[varIdx].stock_quantity = Math.max(0, (variants[varIdx].stock_quantity || 0) - (item.quantity || 1));
+        }
+        const prodIdx = products.findIndex((p: any) => p.id === item.product_id);
+        if (prodIdx !== -1) {
+          products[prodIdx].stock_quantity = Math.max(0, (products[prodIdx].stock_quantity || 0) - (item.quantity || 1));
+        }
 
-    try {
+        createLocalInventoryTransaction({
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          transaction_type: "out",
+          quantity: -(item.quantity || 1),
+          notes: `Tr tn kho bien the - Don ${orderNumber}`,
+        });
+      }
+    } else {
+      const prodIdx = products.findIndex((p: any) => p.id === item.product_id);
+      if (prodIdx !== -1) {
+        products[prodIdx].stock_quantity = Math.max(0, (products[prodIdx].stock_quantity || 0) - (item.quantity || 1));
+      }
+
       createLocalInventoryTransaction({
         product_id: item.product_id,
         transaction_type: "out",
-        quantity: item.quantity || 1,
-        notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
+        quantity: -(item.quantity || 1),
+        notes: `Tr tn kho - Don ${orderNumber}`,
       });
-    } catch (err) {
-      console.warn(`[Stock] Không thể trừ tồn kho cho ${item.product_id}:`, err);
     }
   }
+
+  localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(products));
+  localStorage.setItem("erp-mini-local-demo-product-variants", JSON.stringify(variants));
 }
 
 /** Restore stock for order items (local demo mode) */
 function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: string) {
   const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
   const products = rawProducts ? JSON.parse(rawProducts) : [];
-  const rawCombos = localStorage.getItem("erp-mini-local-demo-combos");
-  const combos = rawCombos ? JSON.parse(rawCombos) : [];
+  const rawVariants = localStorage.getItem("erp-mini-local-demo-product-variants");
+  const variants = rawVariants ? JSON.parse(rawVariants) : [];
+  const rawComponents = localStorage.getItem("erp-mini-local-demo-product-variant-components");
+  const components = rawComponents ? JSON.parse(rawComponents) : [];
 
   for (const item of items) {
     if (!item.product_id) continue;
     const prod = products.find((p: any) => p.id === item.product_id);
-    if (prod) {
-      const isService = prod.is_service === true;
-      const isLimitedService = isService && ((prod.stock_quantity || 0) > 0 || (prod.min_stock || 0) > 0);
-      if (isService && !isLimitedService) {
-        continue;
-      }
-    }
+    if (prod && prod.is_service) continue;
 
-    const combo = combos.find((c: any) => c.id === item.product_id);
-    if (combo && combo.items && combo.items.length > 0) {
-      for (const comboItem of combo.items) {
-        try {
-          createLocalInventoryTransaction({
-            product_id: comboItem.product_id,
-            transaction_type: "in",
-            quantity: (comboItem.quantity || 1) * (item.quantity || 1),
-            notes: `Hoàn tồn kho (Combo: ${prod?.name || "N/A"}) (${reason}) - Đơn hàng ${orderNumber}`,
-          });
-        } catch (err) {
-          console.warn(`[Stock] Không thể hoàn tồn kho combo item ${comboItem.product_id}:`, err);
+    if (item.variant_id) {
+      const compositeComponents = components.filter((c: any) => c.parent_variant_id === item.variant_id);
+      if (compositeComponents.length > 0) {
+        for (const comp of compositeComponents) {
+          const qtyToAdd = (item.quantity || 1) * (comp.quantity || 1);
+          const childVarIdx = variants.findIndex((v: any) => v.id === comp.child_variant_id);
+          if (childVarIdx !== -1) {
+            variants[childVarIdx].stock_quantity = (variants[childVarIdx].stock_quantity || 0) + qtyToAdd;
+            const childProdIdx = products.findIndex((p: any) => p.id === variants[childVarIdx].product_id);
+            if (childProdIdx !== -1) {
+              products[childProdIdx].stock_quantity = (products[childProdIdx].stock_quantity || 0) + qtyToAdd;
+            }
+
+            createLocalInventoryTransaction({
+              product_id: variants[childVarIdx].product_id,
+              variant_id: comp.child_variant_id,
+              transaction_type: "in",
+              quantity: qtyToAdd,
+              notes: `Hoan tra thanh phan Combo (${reason}) - Don ${orderNumber}`,
+            });
+          }
         }
-      }
-      continue;
-    }
+      } else {
+        const varIdx = variants.findIndex((v: any) => v.id === item.variant_id);
+        if (varIdx !== -1) {
+          variants[varIdx].stock_quantity = (variants[varIdx].stock_quantity || 0) + (item.quantity || 1);
+        }
+        const prodIdx = products.findIndex((p: any) => p.id === item.product_id);
+        if (prodIdx !== -1) {
+          products[prodIdx].stock_quantity = (products[prodIdx].stock_quantity || 0) + (item.quantity || 1);
+        }
 
-    try {
+        createLocalInventoryTransaction({
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          transaction_type: "in",
+          quantity: item.quantity || 1,
+          notes: `Hoan tra bien the (${reason}) - Don ${orderNumber}`,
+        });
+      }
+    } else {
+      const prodIdx = products.findIndex((p: any) => p.id === item.product_id);
+      if (prodIdx !== -1) {
+        products[prodIdx].stock_quantity = (products[prodIdx].stock_quantity || 0) + (item.quantity || 1);
+      }
+
       createLocalInventoryTransaction({
         product_id: item.product_id,
         transaction_type: "in",
         quantity: item.quantity || 1,
-        notes: `Hoàn tồn kho (${reason}) - Đơn hàng ${orderNumber}`,
+        notes: `Hon tn kho (${reason}) - n hng ${orderNumber}`,
       });
-    } catch (err) {
-      console.warn(`[Stock] Không thể hoàn tồn kho cho ${item.product_id}:`, err);
     }
   }
+
+  localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(products));
+  localStorage.setItem("erp-mini-local-demo-product-variants", JSON.stringify(variants));
 }
 
 /** Deduct stock for order items (Supabase mode) */
@@ -761,24 +1092,84 @@ async function deductSupabaseStock(items: any[], orderNumber: string) {
   for (const item of items) {
     if (!item.product_id) continue;
     try {
-      // Atomic stock deduction via RPC
-      await supabase.rpc("increment_stock_quantity" as any, {
-        p_product_id: item.product_id,
-        p_quantity: -(item.quantity || 1),
-      });
-      // Record inventory transaction
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("inventory_transactions").insert({
-        product_id: item.product_id,
-        transaction_type: "out",
-        quantity: -(item.quantity || 1),
-        reference_type: "order",
-        reference_id: orderNumber,
-        notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
-        created_by: user?.id,
-      });
+      const { data: prod } = await supabase.from("products").select("is_service").eq("id", item.product_id).single();
+      if (prod && prod.is_service) continue;
+
+      if (item.variant_id) {
+        const { data: components } = await supabase
+          .from("product_variant_components")
+          .select("child_variant_id, quantity, product_variants!product_variant_components_child_variant_id_fkey(product_id)")
+          .eq("parent_variant_id", item.variant_id);
+
+        if (components && components.length > 0) {
+          for (const comp of components) {
+            const qtyToDeduct = (item.quantity || 1) * Number(comp.quantity);
+            const childProductId = (comp as any).product_variants?.product_id;
+
+            await supabase.rpc("increment_variant_stock_quantity" as any, {
+              p_variant_id: comp.child_variant_id,
+              p_quantity: -qtyToDeduct
+            });
+
+            if (childProductId) {
+              await supabase.rpc("increment_stock_quantity" as any, {
+                p_product_id: childProductId,
+                p_quantity: -qtyToDeduct
+              });
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from("inventory_transactions").insert({
+              product_id: childProductId,
+              variant_id: comp.child_variant_id,
+              transaction_type: "out",
+              quantity: -qtyToDeduct,
+              reference_type: "composite_consumption",
+              reference_id: orderNumber,
+              notes: `Tieu hao thanh phan Combo - Don ${orderNumber}`,
+              created_by: user?.id,
+            });
+          }
+        } else {
+          await supabase.rpc("increment_variant_stock_quantity" as any, {
+            p_variant_id: item.variant_id,
+            p_quantity: -(item.quantity || 1)
+          });
+          await supabase.rpc("increment_stock_quantity" as any, {
+            p_product_id: item.product_id,
+            p_quantity: -(item.quantity || 1)
+          });
+
+          const { data: { user } } = await supabase.auth.getUser();
+          await supabase.from("inventory_transactions").insert({
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            transaction_type: "out",
+            quantity: -(item.quantity || 1),
+            reference_type: "order",
+            reference_id: orderNumber,
+            notes: `Tr tn kho bien the - Don ${orderNumber}`,
+            created_by: user?.id,
+          });
+        }
+      } else {
+        await supabase.rpc("increment_stock_quantity" as any, {
+          p_product_id: item.product_id,
+          p_quantity: -(item.quantity || 1),
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("inventory_transactions").insert({
+          product_id: item.product_id,
+          transaction_type: "out",
+          quantity: -(item.quantity || 1),
+          reference_type: "order",
+          reference_id: orderNumber,
+          notes: `Tr tn kho - n hng ${orderNumber}`,
+          created_by: user?.id,
+        });
+      }
     } catch (err) {
-      console.warn(`[Stock] Không thể trừ tồn kho cho ${item.product_id}:`, err);
+      console.warn(`[Stock] Khng th tr tn kho cho ${item.product_id}:`, err);
     }
   }
 }
@@ -788,22 +1179,84 @@ async function restoreSupabaseStock(items: OrderItem[], orderNumber: string, rea
   for (const item of items) {
     if (!item.product_id) continue;
     try {
-      await supabase.rpc("increment_stock_quantity" as any, {
-        p_product_id: item.product_id,
-        p_quantity: item.quantity || 1,
-      });
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("inventory_transactions").insert({
-        product_id: item.product_id,
-        transaction_type: "in",
-        quantity: item.quantity || 1,
-        reference_type: `order-${reason}`,
-        reference_id: orderNumber,
-        notes: `Hoàn tồn kho (${reason}) - Đơn hàng ${orderNumber}`,
-        created_by: user?.id,
-      });
+      const { data: prod } = await supabase.from("products").select("is_service").eq("id", item.product_id).single();
+      if (prod && prod.is_service) continue;
+
+      if (item.variant_id) {
+        const { data: components } = await supabase
+          .from("product_variant_components")
+          .select("child_variant_id, quantity, product_variants!product_variant_components_child_variant_id_fkey(product_id)")
+          .eq("parent_variant_id", item.variant_id);
+
+        if (components && components.length > 0) {
+          for (const comp of components) {
+            const qtyToAdd = (item.quantity || 1) * Number(comp.quantity);
+            const childProductId = (comp as any).product_variants?.product_id;
+
+            await supabase.rpc("increment_variant_stock_quantity" as any, {
+              p_variant_id: comp.child_variant_id,
+              p_quantity: qtyToAdd
+            });
+
+            if (childProductId) {
+              await supabase.rpc("increment_stock_quantity" as any, {
+                p_product_id: childProductId,
+                p_quantity: qtyToAdd
+              });
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from("inventory_transactions").insert({
+              product_id: childProductId,
+              variant_id: comp.child_variant_id,
+              transaction_type: "in",
+              quantity: qtyToAdd,
+              reference_type: `order-${reason}`,
+              reference_id: orderNumber,
+              notes: `Hon tra thanh phan Combo (${reason}) - Don ${orderNumber}`,
+              created_by: user?.id,
+            });
+          }
+        } else {
+          await supabase.rpc("increment_variant_stock_quantity" as any, {
+            p_variant_id: item.variant_id,
+            p_quantity: item.quantity || 1
+          });
+          await supabase.rpc("increment_stock_quantity" as any, {
+            p_product_id: item.product_id,
+            p_quantity: item.quantity || 1
+          });
+
+          const { data: { user } } = await supabase.auth.getUser();
+          await supabase.from("inventory_transactions").insert({
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            transaction_type: "in",
+            quantity: item.quantity || 1,
+            reference_type: `order-${reason}`,
+            reference_id: orderNumber,
+            notes: `Hon tra bien the (${reason}) - Don ${orderNumber}`,
+            created_by: user?.id,
+          });
+        }
+      } else {
+        await supabase.rpc("increment_stock_quantity" as any, {
+          p_product_id: item.product_id,
+          p_quantity: item.quantity || 1,
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("inventory_transactions").insert({
+          product_id: item.product_id,
+          transaction_type: "in",
+          quantity: item.quantity || 1,
+          reference_type: `order-${reason}`,
+          reference_id: orderNumber,
+          notes: `Hon tn kho (${reason}) - n hng ${orderNumber}`,
+          created_by: user?.id,
+        });
+      }
     } catch (err) {
-      console.warn(`[Stock] Không thể hoàn tồn kho cho ${item.product_id}:`, err);
+      console.warn(`[Stock] Khng th hon tn kho cho ${item.product_id}:`, err);
     }
   }
 }
@@ -811,6 +1264,14 @@ async function restoreSupabaseStock(items: OrderItem[], orderNumber: string, rea
 export function useOrders() {
   const { companyId } = useCompanyContext();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ["orders", companyId] });
+    };
+    window.addEventListener("local-orders-updated", handleUpdate);
+    return () => window.removeEventListener("local-orders-updated", handleUpdate);
+  }, [companyId, queryClient]);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders", companyId],
@@ -826,7 +1287,7 @@ export function useOrders() {
           *,
           sales_channels(*),
           partners(*),
-          order_items(*, products(*))
+          order_items(*, products(*), product_variants(*))
         `)
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
@@ -875,9 +1336,10 @@ export function useOrders() {
               loyalty_points: 0,
               total_spent: 0,
               promo_segment: "all",
+              referrer_id: orderData.referrer_id || null,
               address: "",
               tax_id: "",
-              notes: "",
+              notes: JSON.stringify({ referrer_id: orderData.referrer_id || null }),
               is_active: true,
               group_id: null
             };
@@ -907,7 +1369,8 @@ export function useOrders() {
               email: email || "",
               partner_type: "customer",
               code: phone ? `KH-${phone}` : `KH-${Date.now().toString().slice(-6)}`,
-              promo_segment: "all"
+              promo_segment: "all",
+              referrer_id: orderData.referrer_id || null
             });
             const { data: newP, error: pErr } = await supabase
               .from("partners")
@@ -960,6 +1423,7 @@ export function useOrders() {
               id: `oi-${Date.now()}-${idx}`,
               order_id: orderId,
               product_id: item.product_id || null,
+              variant_id: item.variant_id || null,
               quantity: item.quantity || 1,
               unit_price: item.unit_price || 0,
               total_price: (item.quantity || 1) * (item.unit_price || 0),
@@ -984,6 +1448,14 @@ export function useOrders() {
           customer: newOrder.customer_name,
         });
 
+        // Update partner loyalty points and LTV
+        await updatePartnerPoints(companyId, resolvedPartnerId, (resolvedOrderData as any).used_points || 0, totalAmount);
+
+        // Reward referrer if present
+        if ((resolvedOrderData as any).referrer_id) {
+          await rewardReferrer(companyId, (resolvedOrderData as any).referrer_id, newOrder.customer_name || "Khách mới", resolvedPartnerId);
+        }
+
         // Publish event instead of direct local deduction
         erpEventBus.publish("ORDER_CREATED", { order: newOrder, items: items });
 
@@ -1007,6 +1479,7 @@ export function useOrders() {
         const itemsPayload = items.map(item => ({
           order_id: order.id,
           product_id: item.product_id || null,
+          variant_id: item.variant_id || null,
           quantity: item.quantity || 1,
           unit_price: item.unit_price || 0,
           total: item.total ?? ((item.quantity || 1) * (item.unit_price || 0)),
@@ -1020,6 +1493,14 @@ export function useOrders() {
 
         // Deduct stock for Supabase mode
         await deductSupabaseStock(items, order.order_number || order.id);
+      }
+
+      // Update partner loyalty points and LTV in Supabase mode
+      await updatePartnerPoints(companyId, resolvedPartnerId, (resolvedOrderData as any).used_points || 0, totalAmount);
+
+      // Reward referrer if present in Supabase mode
+      if ((resolvedOrderData as any).referrer_id) {
+        await rewardReferrer(companyId, (resolvedOrderData as any).referrer_id, order.customer_name || "Khách mới", resolvedPartnerId);
       }
 
       return order;
@@ -1054,13 +1535,15 @@ export function useOrders() {
             confirmed: ["pending", "cancelled", "processing", "packing", "waiting_transfer", "shipping", "duplicate", "deleted"],
             packing: ["pending", "confirmed", "cancelled", "deleted", "waiting_transfer", "shipping"],
             waiting_transfer: ["pending", "confirmed", "cancelled", "deleted", "shipping"],
-            shipping: ["pending", "confirmed", "cancelled", "deleted", "delivered", "returned", "returned_partial", "exchanging"],
+            shipping: ["pending", "confirmed", "cancelled", "deleted", "delivered", "returned", "returned_partial", "exchanging", "paid_completed"],
             processing: ["shipping", "cancelled", "deleted"],
-            delivered: ["returned", "returned_partial", "exchanging"],
+            delivered: ["returned", "returned_partial", "exchanging", "paid_completed"],
+            paid_completed: ["returned", "returned_partial"],
+            exchanging: ["pending", "confirmed", "shipping", "received_exchange"],
+            received_exchange: ["returned", "returned_partial", "paid_completed"],
             cancelled: ["pending", "confirmed"],
             returned: [],
             returned_partial: [],
-            exchanging: ["pending", "confirmed", "shipping"],
           };
           const allowed = allowedTransitions[prevStatus] || [];
           if (allowed.length > 0 && !allowed.includes(status)) {
@@ -1072,6 +1555,36 @@ export function useOrders() {
             if (order.order_items && order.order_items.length > 0) {
               restoreLocalStock(order.order_items, order.order_number, status === "cancelled" ? "hủy đơn" : "trả hàng");
             }
+          }
+
+          // Auto create local payment transaction if paid_completed
+          if (status === "paid_completed" && prevStatus !== "paid_completed") {
+            all[idx].payment_status = "paid";
+            all[idx].paid_amount = order.total || 0;
+            
+            const rawTx = localStorage.getItem("erp-mini-local-demo-payment-transactions");
+            const txList = rawTx ? JSON.parse(rawTx) : [];
+            const newTx = {
+              id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              partner_id: order.partner_id || "partner-retail",
+              order_id: id,
+              transaction_type: "payment_in",
+              amount: order.total || 0,
+              payment_method: order.payment_method || "cod",
+              reference_number: order.order_number ? `PAY-${order.order_number}` : null,
+              notes: `Thu tiền tự động cho đơn hàng ${order.order_number || id}`,
+              transaction_date: new Date().toISOString(),
+              created_by: "admin",
+              created_at: new Date().toISOString()
+            };
+            txList.unshift(newTx);
+            localStorage.setItem("erp-mini-local-demo-payment-transactions", JSON.stringify(txList));
+            
+            logLocalAction("Ghi nhận thanh toán (Tự động chuyển Đã thu tiền)", "payment_transactions", newTx.id, null, {
+              amount: newTx.amount,
+              type: newTx.transaction_type,
+              order_id: id
+            });
           }
 
           all[idx].status = status;
@@ -1120,19 +1633,58 @@ export function useOrders() {
         }
       }
 
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          status: status as any,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", id);
+      // Auto create payment transaction in Supabase if paid_completed
+      if (status === "paid_completed" && prevStatus !== "paid_completed") {
+        await supabase
+          .from("orders")
+          .update({
+            payment_status: "paid",
+            paid_amount: order.total || 0,
+            status: "paid_completed" as any,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", id);
+          
+        await supabase
+          .from("payment_transactions")
+          .insert({
+            company_id: order.company_id,
+            partner_id: order.partner_id || "partner-retail",
+            order_id: id,
+            transaction_type: "payment_in",
+            amount: order.total || 0,
+            payment_method: order.payment_method || "cod",
+            reference_number: order.order_number ? `PAY-${order.order_number}` : null,
+            notes: `Thu tiền tự động cho đơn hàng ${order.order_number || id}`,
+            transaction_date: new Date().toISOString()
+          });
+      } else {
+        const { error } = await supabase
+          .from("orders")
+          .update({
+            status: status as any,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       invalidateOrderRelated(queryClient);
       toast.success("Cập nhật trạng thái đơn hàng thành công");
+      try {
+        const all = getLocalOrders(companyId || "");
+        const matched = all.find(o => o.id === variables.id);
+        if (matched) {
+          triggerAutoMessageForStatusChange(matched, variables.status);
+          if (variables.status === "delivered") {
+            scheduleBuybackReminders(matched);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to trigger automated message or schedule buyback reminder on status update success:", err);
+      }
     },
     onError: (e: any) => {
       toast.error("Lỗi cập nhật: " + e.message);

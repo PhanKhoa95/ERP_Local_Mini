@@ -62,14 +62,21 @@ import { normalizePhone } from "@/lib/orderControl";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
+import { useProductVariants } from "@/hooks/useProductVariants";
+import { useWholesaleSettings } from "@/hooks/useWholesaleSettings";
+import { applyWholesalePricing, calculateCompositeVariantStock } from "@/lib/wholesaleControl";
+import { POSVariantSelectDialog } from "@/components/pos/POSVariantSelectDialog";
+import { useQuery } from "@tanstack/react-query";
 
 type Product = Tables<"products">;
 
 interface CartItem {
   product: Product;
+  variant?: any | null;
   quantity: number;
   unit_price: number;
   discount: number;
+  is_wholesale?: boolean;
 }
 
 interface POSQuantityInputProps {
@@ -319,6 +326,7 @@ const POS = () => {
     discount: number;
     shippingFee: number;
     notes: string;
+    orderTags: string[];
     selectedCustomer: string;
     customerSearch: string;
     selectedChannel: string;
@@ -338,6 +346,7 @@ const POS = () => {
       discount: 0,
       shippingFee: 0,
       notes: "",
+      orderTags: [],
       selectedCustomer: "walk-in",
       customerSearch: "",
       selectedChannel: "",
@@ -360,6 +369,7 @@ const POS = () => {
   const discount = activeTab.discount;
   const shippingFee = activeTab.shippingFee;
   const notes = activeTab.notes;
+  const orderTags = activeTab.orderTags || [];
   const selectedCustomer = activeTab.selectedCustomer;
   const customerSearch = activeTab.customerSearch;
   const selectedChannel = activeTab.selectedChannel;
@@ -387,6 +397,46 @@ const POS = () => {
   const setCustomerSearch = (val: string) => updateActiveTab({ customerSearch: val });
   const setSelectedChannel = (val: string) => updateActiveTab({ selectedChannel: val });
   const setSelectedWarehouse = (val: string) => updateActiveTab({ selectedWarehouse: val });
+  const setOrderTags = (val: string[] | ((prev: string[]) => string[])) => {
+    if (typeof val === "function") {
+      updateActiveTab({ orderTags: val(activeTab.orderTags || []) });
+    } else {
+      updateActiveTab({ orderTags: val });
+    }
+  };
+
+  // Wholesale pricing and variants database queries
+  const { settings: wholesaleSettings } = useWholesaleSettings();
+  const { variants: allVariants = [] } = useProductVariants();
+
+  const { data: allComponents = [] } = useQuery({
+    queryKey: ["all-product-variant-components"],
+    queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-product-variant-components");
+        return raw ? JSON.parse(raw) : [];
+      }
+      const { data, error } = await supabase.from("product_variant_components").select("*");
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: allWholesalePrices = [] } = useQuery({
+    queryKey: ["all-product-wholesale-prices"],
+    queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-product-wholesale-prices");
+        return raw ? JSON.parse(raw) : [];
+      }
+      const { data, error } = await supabase.from("product_wholesale_prices").select("*");
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const [variantSelectOpen, setVariantSelectOpen] = useState(false);
+  const [productForVariantSelect, setProductForVariantSelect] = useState<any>(null);
   const setDiscount = (val: number | ((prev: number) => number)) => {
     if (typeof val === "function") {
       updateActiveTab({ discount: val(activeTab.discount) });
@@ -604,31 +654,82 @@ const POS = () => {
     });
   }, [products, searchTerm, selectedCategory]);
 
-  // Cart functions
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.product.id === product.id);
+  useEffect(() => {
+    if (!wholesaleSettings) return;
+
+    const customer = selectedCustomer && selectedCustomer !== "walk-in"
+      ? customers.find(c => c.id === selectedCustomer)
+      : null;
+
+    const { updatedCart, hasWholesaleApplied } = applyWholesalePricing(
+      cart,
+      customer,
+      orderTags,
+      wholesaleSettings,
+      allWholesalePrices
+    );
+
+    const isChanged = updatedCart.some((item, idx) => {
+      const oldItem = cart[idx];
+      return !oldItem || 
+             oldItem.unit_price !== item.unit_price || 
+             oldItem.is_wholesale !== item.is_wholesale ||
+             oldItem.variant?.id !== item.variant?.id;
+    });
+
+    if (isChanged) {
+      setCart(updatedCart);
+
+      if (wholesaleSettings.no_other_discounts && hasWholesaleApplied) {
+        if (discount > 0 || appliedVoucherId) {
+          setDiscount(0);
+          setAppliedVoucherId(null);
+          toast({
+            title: "Áp dụng giá bán sỉ",
+            description: "Đơn hàng đã được áp giá bán sỉ. Các mã giảm giá/voucher khác đã bị vô hiệu hóa.",
+          });
+        }
+      }
+    }
+  }, [cart, selectedCustomer, orderTags, wholesaleSettings, allWholesalePrices]);
+
+  const addToCart = (product: Product, variant?: any) => {
+    if (product.has_variants && !variant) {
+      setProductForVariantSelect(product);
+      setVariantSelectOpen(true);
+      return;
+    }
+
+    const existingItem = cart.find(
+      (item) => item.product.id === product.id && item.variant?.id === (variant?.id || null)
+    );
     const isService = product.is_service === true;
     const isLimitedService = isService && ((product.stock_quantity || 0) > 0 || (product.min_stock || 0) > 0);
     const shouldCheckStock = !isService || isLimitedService;
-    
+
+    // Calculate actual stock
+    const availableStock = variant 
+      ? calculateCompositeVariantStock(variant, allComponents, allVariants)
+      : product.stock_quantity || 0;
+
     if (existingItem) {
-      if (shouldCheckStock && existingItem.quantity >= (product.stock_quantity || 0)) {
+      if (shouldCheckStock && existingItem.quantity >= availableStock) {
         toast({
           variant: "destructive",
           title: "Hết hàng",
-          description: `${product.name} chỉ còn ${product.stock_quantity} sản phẩm`,
+          description: `${variant ? variant.name : product.name} chỉ còn ${availableStock} sản phẩm`,
         });
         return;
       }
       setCart(
         cart.map((item) =>
-          item.product.id === product.id
+          item.product.id === product.id && item.variant?.id === (variant?.id || null)
             ? { ...item, quantity: item.quantity + 1 }
             : item
         )
       );
     } else {
-      if (shouldCheckStock && (product.stock_quantity || 0) < 1) {
+      if (shouldCheckStock && availableStock < 1) {
         toast({
           variant: "destructive",
           title: "Hết hàng",
@@ -640,8 +741,9 @@ const POS = () => {
         ...cart,
         {
           product,
+          variant: variant || null,
           quantity: 1,
-          unit_price: Number(product.selling_price) || 0,
+          unit_price: variant ? Number(variant.selling_price) : Number(product.selling_price),
           discount: 0,
         },
       ]);
@@ -652,42 +754,51 @@ const POS = () => {
     }
   };
 
-  const updateQuantity = (productId: string, newQuantity: number) => {
+  const updateQuantity = (productId: string, variantId: string | null, newQuantity: number) => {
     if (newQuantity < 1) {
-      removeFromCart(productId);
+      removeFromCart(productId, variantId);
       return;
     }
-    const item = cart.find((i) => i.product.id === productId);
+    const item = cart.find((i) => i.product.id === productId && i.variant?.id === (variantId || null));
     if (!item) return;
-    
+
     const isService = item.product.is_service === true;
     const isLimitedService = isService && ((item.product.stock_quantity || 0) > 0 || (item.product.min_stock || 0) > 0);
     const shouldCheckStock = !isService || isLimitedService;
-    if (shouldCheckStock && newQuantity > (item.product.stock_quantity || 0)) {
+
+    const availableStock = item.variant 
+      ? calculateCompositeVariantStock(item.variant, allComponents, allVariants)
+      : item.product.stock_quantity || 0;
+
+    if (shouldCheckStock && newQuantity > availableStock) {
       toast({
         variant: "destructive",
         title: "Vượt quá tồn kho",
-        description: `Chỉ còn ${item.product.stock_quantity} sản phẩm`,
+        description: `Chỉ còn ${availableStock} sản phẩm`,
       });
       return;
     }
     setCart(
       cart.map((item) =>
-        item.product.id === productId ? { ...item, quantity: newQuantity } : item
+        item.product.id === productId && item.variant?.id === (variantId || null)
+          ? { ...item, quantity: newQuantity }
+          : item
       )
     );
   };
 
-  const updateItemPrice = (productId: string, newPrice: number) => {
+  const updateItemPrice = (productId: string, variantId: string | null, newPrice: number) => {
     setCart(
       cart.map((item) =>
-        item.product.id === productId ? { ...item, unit_price: newPrice } : item
+        item.product.id === productId && item.variant?.id === (variantId || null)
+          ? { ...item, unit_price: newPrice }
+          : item
       )
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(cart.filter((item) => item.product.id !== productId));
+  const removeFromCart = (productId: string, variantId: string | null) => {
+    setCart(cart.filter((item) => !(item.product.id === productId && item.variant?.id === (variantId || null))));
   };
 
   const clearCart = () => {
@@ -944,12 +1055,14 @@ const POS = () => {
           total,
           notes: selectedWarehouse ? `[Kho: ${warehouses.find(w => w.id === selectedWarehouse)?.name || selectedWarehouse}] ${notes}`.trim() : notes,
           status: "delivered", // POS orders are delivered immediately
+          tags: orderTags,
           payment_status: "paid", // POS orders are paid immediately
           paid_amount: total,
           voucher_id: appliedVoucherId,
         },
         items: cart.map((item) => ({
           product_id: item.product.id,
+          variant_id: item.variant?.id || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
           discount: item.discount,
@@ -1262,6 +1375,23 @@ const POS = () => {
             />
           </div>
 
+          {/* Thẻ đơn hàng (Tags) */}
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Thẻ đơn hàng (Tags)</label>
+            <POSTextInput
+              value={orderTags.join(", ")}
+              onChange={(val) => {
+                const tagsArray = val
+                  .split(",")
+                  .map(t => t.trim())
+                  .filter(t => t.length > 0);
+                setOrderTags(tagsArray);
+              }}
+              className="h-9 text-xs bg-background"
+              placeholder="VD: sỉ, đại lý (phân tách bằng dấu phẩy)..."
+            />
+          </div>
+
           {/* Checkout actions */}
           <div className="space-y-2 pt-2">
             <div className="grid grid-cols-2 gap-2">
@@ -1475,78 +1605,92 @@ const POS = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {cart.map((item, idx) => (
-                          <TableRow key={item.product.id} className="hover:bg-secondary/10 group h-12">
-                            <TableCell className="text-center font-medium text-xs">{idx + 1}</TableCell>
-                            <TableCell className="p-1">
-                              <div className="w-9 h-9 bg-secondary/50 rounded flex items-center justify-center overflow-hidden">
-                                {item.product.image_url ? (
-                                  <img src={item.product.image_url} alt={item.product.name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <Package className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-mono text-[11px] text-muted-foreground truncate">{item.product.sku}</TableCell>
-                            <TableCell>
-                              <div className="font-semibold text-xs text-foreground truncate max-w-[220px]" title={item.product.name}>
-                                {item.product.name}
-                              </div>
-                              {item.unit_price > 0 && item.product.cost_price > 0 && item.unit_price < item.product.cost_price && (
-                                <span className="text-[9px] bg-red-100 text-red-700 font-semibold px-1 rounded inline-block mt-0.5 leading-none">
-                                  Bán dưới vốn: {item.product.cost_price.toLocaleString("vi-VN")}đ
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center justify-center gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                                >
-                                  <Minus className="h-2.5 w-2.5" />
-                                </Button>
+                        {cart.map((item, idx) => {
+                          const itemKey = `${item.product.id}-${item.variant?.id || 'none'}`;
+                          const displayName = item.variant ? item.variant.name : item.product.name;
+                          const displaySku = item.variant ? item.variant.sku : item.product.sku;
+                          const costPrice = item.variant ? item.variant.cost_price : item.product.cost_price;
+
+                          return (
+                            <TableRow key={itemKey} className="hover:bg-secondary/10 group h-12">
+                              <TableCell className="text-center font-medium text-xs">{idx + 1}</TableCell>
+                              <TableCell className="p-1">
+                                <div className="w-9 h-9 bg-secondary/50 rounded flex items-center justify-center overflow-hidden">
+                                  {item.product.image_url ? (
+                                    <img src={item.product.image_url} alt={displayName} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-[11px] text-muted-foreground truncate">{displaySku}</TableCell>
+                              <TableCell>
+                                <div className="font-semibold text-xs text-foreground truncate max-w-[220px]" title={displayName}>
+                                  {displayName}
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {item.unit_price > 0 && costPrice > 0 && item.unit_price < costPrice && (
+                                    <span className="text-[9px] bg-red-100 text-red-700 font-semibold px-1 rounded inline-block leading-none">
+                                      Bán dưới vốn: {costPrice.toLocaleString("vi-VN")}
+                                    </span>
+                                  )}
+                                  {item.is_wholesale && (
+                                    <Badge className="text-[8px] h-3.5 px-1 bg-green-100 text-green-700 hover:bg-green-100 border-none font-semibold">
+                                      Giá sỉ
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => updateQuantity(item.product.id, item.variant?.id || null, item.quantity - 1)}
+                                  >
+                                    <Minus className="h-2.5 w-2.5" />
+                                  </Button>
+                                  <input
+                                    type="number"
+                                    value={item.quantity}
+                                    className="w-10 h-6 text-center text-xs border rounded bg-background"
+                                    onChange={(e) => updateQuantity(item.product.id, item.variant?.id || null, Number(e.target.value))}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => updateQuantity(item.product.id, item.variant?.id || null, item.quantity + 1)}
+                                  >
+                                    <Plus className="h-2.5 w-2.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
                                 <input
                                   type="number"
-                                  value={item.quantity}
-                                  className="w-10 h-6 text-center text-xs border rounded bg-background"
-                                  onChange={(e) => updateQuantity(item.product.id, Number(e.target.value))}
+                                  value={item.unit_price}
+                                  className="w-20 h-6 text-right text-xs border rounded bg-background px-1 focus:outline-none focus:border-primary"
+                                  onChange={(e) => updateItemPrice(item.product.id, item.variant?.id || null, Number(e.target.value))}
                                 />
+                              </TableCell>
+                              <TableCell className="text-right font-bold text-xs text-primary">
+                                {(item.quantity * item.unit_price).toLocaleString("vi-VN")}
+                              </TableCell>
+                              <TableCell className="text-center">
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-40 group-hover:opacity-100 transition-all"
+                                  onClick={() => removeFromCart(item.product.id, item.variant?.id || null)}
                                 >
-                                  <Plus className="h-2.5 w-2.5" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <input
-                                type="number"
-                                value={item.unit_price}
-                                className="w-20 h-6 text-right text-xs border rounded bg-background px-1 focus:outline-none focus:border-primary"
-                                onChange={(e) => updateItemPrice(item.product.id, Number(e.target.value))}
-                              />
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-xs text-primary">
-                              {(item.quantity * item.unit_price).toLocaleString("vi-VN")}đ
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-40 group-hover:opacity-100 transition-all"
-                                onClick={() => removeFromCart(item.product.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -1764,6 +1908,16 @@ const POS = () => {
           isLoading={createPartner.isPending}
           defaultType="customer"
           isQuickAdd={true}
+        />
+
+        <POSVariantSelectDialog 
+          open={variantSelectOpen}
+          onOpenChange={setVariantSelectOpen}
+          product={productForVariantSelect}
+          variants={allVariants.filter(v => v.product_id === productForVariantSelect?.id)}
+          allComponents={allComponents}
+          allVariants={allVariants}
+          onSelect={(variant) => addToCart(productForVariantSelect, variant)}
         />
       </div>
     </MainLayout>

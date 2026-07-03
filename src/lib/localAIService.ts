@@ -201,11 +201,17 @@ export async function handleLocalFunctionInvoke(functionName: string, options?: 
         case "ai-erp-assistant": {
           const history = options?.body?.messages || [];
           const userMessage = history[history.length - 1]?.content || "";
+          const isCustomer = options?.body?.is_customer === true;
           
-          const systemPrompt = `Bạn là trợ lý AI thông minh cho hệ thống ERP quản lý bán hàng đa kênh & nhân sự. Bạn hãy trả lời câu hỏi của người dùng dựa trên dữ liệu hệ thống được cung cấp dưới đây.
-          Trả lời bằng tiếng Việt, ngắn gọn, chuyên nghiệp và có sử dụng emoji phù hợp.
-          ${getLocalSystemContext()}
-          `;
+          let systemPrompt = "";
+          if (isCustomer) {
+            systemPrompt = `Bạn là nhân viên tư vấn và chăm sóc khách hàng của một shop thời trang. Hãy trả lời lịch sự, thân thiện (xưng là em/shop, gọi khách là anh/chị/bạn tùy ngữ cảnh) để hỗ trợ khách hàng mua hàng, giải đáp thắc mắc về sản phẩm/đổi trả và xin thông tin số điện thoại/địa chỉ để giao hàng.
+            TUYỆT ĐỐI BẢO MẬT: Không tiết lộ bất kỳ số dư tài khoản kế toán, công nợ của người khác, thông tin nhân sự hay hợp đồng dự án nào của doanh nghiệp.`;
+          } else {
+            systemPrompt = `Bạn là trợ lý AI thông minh cho hệ thống ERP quản lý bán hàng đa kênh & nhân sự. Bạn hãy trả lời câu hỏi của người dùng dựa trên dữ liệu hệ thống được cung cấp dưới đây.
+            Trả lời bằng tiếng Việt, ngắn gọn, chuyên nghiệp và có sử dụng emoji phù hợp.
+            ${getLocalSystemContext()}`;
+          }
           
           const res = await callDirectLLM(systemPrompt, userMessage);
           return { data: { answer: res } };
@@ -280,12 +286,21 @@ export async function handleLocalFunctionInvoke(functionName: string, options?: 
 
   // Fallback / Default simulated static data (original mock behavior)
   switch (functionName) {
-    case "ai-erp-assistant":
+    case "ai-erp-assistant": {
+      const isCustomer = options?.body?.is_customer === true;
+      if (isCustomer) {
+        return {
+          data: {
+            answer: "Dạ chào bạn ạ! Cửa hàng xin chào quý khách, em có thể hỗ trợ gì cho mình về sản phẩm hoặc đặt hàng hôm nay không ạ? 🥰"
+          }
+        };
+      }
       return {
         data: {
           answer: "Dữ liệu trợ lý ERP: Hôm nay hệ thống ghi nhận doanh thu ổn định. Có một số mặt hàng cần chú ý nhập kho sớm. Vui lòng thiết lập API Key thật trong phần Cấu hình AI để tôi có thể trò chuyện trực tiếp và trả lời chi tiết hơn."
         }
       };
+    }
 
     case "parse-voice-report":
     case "parse-work-report-chat":

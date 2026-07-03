@@ -566,6 +566,39 @@ export function CollaboratorWarehouseTab() {
     toast({ title: "Đã lưu thông tin kho CTV thành công!" });
   };
 
+  const handleDeleteCTVWarehouse = (id: string) => {
+    // 1. Return allocated consignment stocks to main warehouse
+    const updatedSyncItems = syncItems.map(item => {
+      if (item.sync_mode === "consignment" && item.allocated_qty) {
+        return {
+          ...item,
+          local_stock: item.local_stock + item.allocated_qty,
+          ctv_stock: 0,
+          allocated_qty: 0,
+          sync_status: "synced" as const,
+          last_synced_at: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+    saveSyncItems(updatedSyncItems);
+
+    // 2. Remove warehouse
+    const updatedWarehouses = ctvWarehouses.filter(w => w.id !== id);
+    saveCTVWarehouses(updatedWarehouses);
+    
+    if (updatedWarehouses.length > 0) {
+      setSelectedCtvWarehouseId(updatedWarehouses[0].id);
+    } else {
+      setSelectedCtvWarehouseId("");
+    }
+
+    toast({
+      title: "Hủy liên kết CTV thành công! 🔌",
+      description: "Đã thu hồi toàn bộ số lượng hàng ký gửi về kho gốc và xóa liên kết kho."
+    });
+  };
+
   const handleSyncAll = () => {
     setIsSyncingAll(true);
     setTimeout(() => {
@@ -958,6 +991,14 @@ export function CollaboratorWarehouseTab() {
                       </div>
                       <Button size="sm" onClick={handleSaveWarehouseForm} className="h-7 text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-semibold">
                         Lưu
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => handleDeleteCTVWarehouse(selectedWarehouse.id)}
+                        className="h-7 text-[10px] font-semibold"
+                      >
+                        Xóa kho CTV
                       </Button>
                     </div>
                   </CardHeader>

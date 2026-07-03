@@ -5,8 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useProductVariants, type ProductVariant } from "@/hooks/useProductVariants";
-import { Plus, Trash2, Edit2, Check, X, Loader2, Layers, Settings } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Loader2, Layers, Settings, HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useProductWholesalePrices } from "@/hooks/useWholesaleSettings";
+import { calculateCompositeVariantStock } from "@/lib/wholesaleControl";
+import { VariantComponentsDialog } from "./VariantComponentsDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
 interface ProductVariantsDialogProps {
   open: boolean;
@@ -33,6 +39,50 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
   const [isActive, setIsActive] = useState(true);
   const [attributes, setAttributes] = useState<AttributePair[]>([{ key: "Màu sắc", value: "" }]);
 
+  // Composite product dialog state
+  const [componentsDialogOpen, setComponentsDialogOpen] = useState(false);
+  const [selectedVariantForComponents, setSelectedVariantForComponents] = useState<ProductVariant | null>(null);
+
+  // Wholesale prices hook
+  const { wholesalePrices = [], saveWholesalePrices } = useProductWholesalePrices(product?.id);
+  const [wholesaleTiers, setWholesaleTiers] = useState<{ min_quantity: number; wholesale_price: number }[]>([]);
+
+  // Fetch whether variants have components to show Set/Combo badge
+  const { data: compositeVariantIds = [], refetch: refetchComposites } = useQuery({
+    queryKey: ["composite-variant-ids", product?.id],
+    queryFn: async () => {
+      if (!product?.id) return [];
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-product-variant-components");
+        const all = raw ? JSON.parse(raw) : [];
+        const parentIds = all.map((c: any) => c.parent_variant_id);
+        return Array.from(new Set(parentIds)) as string[];
+      }
+      const { data, error } = await supabase
+        .from("product_variant_components")
+        .select("parent_variant_id");
+      if (error) throw error;
+      return Array.from(new Set(data.map(d => d.parent_variant_id))) as string[];
+    },
+    enabled: !!product?.id
+  });
+
+  // Load all variants & components to calculate composite stock dynamically
+  const { variants: allVariants = [] } = useProductVariants();
+
+  const { data: allComponents = [] } = useQuery({
+    queryKey: ["all-product-variant-components-dialog"],
+    queryFn: async () => {
+      if (isLocalDemoAuthEnabled()) {
+        const raw = localStorage.getItem("erp-mini-local-demo-product-variant-components");
+        return raw ? JSON.parse(raw) : [];
+      }
+      const { data, error } = await supabase.from("product_variant_components").select("*");
+      if (error) throw error;
+      return data;
+    }
+  });
+
   useEffect(() => {
     if (open) {
       resetForm();
@@ -49,6 +99,7 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
     setStockQuantity(0);
     setIsActive(true);
     setAttributes([{ key: "Màu sắc", value: "" }]);
+    setWholesaleTiers([]);
   };
 
   const handleAddAttributePair = () => {
@@ -91,6 +142,33 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
 
     const pairs = Object.entries(v.attributes || {}).map(([key, value]) => ({ key, value }));
     setAttributes(pairs.length > 0 ? pairs : [{ key: "Màu sắc", value: "" }]);
+
+    // Load wholesale prices for this variant
+    const tiers = wholesalePrices
+      .filter(p => p.variant_id === v.id)
+      .map(p => ({ min_quantity: p.min_quantity, wholesale_price: p.wholesale_price }));
+    setWholesaleTiers(tiers);
+  };
+
+  const handleAddWholesaleTier = () => {
+    setWholesaleTiers([...wholesaleTiers, { min_quantity: 5, wholesale_price: sellingPrice * 0.9 }]);
+  };
+
+  const handleRemoveWholesaleTier = (index: number) => {
+    const next = [...wholesaleTiers];
+    next.splice(index, 1);
+    setWholesaleTiers(next);
+  };
+
+  const handleWholesaleTierChange = (index: number, field: "min_quantity" | "wholesale_price", val: number) => {
+    const next = [...wholesaleTiers];
+    next[index][field] = val;
+    setWholesaleTiers(next);
+  };
+
+  const handleConfigureComponents = (v: ProductVariant) => {
+    setSelectedVariantForComponents(v);
+    setComponentsDialogOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -117,11 +195,21 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
     };
 
     try {
+      let savedVar: any;
       if (editingVariant) {
-        await updateVariant.mutateAsync({ id: editingVariant.id, ...payload });
+        savedVar = await updateVariant.mutateAsync({ id: editingVariant.id, ...payload });
       } else {
-        await createVariant.mutateAsync(payload);
+        savedVar = await createVariant.mutateAsync(payload);
       }
+
+      // Save wholesale prices for this variant
+      if (savedVar && savedVar.id) {
+        await saveWholesalePrices.mutateAsync({
+          variantId: savedVar.id,
+          tiers: wholesaleTiers
+        });
+      }
+
       resetForm();
     } catch (err) {
       // toast is shown by mutation
@@ -135,7 +223,8 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -171,46 +260,72 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
               </div>
             ) : (
               <div className="space-y-2">
-                {variants.map((v) => (
-                  <Card key={v.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-3 flex items-center justify-between gap-4">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm truncate">{v.name}</span>
-                          {!v.is_active && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-slate-100 text-slate-500">
-                              Ngừng bán
-                            </Badge>
-                          )}
+                {variants.map((v) => {
+                  const isComposite = compositeVariantIds.includes(v.id);
+                  return (
+                    <Card key={v.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 flex items-center justify-between gap-4">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm truncate">{v.name}</span>
+                            {isComposite && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-blue-100 text-blue-700 font-bold uppercase">
+                                Set/Combo
+                              </Badge>
+                            )}
+                            {!v.is_active && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-slate-100 text-slate-500">
+                                Ngừng bán
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                            <span>SKU: {v.sku}</span>
+                            <span>•</span>
+                            <span>
+                              Tồn:{" "}
+                              <span className="font-semibold text-foreground">
+                                {isComposite 
+                                  ? `${calculateCompositeVariantStock(v, allComponents, allVariants)} (Combo)`
+                                  : v.stock_quantity
+                                }
+                              </span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            {Object.entries(v.attributes || {}).map(([key, val]) => (
+                              <Badge key={key} variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-50 text-purple-700 border-purple-200">
+                                {key}: {val}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                          <span>SKU: {v.sku}</span>
-                          <span>•</span>
-                          <span>Tồn: <span className="font-semibold text-foreground">{v.stock_quantity}</span></span>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-foreground">{(v.selling_price || 0).toLocaleString("vi-VN")}đ</p>
+                          <p className="text-[10px] text-muted-foreground">Vốn: {(v.cost_price || 0).toLocaleString("vi-VN")}đ</p>
                         </div>
-                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                          {Object.entries(v.attributes || {}).map(([key, val]) => (
-                            <Badge key={key} variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-50 text-purple-700 border-purple-200">
-                              {key}: {val}
-                            </Badge>
-                          ))}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={() => handleConfigureComponents(v)}
+                            title="Cấu hình Sản phẩm cấu thành (Set/Combo)"
+                            type="button"
+                          >
+                            <Layers className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEditClick(v)} type="button">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(v.id)} type="button">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-foreground">{(v.selling_price || 0).toLocaleString("vi-VN")}đ</p>
-                        <p className="text-[10px] text-muted-foreground">Vốn: {(v.cost_price || 0).toLocaleString("vi-VN")}đ</p>
-                      </div>
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => handleEditClick(v)}>
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(v.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -275,7 +390,7 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
                       {attributes.map((pair, index) => (
                         <div key={index} className="flex items-center gap-2">
                           <Input placeholder="Tên: VD màu sắc" value={pair.key} onChange={(e) => handleAttributeChange(index, "key", e.target.value)} required className="h-8 text-xs flex-1" />
-                          <Input placeholder="Giá trị: Đỏ" value={pair.value} onChange={(e) => handleAttributeChange(index, "value", e.target.value)} required className="h-8 text-xs flex-1" />
+                          <Input placeholder="Giá trị: " value={pair.value} onChange={(e) => handleAttributeChange(index, "value", e.target.value)} required className="h-8 text-xs flex-1" />
                           {attributes.length > 1 && (
                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => handleRemoveAttributePair(index)}>
                               <Trash2 className="h-4 w-4" />
@@ -284,6 +399,53 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Wholesale Price Tiers */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-xs font-semibold flex items-center gap-1">
+                        Giá bán sỉ bậc thang
+                        <HelpCircle className="h-3 w-3 text-muted-foreground" title="Bật giá bán sỉ cho riêng biến thể này" />
+                      </Label>
+                      <Button type="button" variant="outline" size="sm" onClick={handleAddWholesaleTier} className="h-6 text-[10px] px-2">
+                        + Thêm bậc giá
+                      </Button>
+                    </div>
+
+                    {wholesaleTiers.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground italic">Chưa cấu hình giá sỉ riêng cho biến thể này (Sẽ áp dụng giá sỉ của sản phẩm chính nếu có).</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {wholesaleTiers.map((tier, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 flex-1">
+                              <span className="text-[10px] text-muted-foreground">Mua từ:</span>
+                              <Input 
+                                type="number" 
+                                value={tier.min_quantity} 
+                                onChange={(e) => handleWholesaleTierChange(index, "min_quantity", Number(e.target.value))} 
+                                required 
+                                className="h-8 text-xs flex-1" 
+                              />
+                            </div>
+                            <div className="flex items-center gap-1 flex-1">
+                              <span className="text-[10px] text-muted-foreground">Đơn giá:</span>
+                              <Input 
+                                type="number" 
+                                value={tier.wholesale_price} 
+                                onChange={(e) => handleWholesaleTierChange(index, "wholesale_price", Number(e.target.value))} 
+                                required 
+                                className="h-8 text-xs flex-1" 
+                              />
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => handleRemoveWholesaleTier(index)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -311,5 +473,15 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
         </div>
       </DialogContent>
     </Dialog>
+
+    {selectedVariantForComponents && (
+      <VariantComponentsDialog
+        open={componentsDialogOpen}
+        onOpenChange={setComponentsDialogOpen}
+        variant={selectedVariantForComponents}
+        onSaved={refetchComposites}
+      />
+    )}
+  </>
   );
 }

@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { WarehouseLocationsTab } from "@/components/warehouses/WarehouseLocationsTab";
 import { FleetManagementTab } from "@/components/warehouses/FleetManagementTab";
 import { CollaboratorWarehouseTab } from "@/components/warehouses/CollaboratorWarehouseTab";
+import { WarehouseAuditTab } from "@/components/warehouses/WarehouseAuditTab";
 
 const Warehouses = () => {
   const {
@@ -72,7 +73,7 @@ const Warehouses = () => {
 
   useEffect(() => {
     const tabVal = searchParams.get("tab");
-    if (tabVal && ["stock", "transfers", "locations", "fleet", "collaborator"].includes(tabVal)) {
+    if (tabVal && ["stock", "transfers", "locations", "fleet", "collaborator", "audit"].includes(tabVal)) {
       setActiveTab(tabVal);
     }
   }, [searchParams]);
@@ -353,6 +354,7 @@ const Warehouses = () => {
           <TabsList>
             <TabsTrigger value="stock">Tồn kho theo kho</TabsTrigger>
             <TabsTrigger value="transfers">Phiếu luân chuyển</TabsTrigger>
+            <TabsTrigger value="audit">Kiểm kho</TabsTrigger>
             <TabsTrigger value="locations">Vị trí kệ</TabsTrigger>
             <TabsTrigger value="fleet">Quản lý Đội xe</TabsTrigger>
             <TabsTrigger value="collaborator">Kho Cộng tác viên (CTV)</TabsTrigger>
@@ -573,6 +575,10 @@ const Warehouses = () => {
 
           <TabsContent value="collaborator" className="mt-4">
             <CollaboratorWarehouseTab />
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-4">
+            <WarehouseAuditTab warehouses={warehouses} warehouseStock={warehouseStock} />
           </TabsContent>
         </Tabs>
       </div>

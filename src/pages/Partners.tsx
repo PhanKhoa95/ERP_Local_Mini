@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Download, Star, Award, Wallet, Eye, BarChart3, Sparkles, Banknote, ArrowRightLeft, MessageSquare } from "lucide-react";
+import { Plus, Search, Users, Building, Phone, Mail, Loader2, Pencil, Trash2, Download, Star, Award, Wallet, Eye, BarChart3, Sparkles, Banknote, ArrowRightLeft, MessageSquare, Ticket, Facebook } from "lucide-react";
 import { CustomerInsights } from "@/components/partners/CustomerInsights";
 import { CashflowTab } from "@/components/partners/CashflowTab";
 import { TransactionsTab } from "@/components/partners/TransactionsTab";
@@ -20,9 +20,13 @@ import { cn } from "@/lib/utils";
 import { CskhInboxTab } from "@/components/partners/CskhInboxTab";
 import { usePartners } from "@/hooks/usePartners";
 import { useCustomerGroups } from "@/hooks/useCustomerGroups";
+import { useVouchers } from "@/hooks/useVouchers";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 import { PartnerDialog } from "@/components/partners/PartnerDialog";
+import { FacebookSyncPanel } from "@/components/partners/FacebookSyncPanel";
 import { PartnerDetailDialog } from "@/components/partners/PartnerDetailDialog";
 import { PaymentDialog } from "@/components/partners/PaymentDialog";
 import { exportPartnersToExcel } from "@/lib/exportExcel";
@@ -41,6 +45,7 @@ const Partners = () => {
   const { partners, customers, suppliers, isLoading, createPartner, updatePartner, deletePartner } = usePartners();
   const { customerGroups } = useCustomerGroups();
   const { warehouses } = useWarehouses();
+  const { vouchers } = useVouchers();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,11 +60,15 @@ const Partners = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("customers");
   const [searchParams] = useSearchParams();
+  const [tierFilter, setTierFilter] = useState("all");
+  const [ltvFilter, setLtvFilter] = useState("all");
+  const [ordersFilter, setOrdersFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Sync tab from URL params (for sidebar submenu navigation)
   useEffect(() => {
     const tabVal = searchParams.get("tab");
-    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "cskh-inbox") {
+    if (tabVal === "cashflow" || tabVal === "transactions" || tabVal === "insights" || tabVal === "cskh-inbox" || tabVal === "facebook-sync") {
       setActiveTab(tabVal);
     } else if (!tabVal) {
       setActiveTab("customers");
@@ -74,20 +83,51 @@ const Partners = () => {
   const [bulkSegment, setBulkSegment] = useState("none");
   const [bulkSearch, setBulkSearch] = useState("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [voucherCampaignOpen, setVoucherCampaignOpen] = useState(false);
+  const [selectedVoucherCode, setSelectedVoucherCode] = useState("");
+  const [campaignMessage, setCampaignMessage] = useState("");
 
-  const filteredCustomers = customers.filter(
-    (p) =>
+  const filterPartnerFn = (p: any) => {
+    // 1. Text Search
+    const matchesSearch = 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.phone?.includes(searchQuery)
-  );
+      p.phone?.includes(searchQuery);
+    if (!matchesSearch) return false;
 
-  const filteredSuppliers = suppliers.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.phone?.includes(searchQuery)
-  );
+    // 2. Status Filter
+    const isBlocked = p.is_active === false || p.code.includes("BLOCK");
+    if (statusFilter === "active" && isBlocked) return false;
+    if (statusFilter === "blocked" && !isBlocked) return false;
+
+    // 3. Tier/Group Filter
+    if (tierFilter !== "all") {
+      const group = customerGroups.find(g => g.id === p.group_id);
+      const tierName = p.promo_segment === "loyalty" ? "Super" : (group?.name || "Thường");
+      if (tierFilter === "VIP" && tierName !== "Super") return false;
+      if (tierFilter === "GOLD" && tierName !== "VÀNG") return false;
+      if (tierFilter === "SILVER" && tierName !== "SILVER") return false;
+      if (tierFilter === "MEMBER" && tierName !== "MEMBER" && tierName !== "Cấp 2") return false;
+      if (tierFilter === "NORMAL" && tierName !== "Thường") return false;
+    }
+
+    // 4. LTV Filter
+    const spent = p.total_spent || 0;
+    if (ltvFilter === "under-1m" && spent >= 1000000) return false;
+    if (ltvFilter === "1m-5m" && (spent < 1000000 || spent > 5000000)) return false;
+    if (ltvFilter === "over-5m" && spent <= 5000000) return false;
+
+    // 5. Orders count Filter
+    const totalOrders = spent > 0 ? Math.floor(spent / 120000) + 1 : 0;
+    if (ordersFilter === "none" && totalOrders > 0) return false;
+    if (ordersFilter === "1-5" && (totalOrders < 1 || totalOrders > 5)) return false;
+    if (ordersFilter === "over-5" && totalOrders <= 5) return false;
+
+    return true;
+  };
+
+  const filteredCustomers = customers.filter(filterPartnerFn);
+  const filteredSuppliers = suppliers.filter(filterPartnerFn);
 
   // Filter partners list inside bulk dialog
   const selectablePartners = useMemo(() => {
@@ -161,6 +201,49 @@ const Partners = () => {
     }
   };
 
+  const handleSendBulkVouchers = async () => {
+    if (selectedPartnerIds.length === 0) return;
+    if (!selectedVoucherCode) {
+      toast({
+        variant: "destructive",
+        title: "Chưa chọn Voucher",
+        description: "Vui lòng chọn một mã giảm giá để gửi."
+      });
+      return;
+    }
+    
+    setIsBulkUpdating(true);
+    try {
+      const voucher = vouchers.find(v => v.code === selectedVoucherCode);
+      const noteInserts = selectedPartnerIds.map(partnerId => ({
+        partner_id: partnerId,
+        note_type: "customer_care",
+        content: `[CHIẾN DỊCH CSKH] Gửi tặng mã giảm giá ${selectedVoucherCode} (${voucher?.discount_type === 'percentage' ? `${voucher.discount_value}%` : `${voucher?.discount_value?.toLocaleString('vi-VN')}đ`}). Tin nhắn: "${campaignMessage || 'Chúc mừng quý khách đã nhận được quà tặng từ cửa hàng!'}"`,
+      }));
+
+      const { error } = await supabase.from("partner_notes").insert(noteInserts);
+      if (error) throw error;
+
+      toast({
+        title: "Gửi Voucher thành công",
+        description: `Đã gửi mã ${selectedVoucherCode} cho ${selectedPartnerIds.length} khách hàng được chọn.`,
+      });
+
+      setSelectedPartnerIds([]);
+      setVoucherCampaignOpen(false);
+      setSelectedVoucherCode("");
+      setCampaignMessage("");
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi gửi voucher",
+        description: e.message,
+      });
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -204,6 +287,7 @@ const Partners = () => {
                 <TableHead className="text-xs text-center">Số đơn</TableHead>
                 <TableHead className="text-xs text-center">Đơn đã nhận</TableHead>
                 <TableHead className="text-xs text-right">Số tiền đã chi</TableHead>
+                <TableHead className="text-xs text-center">Điểm tích lũy</TableHead>
                 <TableHead className="text-xs">Lần mua cuối</TableHead>
                 <TableHead className="text-xs">Nhân viên tạo</TableHead>
                 <TableHead className="text-xs text-right">Thao tác</TableHead>
@@ -284,6 +368,9 @@ const Partners = () => {
                     <TableCell className="text-xs text-right font-semibold">
                       {Number(partner.total_spent || 0).toLocaleString("vi-VN")}đ
                     </TableCell>
+                    <TableCell className="text-xs text-center font-bold text-indigo-600 font-mono">
+                      {partner.loyalty_points || 0}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{lastPurchase}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{creatorStaff}</TableCell>
                     <TableCell className="text-right">
@@ -341,6 +428,10 @@ const Partners = () => {
                 <MessageSquare className="h-4 w-4 text-indigo-500" />
                 <span className="hidden sm:inline">CSKH Đa Kênh</span>
               </TabsTrigger>
+              <TabsTrigger value="facebook-sync" className="gap-2 flex-1 lg:flex-none">
+                <Facebook className="h-4 w-4 text-blue-500 animate-pulse" />
+                <span className="hidden sm:inline">Tệp Marketing FB</span>
+              </TabsTrigger>
             </TabsList>
             {(activeTab === "customers" || activeTab === "suppliers") && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
@@ -353,6 +444,16 @@ const Partners = () => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                {selectedPartnerIds.length > 0 && activeTab === "customers" && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setVoucherCampaignOpen(true)} 
+                    className="w-full sm:w-auto gap-1.5 border-indigo-200 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-100/50 cursor-pointer"
+                  >
+                    <Ticket className="h-4 w-4 text-indigo-500" /> Gửi Voucher ({selectedPartnerIds.length})
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="w-full sm:w-auto gap-1.5">
                   <Sparkles className="h-4 w-4 text-primary" /> Thiết lập hàng loạt
                 </Button>
@@ -367,6 +468,72 @@ const Partners = () => {
               </div>
             )}
           </div>
+
+          {/* Advanced Filter Bar */}
+          {(activeTab === "customers" || activeTab === "suppliers") && (
+            <div className="bg-slate-50 dark:bg-slate-900/40 p-4 border rounded-xl shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end mb-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Cấp độ thành viên</label>
+                <Select value={tierFilter} onValueChange={setTierFilter}>
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Tất cả cấp độ" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Tất cả cấp độ</SelectItem>
+                    <SelectItem value="VIP">⭐ VIP/Super</SelectItem>
+                    <SelectItem value="GOLD">🥇 Cấp Vàng</SelectItem>
+                    <SelectItem value="SILVER">🥈 Cấp Bạc</SelectItem>
+                    <SelectItem value="MEMBER">🥉 Cấp Member</SelectItem>
+                    <SelectItem value="NORMAL">👤 Khách Thường</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Tổng chi tiêu (LTV)</label>
+                <Select value={ltvFilter} onValueChange={setLtvFilter}>
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Tất cả chi tiêu" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Tất cả chi tiêu</SelectItem>
+                    <SelectItem value="under-1m">📉 Dưới 1,000,000đ</SelectItem>
+                    <SelectItem value="1m-5m">📊 1M - 5Mđ</SelectItem>
+                    <SelectItem value="over-5m">📈 Trên 5,000,000đ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Số đơn hàng đã mua</label>
+                <Select value={ordersFilter} onValueChange={setOrdersFilter}>
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Tất cả số đơn" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Tất cả số đơn</SelectItem>
+                    <SelectItem value="none">🆕 Chưa mua (0 đơn)</SelectItem>
+                    <SelectItem value="1-5">🛍️ Đã mua 1 - 5 đơn</SelectItem>
+                    <SelectItem value="over-5">👑 Đã mua &gt; 5 đơn</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Trạng thái đối tác</label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Tất cả trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                    <SelectItem value="active">🟢 Đang hoạt động</SelectItem>
+                    <SelectItem value="blocked">🔴 Bị khóa/Chặn</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           <TabsContent value="customers" className="space-y-4">
             {filteredCustomers.length > 0 ? (
@@ -401,6 +568,9 @@ const Partners = () => {
           </TabsContent>
           <TabsContent value="cskh-inbox">
             <CskhInboxTab />
+          </TabsContent>
+          <TabsContent value="facebook-sync" className="pt-2">
+            <FacebookSyncPanel />
           </TabsContent>
         </Tabs>
       </div>
@@ -569,6 +739,90 @@ const Partners = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* BULK VOUCHER CAMPAIGN DIALOG */}
+      <Dialog open={voucherCampaignOpen} onOpenChange={setVoucherCampaignOpen}>
+        <DialogContent className="max-w-lg w-full bg-white dark:bg-slate-900 border rounded-xl shadow-lg p-5">
+          <DialogHeader className="border-b pb-2">
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Ticket className="h-5 w-5 text-indigo-500" />
+              Chiến dịch gửi Voucher CSKH hàng loạt
+            </DialogTitle>
+            <DialogDescription>
+              Gửi tặng Voucher giảm giá và tin nhắn chăm sóc khách hàng hàng loạt đến các đối tác được chọn.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="text-xs font-semibold text-muted-foreground bg-indigo-50 dark:bg-indigo-950/20 p-2.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50">
+              Danh sách nhận ({selectedPartnerIds.length} đối tác):
+              <div className="max-h-24 overflow-y-auto mt-1 flex flex-wrap gap-1">
+                {selectedPartnerIds.map(id => {
+                  const p = customers.find(c => c.id === id);
+                  return p ? (
+                    <Badge key={id} variant="outline" className="bg-white text-indigo-650 border-indigo-200 text-[10px] px-1.5 py-0">
+                      {p.name}
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Chọn Voucher quà tặng</Label>
+              <Select value={selectedVoucherCode} onValueChange={setSelectedVoucherCode}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Chọn mã Voucher..." /></SelectTrigger>
+                <SelectContent className="bg-popover z-[160]">
+                  {vouchers.filter(v => v.is_active).map(v => (
+                    <SelectItem key={v.id} value={v.code}>
+                      🎟️ {v.code} - Giảm {v.discount_type === 'percentage' ? `${v.discount_value}%` : `${v.discount_value?.toLocaleString('vi-VN')}đ`}
+                    </SelectItem>
+                  ))}
+                  {vouchers.filter(v => v.is_active).length === 0 && (
+                    <SelectItem value="none" disabled>Không có voucher khả dụng</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Tin nhắn gửi kèm</Label>
+              <Textarea
+                placeholder="Nhập nội dung tin nhắn gửi tặng khách hàng..."
+                value={campaignMessage}
+                onChange={e => setCampaignMessage(e.target.value)}
+                className="text-xs bg-muted/20 min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t pt-3 flex gap-2 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVoucherCampaignOpen(false)}
+              className="h-9 text-xs"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSendBulkVouchers}
+              disabled={selectedPartnerIds.length === 0 || isBulkUpdating || !selectedVoucherCode}
+              className="h-9 text-xs bg-indigo-605 hover:bg-indigo-700 text-white font-bold"
+            >
+              {isBulkUpdating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  Đang gửi...
+                </>
+              ) : (
+                <>Gửi Voucher ({selectedPartnerIds.length})</>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

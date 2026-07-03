@@ -15,7 +15,8 @@ import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
-import { User, Store, Shield, Loader2, Plus, Pencil, Trash2, CreditCard, Ticket, Truck, Users, History, FolderOpen, Mail, Bot, Building2, UsersRound, Link2, HardDrive, ShieldCheck, Activity, Tags, Zap, Award, ArrowLeft, MessageSquare, Facebook } from "lucide-react";
+import { User, Store, Shield, Loader2, Plus, Pencil, Trash2, CreditCard, Ticket, Truck, Users, History, FolderOpen, Mail, Bot, Building2, UsersRound, Link2, HardDrive, ShieldCheck, Activity, Tags, Zap, Award, ArrowLeft, MessageSquare, Facebook, ShoppingBag, Percent, Printer } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { usePlatformSync } from "@/hooks/usePlatformSync";
 import { BankSettingsTab } from "@/components/settings/BankSettingsTab";
 import { VouchersTab } from "@/components/settings/VouchersTab";
@@ -42,6 +43,10 @@ import { LoyaltySettingsTab } from "@/components/settings/LoyaltySettingsTab";
 import { CommissionSettingsTab } from "@/components/settings/CommissionSettingsTab";
 import { AutoMessagesTab } from "@/components/settings/AutoMessagesTab";
 import { EventSyncTab } from "@/components/settings/EventSyncTab";
+import { LarkSyncTab } from "@/components/settings/LarkSyncTab";
+import { WholesaleSettingsTab } from "@/components/settings/WholesaleSettingsTab";
+import { PrintTemplateSettingsTab } from "@/components/settings/PrintTemplateSettingsTab";
+import { WarehouseChannelMappingTab } from "@/components/settings/WarehouseChannelMappingTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { z } from "zod";
@@ -107,6 +112,21 @@ const Settings = () => {
   const [productMappings, setProductMappings] = useState<any[]>([]);
   const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
   const [newMapping, setNewMapping] = useState({ channel_id: "", external_name: "", external_sku: "", product_id: "" });
+
+  const [upsaleEnabled, setUpsaleEnabled] = useState(() => {
+    return localStorage.getItem("erp-settings-upsale") === "true";
+  });
+
+  const handleToggleUpsale = (checked: boolean) => {
+    localStorage.setItem("erp-settings-upsale", String(checked));
+    setUpsaleEnabled(checked);
+    toast({
+      title: checked ? "Đã bật tính năng Upsale" : "Đã tắt tính năng Upsale",
+      description: checked
+        ? "Cho phép đánh dấu sản phẩm Upsale trong chi tiết đơn hàng."
+        : "Ẩn các tùy chọn Upsale.",
+    });
+  };
 
   useEffect(() => {
     const rawMappings = localStorage.getItem("erp-mini-local-demo-product-mappings");
@@ -273,7 +293,8 @@ const Settings = () => {
         icon: Link2,
         items: [
           { label: "Kênh bán hàng", tab: "channels", desc: "Quản lý kết nối Shopee, Lazada, TikTok Shop" },
-          { label: "Mã giảm giá (Vouchers)", tab: "vouchers", desc: "Thiết lập mã giảm giá cho shop" }
+          { label: "Mã giảm giá (Vouchers)", tab: "vouchers", desc: "Thiết lập mã giảm giá cho shop" },
+          { label: "Cấu hình Bán sỉ", tab: "wholesale", desc: "Thiết lập các điều kiện và bậc giá sỉ tự động" }
         ]
       },
       {
@@ -427,6 +448,14 @@ const Settings = () => {
               <MessageSquare className="h-4 w-4 text-indigo-500" />
               <span className="hidden sm:inline">Cấu hình CSKH</span>
             </TabsTrigger>
+            <TabsTrigger value="lark" className="gap-2">
+              <Zap className="h-4 w-4 text-emerald-500 animate-pulse" />
+              <span className="hidden sm:inline">Đồng bộ Lark Suite</span>
+            </TabsTrigger>
+            <TabsTrigger value="order_settings" className="gap-2">
+              <ShoppingBag className="h-4 w-4 text-orange-500" />
+              <span className="hidden sm:inline">Cài đặt đơn hàng</span>
+            </TabsTrigger>
             <TabsTrigger value="vouchers" className="gap-2">
               <Ticket className="h-4 w-4" />
               <span className="hidden sm:inline">Voucher</span>
@@ -454,6 +483,18 @@ const Settings = () => {
             <TabsTrigger value="price_lists" className="gap-2">
               <Tags className="h-4 w-4" />
               <span className="hidden sm:inline">Bảng giá</span>
+            </TabsTrigger>
+            <TabsTrigger value="wholesale" className="gap-2">
+              <Percent className="h-4 w-4" />
+              <span className="hidden sm:inline">Bán sỉ</span>
+            </TabsTrigger>
+            <TabsTrigger value="print_template" className="gap-2">
+              <Printer className="h-4 w-4" />
+              <span className="hidden sm:inline">Mẫu in</span>
+            </TabsTrigger>
+            <TabsTrigger value="warehouse_mapping" className="gap-2">
+              <Truck className="h-4 w-4" />
+              <span className="hidden sm:inline">Ánh xạ kho</span>
             </TabsTrigger>
             <TabsTrigger value="subscriptions" className="gap-2">
               <Zap className="h-4 w-4" />
@@ -842,6 +883,38 @@ const Settings = () => {
             </Dialog>
           </TabsContent>
 
+          <TabsContent value="lark">
+            <LarkSyncTab />
+          </TabsContent>
+
+          <TabsContent value="order_settings">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5 text-orange-500" />
+                  Cấu hình Đơn hàng
+                </CardTitle>
+                <CardDescription>
+                  Thiết lập các quyền thao tác và tính năng bổ trợ khi xử lý đơn hàng
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50/50 dark:bg-slate-900/50 border">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-semibold">Cho phép bán sản phẩm Upsale</Label>
+                    <p className="text-xs text-muted-foreground max-w-lg">
+                      Cho phép nhân viên chốt thêm sản phẩm sau khi đã lưu đơn hàng, gán trách nhiệm theo dõi doanh số và tính hoa hồng.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={upsaleEnabled}
+                    onCheckedChange={handleToggleUpsale}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="vouchers">
             <VouchersTab />
           </TabsContent>
@@ -916,6 +989,18 @@ const Settings = () => {
 
           <TabsContent value="price_lists">
             <PriceListsTab />
+          </TabsContent>
+
+          <TabsContent value="wholesale">
+            <WholesaleSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="print_template">
+            <PrintTemplateSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="warehouse_mapping">
+            <WarehouseChannelMappingTab />
           </TabsContent>
 
           <TabsContent value="subscriptions">

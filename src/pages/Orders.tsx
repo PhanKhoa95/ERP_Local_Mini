@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useMemo, useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -7,8 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, List, LayoutGrid, Search, Filter, Eye, Download, Upload, ArrowRight, Bot, RotateCcw, FileText, Package, Printer, RefreshCw, ClipboardList, Truck, MoreHorizontal, PackageCheck, FileSpreadsheet, Scale } from "lucide-react";
+import { Plus, List, LayoutGrid, Search, Filter, Eye, Download, Upload, ArrowRight, Bot, RotateCcw, FileText, Package, Printer, RefreshCw, ClipboardList, Truck, MoreHorizontal, PackageCheck, FileSpreadsheet, Scale, PhoneCall } from "lucide-react";
 import { PackingDialog } from "@/components/orders/PackingDialog";
+import { PrintProductsDialog } from "@/components/orders/PrintProductsDialog";
+import { ShipCarrierDialog } from "@/components/orders/ShipCarrierDialog";
+import { BulkTagDialog, TAG_GROUPS } from "@/components/orders/BulkTagDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -32,7 +45,7 @@ import { OrderAIAssistant } from "@/components/ai/OrderAIAssistant";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateOrderRelated } from "@/lib/queryInvalidation";
 import { QuotationsTab } from "@/components/orders/QuotationsTab";
-import { ImportOrdersDialog } from "@/components/orders/ImportOrdersDialog";
+import { ImportOrdersDialog, type ImportedOrder } from "@/components/orders/ImportOrdersDialog";
 import { ReconciliationTab } from "@/components/orders/ReconciliationTab";
 import {
   getOrderCustomerName,
@@ -57,6 +70,7 @@ type Order = HookOrder & {
 
 const statusColumns = [
   { id: "all", label: "Tất cả", color: "bg-slate-500" },
+  { id: "pending_approval", label: "Chờ duyệt", color: "bg-orange-600" },
   { id: "pending", label: "Mới", color: "bg-blue-500" },
   { id: "waiting_goods", label: "Chờ hàng", color: "bg-amber-500" },
   { id: "confirmed", label: "Đã xác nhận", color: "bg-info" },
@@ -70,6 +84,7 @@ const statusColumns = [
 
 const pancakeStatuses = [
   { value: "pending", label: "Mới" },
+  { value: "pending_approval", label: "Chờ duyệt" },
   { value: "duplicate", label: "Tạo trùng lặp" },
   { value: "waiting_goods", label: "Chờ hàng" },
   { value: "priority_ship", label: "Ưu tiên xuất đơn" },
@@ -80,12 +95,16 @@ const pancakeStatuses = [
   { value: "packing", label: "Đang đóng hàng" },
   { value: "waiting_transfer", label: "Chờ chuyển hàng" },
   { value: "shipping", label: "Gửi hàng đi" },
+  { value: "delivered", label: "Đã nhận" },
+  { value: "received_exchange", label: "Đã nhận (đổi)" },
+  { value: "paid_completed", label: "Đã thu tiền" },
   { value: "cancelled", label: "Huỷ đơn" },
   { value: "deleted", label: "Xoá đơn" },
 ];
 
 const statusLabels: Record<string, string> = {
   pending: "Mới",
+  pending_approval: "Chờ duyệt",
   duplicate: "Tạo trùng lặp",
   waiting_goods: "Chờ hàng",
   priority_ship: "Ưu tiên xuất đơn",
@@ -96,6 +115,9 @@ const statusLabels: Record<string, string> = {
   packing: "Đang đóng hàng",
   waiting_transfer: "Chờ chuyển hàng",
   shipping: "Gửi hàng đi",
+  delivered: "Đã nhận",
+  received_exchange: "Đã nhận (đổi)",
+  paid_completed: "Đã thu tiền",
   cancelled: "Huỷ đơn",
   deleted: "Xoá đơn",
   returned: "Hoàn hàng",
@@ -103,6 +125,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   pending: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  pending_approval: "bg-orange-500/15 text-orange-600 border-orange-500/30 font-extrabold",
   duplicate: "bg-gray-400/10 text-gray-400 border-gray-400/20",
   waiting_goods: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   priority_ship: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
@@ -113,9 +136,52 @@ const statusColors: Record<string, string> = {
   packing: "bg-purple-500/10 text-purple-500 border-purple-500/20",
   waiting_transfer: "bg-pink-500/10 text-pink-500 border-pink-500/20",
   shipping: "bg-accent/10 text-accent-foreground border-accent/20",
+  delivered: "bg-success/10 text-success border-success/20",
+  received_exchange: "bg-sky-500/10 text-sky-500 border-sky-500/20",
+  paid_completed: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
   deleted: "bg-slate-700/10 text-slate-700 border-slate-700/20",
   returned: "bg-muted text-muted-foreground border-border",
+};
+
+const getCarrier = (phone: string) => {
+  if (!phone) return null;
+  const clean = phone.replace(/[^0-9]/g, "");
+  const prefix3 = clean.substring(0, 3);
+  const prefix4 = clean.substring(0, 4);
+  
+  const viettel = ["032", "033", "034", "035", "036", "037", "038", "039", "086", "096", "097", "098"];
+  const vina = ["081", "082", "083", "084", "085", "088", "091", "094"];
+  const mobi = ["070", "076", "077", "078", "079", "089", "090", "093"];
+  
+  if (viettel.includes(prefix3) || viettel.includes(prefix4)) return "Viettel";
+  if (vina.includes(prefix3) || vina.includes(prefix4)) return "Vinaphone";
+  if (mobi.includes(prefix3) || mobi.includes(prefix4)) return "Mobifone";
+  return "Khác";
+};
+
+const renderUserAvatar = (name?: string) => {
+  const initial = name ? name.trim().charAt(0).toUpperCase() : "?";
+  return (
+    <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center border shadow-xs select-none">
+      {initial}
+    </div>
+  );
+};
+
+const getInventoryStatus = (order: any) => {
+  const items = order.order_items || [];
+  if (items.length === 0) return { label: "Chưa có SP", color: "text-slate-500" };
+  
+  const hasShortage = items.some((item: any) => {
+    const available = item.products?.stock_quantity ?? 0;
+    return item.quantity > available;
+  });
+  
+  if (hasShortage) {
+    return { label: "Đơn thiếu", color: "text-red-500 font-semibold" };
+  }
+  return { label: "Đơn đủ", color: "text-green-600 font-semibold" };
 };
 
 const Orders = () => {
@@ -145,6 +211,14 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState<string>(paramStatus);
   const [channelFilter, setChannelFilter] = useState<string>(paramChannel);
   const [regionFilter, setRegionFilter] = useState<string>("all");
+  const [upsaleFilter, setUpsaleFilter] = useState<boolean>(false);
+
+  // Advanced Filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [staffFilter, setStaffFilter] = useState<string>("all");
+  const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
 
   useEffect(() => {
     if (userRegion && userRegion !== "Toàn quốc") {
@@ -173,10 +247,15 @@ const Orders = () => {
     } else if (!tabVal) {
       setActiveTab("orders");
     }
+    
+    if (viewVal === "upsale") setUpsaleFilter(true);
   }, [searchParams]);
 
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [packingDialogOpen, setPackingDialogOpen] = useState(false);
+  const [printProductsDialogOpen, setPrintProductsDialogOpen] = useState(false);
+  const [shipCarrierDialogOpen, setShipCarrierDialogOpen] = useState(false);
+  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
   
   const { orders, isLoading, createOrder, updateOrderStatus } = useOrders();
   const { channels } = useSalesChannels();
@@ -190,6 +269,40 @@ const Orders = () => {
       shipping_zones: shippingZones.find((zone) => zone.id === order.shipping_zone_id) || null,
     }));
   }, [orders, warehouses, shippingZones]);
+
+  const callbackReminders = useMemo(() => {
+    if (!enrichedOrders) return [];
+    const now = new Date();
+    return enrichedOrders.filter(order => {
+      if (!order.call_back_time) return false;
+      const callbackDate = new Date(order.call_back_time);
+      const diffMs = callbackDate.getTime() - now.getTime();
+      const diffMins = diffMs / (1000 * 60);
+      return diffMins <= 10 && diffMins >= -2880; // Hẹn gọi trong vòng 10 phút tới hoặc quá hạn tối đa 48 giờ
+    });
+  }, [enrichedOrders]);
+
+  // Unique tags and staff for filtering
+  const allUniqueTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    enrichedOrders.forEach(o => {
+      if (o.tags) {
+        o.tags.split(",").forEach(t => {
+          const trimmed = t.trim();
+          if (trimmed) tagsSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagsSet);
+  }, [enrichedOrders]);
+
+  const allUniqueStaff = useMemo(() => {
+    const staffSet = new Set<string>();
+    enrichedOrders.forEach(o => {
+      if (o.assigned_to_name) staffSet.add(o.assigned_to_name);
+    });
+    return Array.from(staffSet);
+  }, [enrichedOrders]);
 
   // Filter orders
   const filteredOrders = useMemo(() => {
@@ -220,9 +333,38 @@ const Orders = () => {
         if (orderRegion !== regionFilter) matchesRegion = false;
       }
       
-      return matchesSearch && matchesStatus && matchesChannel && matchesDate && matchesRegion;
+      // Upsale filter
+      const matchesUpsale = !upsaleFilter || (order.order_items || []).some((item: any) => item.is_upsale === true);
+
+      // Tag filter
+      let matchesTag = true;
+      if (tagFilter !== "all") {
+        const tagsList = order.tags ? order.tags.split(",").map(t => t.trim().toLowerCase()) : [];
+        if (!tagsList.includes(tagFilter.toLowerCase())) matchesTag = false;
+      }
+
+      // Staff filter
+      let matchesStaff = true;
+      if (staffFilter !== "all") {
+        if (order.assigned_to_name !== staffFilter) matchesStaff = false;
+      }
+
+      // Warehouse filter
+      let matchesWarehouse = true;
+      if (warehouseFilter !== "all") {
+        if (order.warehouse_id !== warehouseFilter) matchesWarehouse = false;
+      }
+
+      // Payment status filter
+      let matchesPaymentStatus = true;
+      if (paymentStatusFilter !== "all") {
+        const orderPaymentStatus = order.payment_status || "pending";
+        if (orderPaymentStatus !== paymentStatusFilter) matchesPaymentStatus = false;
+      }
+      
+      return matchesSearch && matchesStatus && matchesChannel && matchesDate && matchesRegion && matchesUpsale && matchesTag && matchesStaff && matchesWarehouse && matchesPaymentStatus;
     });
-  }, [enrichedOrders, searchTerm, statusFilter, channelFilter, startDate, endDate, regionFilter]);
+  }, [enrichedOrders, searchTerm, statusFilter, channelFilter, startDate, endDate, regionFilter, upsaleFilter, tagFilter, staffFilter, warehouseFilter, paymentStatusFilter]);
 
   const totalCOD = useMemo(() => {
     return filteredOrders
@@ -247,8 +389,95 @@ const Orders = () => {
   };
 
   const handleCreateOrder = async (data: any) => {
-    await createOrder.mutateAsync(data);
+    const { autoSendToCarrier, carrierId, ...orderPayload } = data;
+    const res = await createOrder.mutateAsync(orderPayload);
+    
+    if (autoSendToCarrier && res) {
+      const orderId = res.id;
+      const trackingCode = res.platform_order_id || `SHIP-${orderId}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const codAmount = res.status === "confirmed" || res.payment_status === "unpaid" ? (res.total || 0) : 0;
+      
+      try {
+        if (isLocalDemoAuthEnabled()) {
+          const localShipmentsRaw = localStorage.getItem("erp-mini-local-demo-shipments");
+          const localShipments = localShipmentsRaw ? JSON.parse(localShipmentsRaw) : [];
+          localShipments.unshift({
+            id: `ship-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            order_id: orderId,
+            carrier_id: carrierId,
+            tracking_code: trackingCode,
+            cod_amount: codAmount,
+            weight_grams: 500,
+            created_at: new Date().toISOString()
+          });
+          localStorage.setItem("erp-mini-local-demo-shipments", JSON.stringify(localShipments));
+        } else {
+          await supabase.from("shipments").insert({
+            order_id: orderId,
+            carrier_id: carrierId,
+            tracking_code: trackingCode,
+            cod_amount: codAmount,
+            weight_grams: 500
+          });
+        }
+        
+        toast({
+          title: "Gửi ĐVVC tự động thành công",
+          description: `Đơn hàng đã được đẩy sang ĐVVC với mã vận đơn: ${trackingCode}`
+        });
+      } catch (shipErr) {
+        console.error("Auto create shipment failed on order creation:", shipErr);
+      }
+    }
+    
     setCreateDialogOpen(false);
+  };
+
+  const handleImportOrders = async (importedOrders: ImportedOrder[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+    for (const imported of importedOrders) {
+      try {
+        const orderNumber = `ORD-IMP-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const subtotal = imported.items.reduce((sum, item) => sum + item.total, 0);
+        await createOrder.mutateAsync({
+          order: {
+            order_number: orderNumber,
+            channel_id: channels[0]?.id || "",
+            order_type: "b2c",
+            source_type: "import",
+            fulfillment_type: "online",
+            customer_name: imported.customer_name || null,
+            customer_phone: imported.customer_phone || null,
+            customer_address: imported.customer_address || null,
+            shipping_address: imported.customer_address || null,
+            payment_method: "cod",
+            notes: imported.notes || null,
+            subtotal,
+            shipping_fee: 0,
+            discount: 0,
+            total: subtotal,
+            status: "pending",
+          },
+          items: imported.items.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount: 0,
+            total: item.total,
+          })),
+        });
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+    setImportDialogOpen(false);
+    toast({
+      title: `Nhập đơn hoàn tất`,
+      description: `Thành công: ${successCount} đơn` + (errorCount > 0 ? `, Lỗi: ${errorCount} đơn` : ""),
+      variant: errorCount > 0 ? "destructive" : "default",
+    });
   };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
@@ -330,82 +559,267 @@ const Orders = () => {
       });
       setSelectedOrderIds([]);
     } else if (value === "tag") {
-      toast({
-        title: "Đã cập nhật thẻ",
-        description: `Đã cập nhật thẻ (tags) cho ${selectedOrderIds.length} đơn hàng thành công.`,
+      setBulkTagDialogOpen(true);
+    } else if (value === "merge") {
+      if (selectedOrderObjects.length < 2) {
+        toast({
+          variant: "destructive",
+          title: "Không thể gộp đơn",
+          description: "Vui lòng chọn từ 2 đơn hàng trở lên để thực hiện gộp."
+        });
+        return;
+      }
+
+      // Group selected orders by customer_phone
+      const phoneGroups: Record<string, typeof selectedOrderObjects> = {};
+      selectedOrderObjects.forEach(order => {
+        const phone = order.customer_phone ? order.customer_phone.replace(/\s+/g, "") : "";
+        if (phone && phone.length >= 9) {
+          if (!phoneGroups[phone]) phoneGroups[phone] = [];
+          phoneGroups[phone].push(order);
+        }
       });
-      setSelectedOrderIds([]);
+
+      const mergeableGroups = Object.entries(phoneGroups).filter(([_, list]) => list.length >= 2);
+      if (mergeableGroups.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Không có đơn trùng SĐT",
+          description: "Không tìm thấy đơn hàng nào trùng Số điện thoại khách hàng trong số các đơn đã chọn."
+        });
+        return;
+      }
+
+      try {
+        let mergedMasterCodes: string[] = [];
+        
+        if (isLocalDemoAuthEnabled()) {
+          const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+          if (rawOrders) {
+            const allOrders = JSON.parse(rawOrders);
+            
+            for (const [phone, group] of mergeableGroups) {
+              // Sort by created_at ascending: oldest is Master
+              const sorted = [...group].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+              const masterOrder = sorted[0];
+              const subOrders = sorted.slice(1);
+              
+              // Find indices in allOrders
+              const masterIdx = allOrders.findIndex((o: any) => o.id === masterOrder.id);
+              if (masterIdx === -1) continue;
+              
+              const currentMaster = allOrders[masterIdx];
+              const mergedItems = [...(currentMaster.order_items || [])];
+              
+              subOrders.forEach(sub => {
+                const subItems = sub.order_items || [];
+                subItems.forEach((subItem: any) => {
+                  const existingItemIdx = mergedItems.findIndex(mi => mi.product_id === subItem.product_id);
+                  if (existingItemIdx !== -1) {
+                    mergedItems[existingItemIdx].quantity += subItem.quantity;
+                    mergedItems[existingItemIdx].total_price = mergedItems[existingItemIdx].quantity * Number(mergedItems[existingItemIdx].unit_price);
+                  } else {
+                    mergedItems.push({
+                      ...subItem,
+                      id: `oi-merged-${Math.random().toString(36).substr(2, 9)}`,
+                      order_id: masterOrder.id
+                    });
+                  }
+                });
+                
+                // Update subOrder state in allOrders to 'duplicate'
+                const subIdx = allOrders.findIndex((o: any) => o.id === sub.id);
+                if (subIdx !== -1) {
+                  allOrders[subIdx].status = "duplicate";
+                  allOrders[subIdx].notes = (allOrders[subIdx].notes || "") + (allOrders[subIdx].notes ? "\n" : "") + `[Gộp đơn] Đã gộp vào đơn chính: ${masterOrder.order_number}`;
+                  allOrders[subIdx].order_items = []; // Clear sub order items
+                  allOrders[subIdx].updated_at = new Date().toISOString();
+                }
+              });
+              
+              // Calculate financial totals for Master
+              const itemsTotal = mergedItems.reduce((sum, item) => sum + (item.quantity * Number(item.unit_price)), 0);
+              const shipping = Number(currentMaster.shipping_fee) || 0;
+              const discount = Number(currentMaster.discount) || 0;
+              
+              currentMaster.order_items = mergedItems;
+              currentMaster.total = itemsTotal + shipping - discount;
+              currentMaster.notes = (currentMaster.notes || "") + (currentMaster.notes ? "\n" : "") + `[Gộp đơn] Gộp mặt hàng từ các đơn phụ: ${subOrders.map(o => o.order_number).join(", ")}`;
+              currentMaster.updated_at = new Date().toISOString();
+              
+              mergedMasterCodes.push(masterOrder.order_number);
+            }
+            
+            localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(allOrders));
+          }
+        } else {
+          // Supabase Mode
+          for (const [phone, group] of mergeableGroups) {
+            const sorted = [...group].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            const masterOrder = sorted[0];
+            const subOrders = sorted.slice(1);
+            
+            // Get current Master items
+            const { data: currentMasterItems } = await supabase
+              .from("order_items")
+              .select("*")
+              .eq("order_id", masterOrder.id);
+              
+            const mergedItems = [...(currentMasterItems || [])];
+            
+            for (const sub of subOrders) {
+              const { data: subItems } = await supabase
+                .from("order_items")
+                .select("*")
+                .eq("order_id", sub.id);
+                
+              if (subItems) {
+                for (const subItem of subItems) {
+                  const existingItem = mergedItems.find(mi => mi.product_id === subItem.product_id);
+                  if (existingItem) {
+                    const newQty = existingItem.quantity + subItem.quantity;
+                    const newPrice = newQty * Number(existingItem.unit_price);
+                    
+                    await supabase
+                      .from("order_items")
+                      .update({ quantity: newQty, total_price: newPrice })
+                      .eq("id", existingItem.id);
+                      
+                    existingItem.quantity = newQty;
+                    existingItem.total_price = newPrice;
+                  } else {
+                    const { data: insertedItem } = await supabase
+                      .from("order_items")
+                      .insert({
+                        order_id: masterOrder.id,
+                        product_id: subItem.product_id,
+                        quantity: subItem.quantity,
+                        unit_price: subItem.unit_price,
+                        total_price: subItem.total_price
+                      })
+                      .select()
+                      .single();
+                      
+                    if (insertedItem) mergedItems.push(insertedItem);
+                  }
+                }
+              }
+              
+              // Deactivate/delete order items of subOrder to avoid double stock deduction
+              await supabase
+                .from("order_items")
+                .delete()
+                .eq("order_id", sub.id);
+                
+              // Update subOrder status to duplicate
+              const subNotes = (sub.notes || "") + (sub.notes ? "\n" : "") + `[Gộp đơn] Đã gộp vào đơn chính: ${masterOrder.order_number}`;
+              await supabase
+                .from("orders")
+                .update({
+                  status: "duplicate" as any,
+                  notes: subNotes,
+                  updated_at: new Date().toISOString()
+                })
+                .eq("id", sub.id);
+            }
+            
+            // Recalculate Master Financials
+            const itemsTotal = mergedItems.reduce((sum, item) => sum + (item.quantity * Number(item.unit_price)), 0);
+            const shipping = Number(masterOrder.shipping_fee) || 0;
+            const discount = Number(masterOrder.discount) || 0;
+            const newTotal = itemsTotal + shipping - discount;
+            
+            const masterNotes = (masterOrder.notes || "") + (masterOrder.notes ? "\n" : "") + `[Gộp đơn] Gộp mặt hàng từ các đơn phụ: ${subOrders.map(o => o.order_number).join(", ")}`;
+            
+            await supabase
+              .from("orders")
+              .update({
+                total: newTotal,
+                notes: masterNotes,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", masterOrder.id);
+              
+            mergedMasterCodes.push(masterOrder.order_number);
+          }
+        }
+        
+        toast({
+          title: "Gộp đơn thành công",
+          description: `Đã tiến hành gộp trùng SĐT thành các đơn chính: ${mergedMasterCodes.join(", ")}`
+        });
+        
+        setSelectedOrderIds([]);
+        window.dispatchEvent(new Event("local-orders-updated"));
+      } catch (err: any) {
+        toast({
+          variant: "destructive",
+          title: "Lỗi gộp đơn",
+          description: err.message || "Đã xảy ra lỗi trong quá trình gộp đơn."
+        });
+      }
+    }
+  };
+
+  const getTagColorClass = (tagName: string) => {
+    const nameLower = tagName.toLowerCase();
+    if (nameLower.includes("gấp")) return "bg-red-500/10 text-red-500 border-red-500/20";
+    if (nameLower.includes("vip")) return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+    if (nameLower.includes("sỉ")) return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    if (nameLower.includes("thiếu")) return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+    if (nameLower.includes("xác nhận")) return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    if (nameLower.includes("gửi lại")) return "bg-purple-500/10 text-purple-500 border-purple-500/20";
+    return "bg-slate-500/10 text-slate-600 border-slate-500/20";
+  };
+
+  const handleUpdateOrderTags = async (orderId: string, currentTagsStr: string, tagName: string, action: "add" | "remove") => {
+    let currentTags = currentTagsStr ? currentTagsStr.split(",").map(t => t.trim()).filter(Boolean) : [];
+    
+    if (action === "add") {
+      const priorityGroup = TAG_GROUPS[0];
+      if (priorityGroup.tags.some(t => t.name === tagName)) {
+        const priorityNames = priorityGroup.tags.map(t => t.name);
+        currentTags = currentTags.filter(t => !priorityNames.includes(t));
+      }
+      
+      if (!currentTags.includes(tagName)) {
+        currentTags.push(tagName);
+      }
+    } else {
+      currentTags = currentTags.filter(t => t !== tagName);
+    }
+    
+    const newTagsStr = currentTags.join(", ");
+    
+    try {
+      if (isLocalDemoAuthEnabled()) {
+        const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
+        if (rawOrders) {
+          const all = JSON.parse(rawOrders);
+          const idx = all.findIndex((o: any) => o.id === orderId);
+          if (idx !== -1) {
+            all[idx].tags = newTagsStr;
+            all[idx].updated_at = new Date().toISOString();
+            localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(all));
+          }
+        }
+      } else {
+        await supabase
+          .from("orders")
+          .update({ tags: newTagsStr, updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+      }
+      
+      toast({ title: "Đã cập nhật thẻ đơn hàng" });
+      window.dispatchEvent(new Event("local-orders-updated"));
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Lỗi", description: err.message });
     }
   };
 
   const handleBulkPrintProducts = () => {
     if (selectedOrderIds.length === 0) return;
-    const productMap: Record<string, { sku: string; name: string; quantity: number }> = {};
-    selectedOrderObjects.forEach((order) => {
-      const items = order.order_items || [];
-      items.forEach((item) => {
-        const sku = item.products?.sku || "N/A";
-        const name = item.products?.name || "Sản phẩm không tên";
-        const qty = item.quantity || 0;
-        if (productMap[sku]) {
-          productMap[sku].quantity += qty;
-        } else {
-          productMap[sku] = { sku, name, quantity: qty };
-        }
-      });
-    });
-    const aggregatedProducts = Object.values(productMap);
-    const printWindow = window.open("", "_blank", "width=800,height=600");
-    if (!printWindow) return;
-    const productRows = aggregatedProducts
-      .map(
-        (prod, idx) => `
-        <tr>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${idx + 1}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; font-weight: bold;">${prod.sku}</td>
-          <td style="border: 1px solid #ddd; padding: 8px;">${prod.name}</td>
-          <td style="border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 14px; font-weight: bold; color: #2563eb;">${prod.quantity}</td>
-        </tr>`
-      )
-      .join("");
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Danh sách tổng hợp sản phẩm nhặt hàng</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; }
-          h2 { text-align: center; margin-bottom: 5px; }
-          .meta { text-align: center; color: #666; font-size: 13px; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th { background-color: #f3f4f6; border: 1px solid #ddd; padding: 10px; text-align: left; }
-          td { border: 1px solid #ddd; padding: 8px; }
-          .footer { margin-top: 30px; text-align: right; font-style: italic; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <h2>DANH SÁCH TỔNG HỢP SẢN PHẨM CẦN NHẶT</h2>
-        <div class="meta">Tổng số đơn hàng chọn: ${selectedOrderIds.length} | Ngày in: ${new Date().toLocaleString("vi-VN")}</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 50px; text-align: center;">STT</th>
-              <th style="width: 150px;">Mã sản phẩm (SKU)</th>
-              <th>Tên sản phẩm</th>
-              <th style="width: 100px; text-align: center;">Số lượng tổng</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${productRows.length > 0 ? productRows : '<tr><td colspan="4" style="text-align:center; padding: 20px;">Không có sản phẩm nào</td></tr>'}
-          </tbody>
-        </table>
-        <div class="footer">Người in: Hệ thống ERP Local Mini</div>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    setPrintProductsDialogOpen(true);
   };
 
   const handleBulkPrintHandover = () => {
@@ -556,6 +970,38 @@ const Orders = () => {
       <Header title="Quản lý đơn hàng" subtitle="Theo dõi và xử lý đơn hàng đa kênh" />
 
       <div className="p-4 sm:p-6">
+        {callbackReminders.length > 0 && (
+          <div className="mb-4 bg-orange-50/80 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/50 p-3 rounded-xl flex items-center justify-between gap-3 flex-wrap animate-pulse shadow-sm">
+            <div className="flex items-center gap-2">
+              <PhoneCall className="h-5 w-5 text-orange-600 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-orange-850 dark:text-orange-300">
+                  Lịch hẹn gọi lại cho khách hàng đến hạn ({callbackReminders.length} đơn)
+                </p>
+                <p className="text-[10px] text-orange-700 dark:text-orange-400 mt-0.5 font-semibold">
+                  Telesales vui lòng kiểm tra và liên hệ ngay với khách hàng để chốt đơn/chăm sóc.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {callbackReminders.slice(0, 3).map((order) => (
+                <Button
+                  key={order.id}
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    setDetailDialogOpen(true);
+                  }}
+                  size="sm"
+                  variant="outline"
+                  className="border-orange-300 bg-white dark:bg-slate-900 text-orange-850 dark:text-orange-300 font-bold h-7 text-[10px] px-2.5 hover:bg-orange-50 hover:text-orange-900 cursor-pointer"
+                >
+                  Gọi: #{order.order_number} ({order.call_back_time ? new Date(order.call_back_time).toLocaleTimeString("vi-VN", {hour: '2-digit', minute:'2-digit'}) : ""})
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
@@ -674,8 +1120,91 @@ const Orders = () => {
                       <SelectItem value="Miền Nam">Miền Nam</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  <Button
+                    variant={upsaleFilter ? "default" : "outline"}
+                    size="sm"
+                    className={cn("h-9 text-xs gap-1.5 font-medium shrink-0", upsaleFilter && "bg-orange-500 hover:bg-orange-600 text-white border-none")}
+                    onClick={() => setUpsaleFilter(!upsaleFilter)}
+                  >
+                    <span>🔥 Đơn Upsale</span>
+                  </Button>
+
+                  <Button
+                    variant={showAdvancedFilters ? "secondary" : "outline"}
+                    size="sm"
+                    className="h-9 text-xs gap-1.5 font-medium shrink-0"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  >
+                    <span>⚙️ Bộ lọc nâng cao {showAdvancedFilters ? "▲" : "▼"}</span>
+                  </Button>
                 </div>
               </div>
+
+              {/* Advanced Filters Panel */}
+              {showAdvancedFilters && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-muted mt-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground font-semibold uppercase">Thẻ tag</label>
+                    <Select value={tagFilter} onValueChange={setTagFilter}>
+                      <SelectTrigger className="h-8 bg-background text-xs">
+                        <SelectValue placeholder="Chọn tag" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="all">Tất cả tag</SelectItem>
+                        {allUniqueTags.map(tag => (
+                          <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground font-semibold uppercase">Nhân viên phụ trách</label>
+                    <Select value={staffFilter} onValueChange={setStaffFilter}>
+                      <SelectTrigger className="h-8 bg-background text-xs">
+                        <SelectValue placeholder="Chọn nhân viên" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                        {allUniqueStaff.map(staff => (
+                          <SelectItem key={staff} value={staff}>{staff}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground font-semibold uppercase">Kho xuất hàng</label>
+                    <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
+                      <SelectTrigger className="h-8 bg-background text-xs">
+                        <SelectValue placeholder="Chọn kho" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="all">Tất cả kho</SelectItem>
+                        {warehouses.map(wh => (
+                          <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-muted-foreground font-semibold uppercase">Thanh toán</label>
+                    <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+                      <SelectTrigger className="h-8 bg-background text-xs">
+                        <SelectValue placeholder="Trạng thái thanh toán" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="all">Tất cả thanh toán</SelectItem>
+                        <SelectItem value="pending">🔴 Chưa thanh toán</SelectItem>
+                        <SelectItem value="partial">🟡 Một phần</SelectItem>
+                        <SelectItem value="paid">🟢 Đã thanh toán</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
 
         {/* Bulk Action Bar — Pancake POS style */}
@@ -737,6 +1266,15 @@ const Orders = () => {
                 Đóng hàng
               </Button>
 
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold"
+                onClick={() => setShipCarrierDialogOpen(true)}
+              >
+                <Truck className="h-3.5 w-3.5" />
+                Gửi ĐVVC
+              </Button>
+
               <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={handleBulkPrintHandover}>
                 <ClipboardList className="h-3.5 w-3.5" />
                 In phiếu bàn giao
@@ -755,6 +1293,7 @@ const Orders = () => {
                   <SelectItem value="delete" className="text-xs text-destructive">Xóa đơn đã chọn</SelectItem>
                   <SelectItem value="assign" className="text-xs">Phân công nhân viên</SelectItem>
                   <SelectItem value="tag" className="text-xs">Gắn thẻ</SelectItem>
+                  <SelectItem value="merge" className="text-xs">Gộp đơn trùng SĐT</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -842,10 +1381,62 @@ const Orders = () => {
                                 </div>
                               </div>
                               <div className="space-y-0.5">
-                                <p className="text-sm text-foreground truncate">{getOrderCustomerName(order)}</p>
+                                <p className="text-sm text-foreground truncate font-medium">{getOrderCustomerName(order)}</p>
                                 {getOrderCustomerPhone(order) && (
                                   <p className="text-xs text-muted-foreground truncate">{getOrderCustomerPhone(order)}</p>
                                 )}
+                              </div>
+                              <div className="flex gap-1 flex-wrap items-center">
+                                {order.tags && order.tags.split(",").map((t: string) => t.trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
+                                  <Badge key={idx} variant="outline" className={cn("text-[8px] px-1 py-0", getTagColorClass(tag))}>
+                                    {tag}
+                                  </Badge>
+                                ))}
+                                
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button type="button" className="h-4 w-4 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors">
+                                      <Plus className="h-2.5 w-2.5" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent className="w-48 text-xs z-50">
+                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                      Gắn thẻ đơn hàng
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {TAG_GROUPS.map((group) => (
+                                      <React.Fragment key={group.id}>
+                                        <DropdownMenuLabel className="text-[9px] text-slate-500 font-bold bg-slate-50 px-2 py-0.5 mt-1 rounded-sm">
+                                          {group.name}
+                                        </DropdownMenuLabel>
+                                        {group.tags.map((tag) => {
+                                          const currentTags = order.tags ? order.tags.split(",").map((t: string) => t.trim()) : [];
+                                          const hasTag = currentTags.includes(tag.name);
+                                          return (
+                                            <DropdownMenuCheckboxItem
+                                              key={tag.name}
+                                              checked={hasTag}
+                                              onCheckedChange={(checked) => {
+                                                handleUpdateOrderTags(
+                                                  order.id,
+                                                  order.tags || "",
+                                                  tag.name,
+                                                  checked ? "add" : "remove"
+                                                );
+                                              }}
+                                              className="text-xs"
+                                            >
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                {tag.name}
+                                              </div>
+                                            </DropdownMenuCheckboxItem>
+                                          );
+                                        })}
+                                      </React.Fragment>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                               <div className="flex items-center gap-1 flex-wrap">
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
@@ -856,6 +1447,17 @@ const Orders = () => {
                                     {getPriorityLabel(order.priority)}
                                   </Badge>
                                 )}
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-[9px] px-1.5 py-0 font-semibold border-none",
+                                    (order.payment_status || "pending") === "paid" && "bg-green-50 text-green-700",
+                                    (order.payment_status || "pending") === "partial" && "bg-amber-50 text-amber-700",
+                                    (order.payment_status || "pending") === "pending" && "bg-red-50 text-red-700"
+                                  )}
+                                >
+                                  {(order.payment_status || "pending") === "paid" ? "Đã trả" : (order.payment_status || "pending") === "partial" ? "Một phần" : "Chưa trả"}
+                                </Badge>
                               </div>
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{new Date(order.created_at).toLocaleDateString("vi-VN")}</span>
@@ -908,16 +1510,16 @@ const Orders = () => {
                     </th>
                     <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">ID</th>
                     <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Cập nhật TT</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs w-12">Ghi chú</th>
                     <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Nguồn đơn</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Mã vận đơn</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Mã vận đơn phụ</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">NV đang xem</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">VC</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Thẻ</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs w-16">Ghi chú</th>
                     <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Khách hàng</th>
                     <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">SĐT</th>
-                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Nhận hàng</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Sản phẩm</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Tổng tiền</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Tạo lúc</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">NV tạo đơn</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Phân công cho</th>
+                    <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs font-bold text-red-600 dark:text-red-400">Tình trạng</th>
                     <th className="text-left p-2 sm:p-3 font-medium text-muted-foreground text-xs">Trạng thái</th>
                   </tr>
                 </thead>
@@ -941,78 +1543,120 @@ const Orders = () => {
                           </td>
                           <td className="p-2 sm:p-3 font-mono text-xs font-bold text-foreground">{order.order_number}</td>
                           <td className="p-2 sm:p-3 text-muted-foreground whitespace-nowrap">
-                            {new Date(order.updated_at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })}
+                            <div className="flex items-center gap-1.5">
+                              <span>
+                                {new Date(order.updated_at).toLocaleString("vi-VN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  ...(new Date(order.updated_at).toDateString() !== new Date().toDateString() && {
+                                    day: "2-digit",
+                                    month: "2-digit"
+                                  })
+                                })}
+                              </span>
+                              {renderUserAvatar(order.assigned_to_name || "O")}
+                            </div>
+                          </td>
+                          <td className="p-2 sm:p-3">
+                            <div className="flex items-center gap-1">
+                              {order.notes && (
+                                <span title={order.notes} className="cursor-pointer text-amber-500 text-sm">
+                                  💬
+                                </span>
+                              )}
+                              {(order as any).internal_notes && (
+                                <span title={(order as any).internal_notes} className="cursor-pointer text-red-500 text-sm">
+                                  📌
+                                </span>
+                              )}
+                              {!order.notes && !(order as any).internal_notes && <span className="text-muted-foreground/30">—</span>}
+                            </div>
                           </td>
                           <td className="p-2 sm:p-3">
                             <div className="flex items-center gap-1.5">
-                              {order.source_type === "facebook" && <span className="text-blue-600 font-bold">f</span>}
-                              {order.source_type === "tiktok" && <span className="text-foreground">♪</span>}
-                              {order.source_type === "shopee" && <span className="text-orange-500 font-bold">S</span>}
-                              {order.source_type === "lazada" && <span className="text-blue-700 font-bold">L</span>}
+                              {order.source_type === "facebook" && <span className="text-blue-600 font-extrabold text-sm">f</span>}
+                              {order.source_type === "tiktok" && <span className="text-foreground font-extrabold text-sm">♪</span>}
+                              {order.source_type === "shopee" && <span className="text-orange-500 font-extrabold text-sm">S</span>}
+                              {order.source_type === "lazada" && <span className="text-blue-700 font-extrabold text-sm">L</span>}
                               <span className="text-foreground">{getOrderSourceLabel(order.source_type)}</span>
                             </div>
                           </td>
-                          <td className="p-2 sm:p-3 font-mono text-[10px] text-muted-foreground">
-                            {(order as any).tracking_code || "—"}
+                          <td className="p-2 sm:p-3 text-foreground font-medium">{getOrderCustomerName(order)}</td>
+                          <td className="p-2 sm:p-3 whitespace-nowrap">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-muted-foreground">{getOrderCustomerPhone(order) || "—"}</span>
+                              {getOrderCustomerPhone(order) && (
+                                <Badge variant="outline" className={cn(
+                                  "text-[8px] px-1 py-0 w-max font-semibold",
+                                  getCarrier(getOrderCustomerPhone(order)) === "Viettel" && "bg-orange-50 text-orange-600 border-orange-200",
+                                  getCarrier(getOrderCustomerPhone(order)) === "Vinaphone" && "bg-amber-50 text-amber-600 border-amber-200",
+                                  getCarrier(getOrderCustomerPhone(order)) === "Mobifone" && "bg-blue-50 text-blue-600 border-blue-200",
+                                  getCarrier(getOrderCustomerPhone(order)) === "Khác" && "bg-slate-50 text-slate-600 border-slate-200"
+                                )}>
+                                  {getCarrier(getOrderCustomerPhone(order))}
+                                </Badge>
+                              )}
+                            </div>
                           </td>
-                          <td className="p-2 sm:p-3 font-mono text-[10px] text-muted-foreground">
-                            {(order as any).secondary_tracking_code || "—"}
+                          <td className="p-2 sm:p-3 max-w-[200px]">
+                            {order.order_items && order.order_items.length > 0 ? (
+                              order.order_items.length === 1 ? (
+                                <span className="text-muted-foreground truncate block" title={order.order_items[0].products?.name}>
+                                  {order.order_items[0].products?.name} x{order.order_items[0].quantity}
+                                </span>
+                              ) : (
+                                <span className="text-blue-600 dark:text-blue-400 font-semibold truncate block cursor-pointer">
+                                  Nhiều sản phẩm
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-muted-foreground/30">—</span>
+                            )}
+                          </td>
+                          <td className="p-2 sm:p-3 font-semibold text-foreground">{(Number(order.total) || 0).toLocaleString("vi-VN")} đ</td>
+                          <td className="p-2 sm:p-3 text-muted-foreground whitespace-nowrap">
+                            {new Date(order.created_at).toLocaleString("vi-VN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              ...(new Date(order.created_at).toDateString() !== new Date().toDateString() && {
+                                day: "2-digit",
+                                month: "2-digit"
+                              })
+                            })}
                           </td>
                           <td className="p-2 sm:p-3 text-muted-foreground">
-                            {(order as any).viewing_staff || "—"}
+                            <div className="flex items-center gap-1.5">
+                              {renderUserAvatar(order.assigned_to_name || "O")}
+                              <span className="truncate max-w-[100px]">{order.assigned_to_name || "Dương Kim Oanh"}</span>
+                            </div>
+                          </td>
+                          <td className="p-2 sm:p-3 text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              {renderUserAvatar(order.assigned_to_name || "—")}
+                              <span className="truncate max-w-[100px]">{order.assigned_to_name || "—"}</span>
+                            </div>
                           </td>
                           <td className="p-2 sm:p-3">
-                            {order.shipping_zones?.name ? (
-                              <Badge className={cn("text-[9px] px-1.5 py-0 font-bold text-white", 
-                                order.shipping_zones.name.includes("GHTK") ? "bg-green-600" :
-                                order.shipping_zones.name.includes("GHN") ? "bg-orange-500" :
-                                order.shipping_zones.name.includes("VNP") ? "bg-blue-500" :
-                                order.shipping_zones.name.includes("LZD") ? "bg-sky-500" :
-                                "bg-slate-500"
-                              )}>
-                                {order.shipping_zones.name}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground/30">—</span>
-                            )}
-                          </td>
-                          <td className="p-2 sm:p-3">
-                            {(order as any).tags ? (
-                              <div className="flex gap-0.5 flex-wrap">
-                                {String((order as any).tags).split(",").slice(0, 2).map((tag: string, i: number) => (
-                                  <Badge key={i} variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800">
-                                    {tag.trim()}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground/30">—</span>
-                            )}
-                          </td>
-                          <td className="p-2 sm:p-3 max-w-[100px]">
-                            {order.notes ? (
-                              <span className="text-amber-600 dark:text-amber-400 truncate block" title={order.notes}>
-                                {order.notes.length > 15 ? order.notes.slice(0, 15) + "..." : order.notes}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/30">—</span>
-                            )}
-                          </td>
-                          <td className="p-2 sm:p-3 text-foreground font-medium">{getOrderCustomerName(order)}</td>
-                          <td className="p-2 sm:p-3 text-muted-foreground whitespace-nowrap">{getOrderCustomerPhone(order) || "—"}</td>
-                          <td className="p-2 sm:p-3 max-w-[180px]">
-                            <span className="text-muted-foreground truncate block text-[10px]" title={(order as any).shipping_address || ""}>
-                              {(order as any).shipping_address ? (
-                                (order as any).shipping_address.length > 30 
-                                  ? (order as any).shipping_address.slice(0, 30) + "..." 
-                                  : (order as any).shipping_address
-                              ) : "—"}
+                            <span className={cn("text-xs font-semibold", getInventoryStatus(order).color)}>
+                              {getInventoryStatus(order).label}
                             </span>
                           </td>
-                          <td className="p-2 sm:p-3">
-                            <Badge className={cn("text-[10px] px-1.5 py-0.5", statusColors[order.status])}>
-                              {statusLabels[order.status] || order.status}
-                            </Badge>
+                          <td className="p-2 sm:p-3" onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              value={order.status}
+                              onValueChange={(val) => handleStatusChange(order.id, val)}
+                            >
+                              <SelectTrigger className={cn("h-7 text-[10px] font-semibold border-none px-2 rounded-md shadow-xs w-32 justify-between flex items-center", statusColors[order.status])}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover text-xs z-50">
+                                {pancakeStatuses.map((s) => (
+                                  <SelectItem key={s.value} value={s.value} className="text-xs">
+                                    {s.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </td>
                         </tr>
                       );
@@ -1085,6 +1729,8 @@ const Orders = () => {
       <ImportOrdersDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
+        onImport={handleImportOrders}
+        isLoading={createOrder.isPending}
       />
 
       <PackingDialog
@@ -1093,6 +1739,30 @@ const Orders = () => {
         orderQueue={selectedOrderObjects}
         allOrders={enrichedOrders}
         onPackOrder={handlePackOrder}
+      />
+
+      <PrintProductsDialog
+        open={printProductsDialogOpen}
+        onOpenChange={setPrintProductsDialogOpen}
+        selectedOrders={selectedOrderObjects}
+      />
+
+      <ShipCarrierDialog
+        open={shipCarrierDialogOpen}
+        onOpenChange={setShipCarrierDialogOpen}
+        selectedOrders={selectedOrderObjects}
+        allOrders={enrichedOrders}
+      />
+
+      <BulkTagDialog
+        open={bulkTagDialogOpen}
+        onOpenChange={(open) => {
+          setBulkTagDialogOpen(open);
+          if (!open) {
+            setSelectedOrderIds([]);
+          }
+        }}
+        selectedOrders={selectedOrderObjects}
       />
     </MainLayout>
   );
