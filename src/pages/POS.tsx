@@ -44,7 +44,8 @@ import {
   Percent,
   FileSearch,
   BarChart3,
-  Settings
+  Settings,
+  Printer
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useProducts } from "@/hooks/useProducts";
@@ -442,6 +443,7 @@ const POS = () => {
 
   const [variantSelectOpen, setVariantSelectOpen] = useState(false);
   const [productForVariantSelect, setProductForVariantSelect] = useState<any>(null);
+  const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
   const setDiscount = (val: number | ((prev: number) => number)) => {
     if (typeof val === "function") {
       updateActiveTab({ discount: val(activeTab.discount) });
@@ -704,6 +706,43 @@ const POS = () => {
       }
     }
   }, [cart, discount, appliedVoucherId, wholesaleSettings]);
+
+  // Broadcast state to Customer Display
+  useEffect(() => {
+    const channel = new BroadcastChannel("erp_customer_display");
+    
+    const sendState = () => {
+      channel.postMessage({
+        items: cart.map(item => ({
+          name: item.variant ? `${item.product.name} (${item.variant.name})` : item.product.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total: item.quantity * item.unit_price - item.discount
+        })),
+        total,
+        subtotal,
+        voucherDiscount: discount,
+        pointsUsed: 0,
+        pointDiscount: 0,
+        referralDiscount: 0,
+        paymentMethod: activeTab.customSelectedCardId ? "membership_wallet" : "bank"
+      });
+    };
+
+    sendState();
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "REQUEST_CURRENT_STATE") {
+        sendState();
+      }
+    };
+
+    channel.addEventListener("message", handleMessage);
+    return () => {
+      channel.removeEventListener("message", handleMessage);
+      channel.close();
+    };
+  }, [cart, total, subtotal, discount, activeTab.customSelectedCardId]);
 
   const addToCart = (product: Product, variant?: any) => {
     if (product.has_variants && !variant) {
@@ -1135,6 +1174,28 @@ const POS = () => {
           description: `Đơn hàng ${orderNumber} đã được tạo`,
         });
       }
+
+      // Save order details for printing before clearing cart
+      const orderPrintDetails = {
+        order_number: orderNumber,
+        customer_name: customer?.name || "Khách lẻ",
+        customer_phone: customer?.phone || "",
+        customer_address: customer?.address || "",
+        payment_method: method,
+        subtotal,
+        discount,
+        shipping_fee: shippingFee,
+        total,
+        items: cart.map(item => ({
+          name: item.variant ? `${item.product.name} (${item.variant.name})` : item.product.name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount: item.discount || 0,
+          total: item.quantity * item.unit_price - (item.discount || 0)
+        })),
+        created_at: new Date().toISOString()
+      };
+      setLastCreatedOrder(orderPrintDetails);
 
       clearCart();
       setCartOpen(false);
@@ -1588,6 +1649,16 @@ const POS = () => {
           </div>
 
           <div className="flex items-center gap-4 text-xs font-medium text-primary-foreground/80 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => window.open("/customer-display", "_blank", "width=1200,height=800")}
+              className="h-8 text-xs text-primary-foreground border-primary-foreground/20 hover:bg-primary-foreground/10 bg-transparent shrink-0 cursor-pointer gap-1.5 flex items-center"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Màn hình phụ</span>
+            </Button>
             <span className="hidden md:inline-flex items-center gap-1">
               <Store className="h-3.5 w-3.5" /> Kho: {warehouses.find(w => w.id === selectedWarehouse)?.name || "Mặc định"}
             </span>
@@ -1940,6 +2011,147 @@ const POS = () => {
           allVariants={allVariants}
           onSelect={(variant) => addToCart(productForVariantSelect, variant)}
         />
+
+        {/* Receipt Print Dialog */}
+        <Dialog open={!!lastCreatedOrder} onOpenChange={(open) => !open && setLastCreatedOrder(null)}>
+          <DialogContent className="sm:max-w-[420px] bg-background text-foreground p-0 overflow-hidden z-50">
+            <DialogHeader className="p-4 border-b shrink-0 bg-primary text-primary-foreground">
+              <DialogTitle className="text-white text-sm font-bold flex items-center gap-1.5">
+                <Printer className="h-4.5 w-4.5" /> Biên nhận thanh toán (In K80)
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="p-4 overflow-y-auto max-h-[70vh]">
+              {/* Receipt Area to Print */}
+              <div className="print-receipt-area p-4 bg-white text-black font-mono text-[11px] leading-relaxed border border-border rounded shadow-xs max-w-[80mm] mx-auto space-y-4">
+                <style dangerouslySetInnerHTML={{ __html: `
+                  @media print {
+                    body * {
+                      visibility: hidden !important;
+                    }
+                    .print-receipt-area, .print-receipt-area * {
+                      visibility: visible !important;
+                    }
+                    .print-receipt-area {
+                      position: absolute !important;
+                      left: 0 !important;
+                      top: 0 !important;
+                      width: 100% !important;
+                      max-width: 80mm !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                      border: none !important;
+                      box-shadow: none !important;
+                    }
+                  }
+                ` }} />
+
+                <div className="text-center space-y-1">
+                  <div className="font-extrabold text-sm uppercase tracking-wider">PANCAKE POS STORE</div>
+                  <div className="text-[10px] text-gray-600">123 Đường 3 Tháng 2, Quận 10, TP.HCM</div>
+                  <div className="text-[10px] text-gray-600">Hotline: 1900 1234</div>
+                  <div className="font-bold border-y border-dashed py-1 my-2 text-xs uppercase tracking-widest">HÓA ĐƠN BÁN LẺ</div>
+                </div>
+
+                <div className="space-y-0.5 text-[10px]">
+                  <div className="flex justify-between">
+                    <span>Số HĐ:</span>
+                    <span className="font-bold">{lastCreatedOrder?.order_number}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Ngày in:</span>
+                    <span>{lastCreatedOrder ? new Date(lastCreatedOrder.created_at).toLocaleString("vi-VN") : ""}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Thu ngân:</span>
+                    <span>Admin ERP</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Khách hàng:</span>
+                    <span>{lastCreatedOrder?.customer_name}</span>
+                  </div>
+                  {lastCreatedOrder?.customer_phone && (
+                    <div className="flex justify-between">
+                      <span>SĐT:</span>
+                      <span>{lastCreatedOrder.customer_phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-dashed pt-2 space-y-2">
+                  <div className="grid grid-cols-12 gap-1 text-[10px] font-bold border-b border-dashed pb-1">
+                    <span className="col-span-6">Sản phẩm</span>
+                    <span className="col-span-2 text-center">SL</span>
+                    <span className="col-span-4 text-right">T.Tiền</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {lastCreatedOrder?.items.map((item: any, idx: number) => (
+                      <div key={idx} className="grid grid-cols-12 gap-1 text-[10px] items-start">
+                        <div className="col-span-6 flex flex-col">
+                          <span>{item.name}</span>
+                          <span className="text-[9px] text-gray-500">{item.unit_price.toLocaleString("vi-VN")}đ</span>
+                        </div>
+                        <span className="col-span-2 text-center">{item.quantity}</span>
+                        <span className="col-span-4 text-right font-semibold">{(item.total).toLocaleString("vi-VN")}đ</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-dashed pt-2 space-y-1 text-[10px]">
+                  <div className="flex justify-between">
+                    <span>Cộng tiền hàng:</span>
+                    <span>{lastCreatedOrder?.subtotal.toLocaleString("vi-VN")}đ</span>
+                  </div>
+                  {lastCreatedOrder?.discount > 0 && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Chiết khấu/Voucher:</span>
+                      <span>-{lastCreatedOrder?.discount.toLocaleString("vi-VN")}đ</span>
+                    </div>
+                  )}
+                  {lastCreatedOrder?.shipping_fee > 0 && (
+                    <div className="flex justify-between">
+                      <span>Phí vận chuyển:</span>
+                      <span>+{lastCreatedOrder?.shipping_fee.toLocaleString("vi-VN")}đ</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs font-bold border-t border-dashed pt-1.5">
+                    <span>TỔNG CỘNG:</span>
+                    <span>{lastCreatedOrder?.total.toLocaleString("vi-VN")}đ</span>
+                  </div>
+                  <div className="flex justify-between font-semibold mt-1">
+                    <span>Thanh toán:</span>
+                    <span className="uppercase text-[9px]">{lastCreatedOrder?.payment_method === 'cash' ? 'Tiền mặt' : lastCreatedOrder?.payment_method === 'bank' ? 'Chuyển khoản' : 'Ví thành viên'}</span>
+                  </div>
+                </div>
+
+                <div className="text-center space-y-1 border-t border-dashed pt-3 mt-4 text-[9px] text-gray-600">
+                  <div className="font-bold">CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!</div>
+                  <div>Powered by Pancake POS ERP Mini</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t shrink-0 flex justify-end gap-2 bg-muted/20">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLastCreatedOrder(null)}
+              >
+                Đóng
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1 cursor-pointer bg-primary text-white hover:bg-primary/90"
+                onClick={() => window.print()}
+              >
+                <Printer className="h-4 w-4" /> In hóa đơn
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
