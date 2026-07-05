@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Users, UserPlus, Phone, Mail, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, Users, UserPlus, Phone, Mail, FileText, CheckCircle2, ListFilter } from "lucide-react";
+import { CustomFieldsDialog } from "./CustomFieldsDialog";
 
 interface LeadsTabProps {
   leads: any[];
   createLead: any;
   updateLeadStatus: any;
   convertLeadToPartner: any;
+  customFields: any[];
+  customFieldValues: any[];
+  saveCustomFieldValues: any;
+  createCustomField: any;
 }
 
 const statusLabels: Record<string, string> = {
@@ -37,8 +42,19 @@ const sourceLabels: Record<string, string> = {
   manual: "Thủ công"
 };
 
-export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPartner }: LeadsTabProps) {
+export function LeadsTab({
+  leads,
+  createLead,
+  updateLeadStatus,
+  convertLeadToPartner,
+  customFields,
+  customFieldValues,
+  saveCustomFieldValues,
+  createCustomField
+}: LeadsTabProps) {
   const [open, setOpen] = useState(false);
+  const [openFieldsConfig, setOpenFieldsConfig] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -47,10 +63,19 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
     notes: ""
   });
 
+  // Dynamic custom fields form state
+  const [customFieldsData, setCustomFieldsData] = useState<Record<string, string>>({});
+
+  const handleCustomFieldChange = (fieldId: string, val: string) => {
+    setCustomFieldsData((prev) => ({ ...prev, [fieldId]: val }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
-    await createLead.mutateAsync({
+
+    // 1. Create the lead
+    const newLead = await createLead.mutateAsync({
       name: formData.name,
       phone: formData.phone || null,
       email: formData.email || null,
@@ -58,7 +83,17 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
       status: "new",
       notes: formData.notes || null
     });
+
+    // 2. Save custom fields values using the new lead's ID
+    if (newLead && newLead.id) {
+      await saveCustomFieldValues.mutateAsync({
+        entityId: newLead.id,
+        values: customFieldsData
+      });
+    }
+
     setFormData({ name: "", phone: "", email: "", source: "manual", notes: "" });
+    setCustomFieldsData({});
     setOpen(false);
   };
 
@@ -81,9 +116,19 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
           </h2>
           <p className="text-[11px] text-muted-foreground">Theo dõi và chăm sóc khách hàng quan tâm trước khi chốt đơn</p>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)} className="h-8 text-xs font-semibold bg-indigo-650 hover:bg-indigo-750 text-white gap-1 shadow-sm">
-          <Plus className="h-3.5 w-3.5" /> Thêm Lead mới
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setOpenFieldsConfig(true)}
+            className="h-8 text-xs font-semibold border-indigo-200 text-indigo-650 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 gap-1"
+          >
+            <ListFilter className="h-3.5 w-3.5" /> Trường tùy chỉnh
+          </Button>
+          <Button size="sm" onClick={() => setOpen(true)} className="h-8 text-xs font-semibold bg-indigo-650 hover:bg-indigo-750 text-white gap-1 shadow-sm">
+            <Plus className="h-3.5 w-3.5" /> Thêm Lead mới
+          </Button>
+        </div>
       </div>
 
       {/* Leads List Table */}
@@ -95,6 +140,12 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
                 <th className="p-3 font-semibold">Họ tên</th>
                 <th className="p-3 font-semibold">Thông tin liên hệ</th>
                 <th className="p-3 font-semibold">Nguồn</th>
+                
+                {/* Dynamically render header columns for custom fields */}
+                {customFields.map((f) => (
+                  <th key={f.id} className="p-3 font-semibold">{f.field_label}</th>
+                ))}
+
                 <th className="p-3 font-semibold">Ghi chú</th>
                 <th className="p-3 font-semibold">Trạng thái</th>
                 <th className="p-3 font-semibold text-center">Hành động</th>
@@ -122,6 +173,19 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
                       {sourceLabels[lead.source] || lead.source}
                     </Badge>
                   </td>
+
+                  {/* Dynamically render values for custom fields */}
+                  {customFields.map((f) => {
+                    const matchedVal = customFieldValues.find(
+                      (v) => v.entity_id === lead.id && v.field_id === f.id
+                    );
+                    return (
+                      <td key={f.id} className="p-3 font-semibold text-foreground">
+                        {matchedVal ? matchedVal.value : "-"}
+                      </td>
+                    );
+                  })}
+
                   <td className="p-3 max-w-[200px] truncate text-[11px] italic text-muted-foreground">
                     {lead.notes || "-"}
                   </td>
@@ -169,7 +233,7 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
               ))}
               {leads.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground italic">
+                  <td colSpan={6 + customFields.length} className="p-8 text-center text-muted-foreground italic">
                     Chưa có khách hàng tiềm năng nào được ghi nhận.
                   </td>
                 </tr>
@@ -181,7 +245,7 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
 
       {/* Add Lead Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-background text-foreground text-xs">
+        <DialogContent className="sm:max-w-[450px] bg-background text-foreground text-xs max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
               <UserPlus className="h-4.5 w-4.5 text-indigo-500" /> Thêm Khách hàng tiềm năng mới
@@ -246,6 +310,28 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
               </Select>
             </div>
 
+            {/* Dynamically render Custom Fields Inputs */}
+            {customFields.length > 0 && (
+              <div className="p-3 border rounded-xl bg-slate-50 dark:bg-slate-900/40 space-y-3">
+                <div className="text-[10px] font-bold text-foreground">TRƯỜNG TÙY CHỈNH BỔ SUNG:</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {customFields.map((f) => (
+                    <div key={f.id} className="space-y-1">
+                      <Label htmlFor={`custom-${f.id}`} className="font-semibold">{f.field_label}</Label>
+                      <Input
+                        id={`custom-${f.id}`}
+                        type={f.field_type}
+                        className="h-8 text-xs bg-background"
+                        value={customFieldsData[f.id] || ""}
+                        onChange={(e) => handleCustomFieldChange(f.id, e.target.value)}
+                        placeholder={`Nhập ${f.field_label.toLowerCase()}...`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label htmlFor="leadNotes" className="font-semibold">Ghi chú nhu cầu</Label>
               <Textarea
@@ -266,6 +352,14 @@ export function LeadsTab({ leads, createLead, updateLeadStatus, convertLeadToPar
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Custom Fields Management Dialog */}
+      <CustomFieldsDialog
+        open={openFieldsConfig}
+        onOpenChange={setOpenFieldsConfig}
+        customFields={customFields}
+        createCustomField={createCustomField}
+      />
     </div>
   );
 }

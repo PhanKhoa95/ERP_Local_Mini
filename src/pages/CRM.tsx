@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LayoutDashboard, Users, Kanban, CalendarDays, AlertTriangle, CheckSquare } from "lucide-react";
+import { LayoutDashboard, Users, Kanban, CalendarDays, AlertTriangle, CheckSquare, UsersRound, Link2 } from "lucide-react";
 import { useCRM } from "@/hooks/useCRM";
 import { CRMOverview } from "@/components/crm/CRMOverview";
 import { LeadsTab } from "@/components/crm/LeadsTab";
@@ -9,6 +9,8 @@ import { DealsKanban } from "@/components/crm/DealsKanban";
 import { AppointmentsTab } from "@/components/crm/AppointmentsTab";
 import { TicketsTab } from "@/components/crm/TicketsTab";
 import { TasksTab } from "@/components/crm/TasksTab";
+import { ContactsCompaniesTab } from "@/components/crm/ContactsCompaniesTab";
+import { WebhookApiTab } from "@/components/crm/WebhookApiTab";
 
 export default function CRM() {
   const {
@@ -16,18 +18,36 @@ export default function CRM() {
     createLead,
     updateLeadStatus,
     convertLeadToPartner,
+    
     deals,
     createDeal,
     updateDealStage,
+    
     appointments,
     createAppointment,
     updateAppointmentStatus,
+    
     tickets,
     createTicket,
     updateTicketStatus,
+    
     tasks,
     createTask,
-    toggleTaskStatus
+    toggleTaskStatus,
+
+    // Advanced features
+    companies,
+    createCompany,
+    contacts,
+    createContact,
+    customFields,
+    createCustomField,
+    customFieldValues,
+    saveCustomFieldValues,
+    apiKeys,
+    createApiKey,
+    deleteApiKey,
+    simulateWebhookIngest
   } = useCRM();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +89,13 @@ export default function CRM() {
               Khách tiềm năng
             </TabsTrigger>
             <TabsTrigger
+              value="contacts_companies"
+              className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-1 pb-2 text-xs font-bold text-muted-foreground data-[state=active]:text-foreground bg-transparent gap-2"
+            >
+              <UsersRound className="h-4 w-4 text-pink-500" />
+              Liên hệ & Công ty
+            </TabsTrigger>
+            <TabsTrigger
               value="deals"
               className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-1 pb-2 text-xs font-bold text-muted-foreground data-[state=active]:text-foreground bg-transparent gap-2"
             >
@@ -96,6 +123,13 @@ export default function CRM() {
               <CheckSquare className="h-4 w-4 text-purple-500" />
               Nhiệm vụ
             </TabsTrigger>
+            <TabsTrigger
+              value="webhook_api"
+              className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-1 pb-2 text-xs font-bold text-muted-foreground data-[state=active]:text-foreground bg-transparent gap-2"
+            >
+              <Link2 className="h-4 w-4 text-emerald-500" />
+              Webhook - API
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -107,6 +141,8 @@ export default function CRM() {
             appointments={appointments}
             tickets={tickets}
             tasks={tasks}
+            contacts={contacts}
+            companies={companies}
           />
         </TabsContent>
 
@@ -116,6 +152,19 @@ export default function CRM() {
             createLead={createLead}
             updateLeadStatus={updateLeadStatus}
             convertLeadToPartner={convertLeadToPartner}
+            customFields={customFields}
+            customFieldValues={customFieldValues}
+            saveCustomFieldValues={saveCustomFieldValues}
+            createCustomField={createCustomField}
+          />
+        </TabsContent>
+
+        <TabsContent value="contacts_companies">
+          <ContactsCompaniesTab
+            contacts={contacts}
+            companies={companies}
+            createContact={createContact}
+            createCompany={createCompany}
           />
         </TabsContent>
 
@@ -148,6 +197,15 @@ export default function CRM() {
             tasks={tasks}
             createTask={createTask}
             toggleTaskStatus={toggleTaskStatus}
+          />
+        </TabsContent>
+
+        <TabsContent value="webhook_api">
+          <WebhookApiTab
+            apiKeys={apiKeys}
+            createApiKey={createApiKey}
+            deleteApiKey={deleteApiKey}
+            simulateWebhookIngest={simulateWebhookIngest}
           />
         </TabsContent>
       </Tabs>

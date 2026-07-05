@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Coins, CalendarDays, AlertTriangle, Play, Sparkles, TrendingUp } from "lucide-react";
+import { Users, Coins, CalendarDays, AlertTriangle, Play, Sparkles, TrendingUp, UsersRound, Building } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts";
 
 interface CRMOverviewProps {
@@ -8,11 +8,21 @@ interface CRMOverviewProps {
   appointments: any[];
   tickets: any[];
   tasks: any[];
+  contacts?: any[];
+  companies?: any[];
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
 
-export function CRMOverview({ leads, deals, appointments, tickets, tasks }: CRMOverviewProps) {
+export function CRMOverview({
+  leads,
+  deals,
+  appointments,
+  tickets,
+  tasks,
+  contacts = [],
+  companies = []
+}: CRMOverviewProps) {
   // Aggregate Metrics
   const totalLeads = leads.length;
   const activeDeals = deals.filter(d => d.stage !== "won" && d.stage !== "lost");
@@ -53,59 +63,86 @@ export function CRMOverview({ leads, deals, appointments, tickets, tasks }: CRMO
 
   return (
     <div className="space-y-6">
-      {/* 4 Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      
+      {/* 6 Stats Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card className="border-border/60 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Khách tiềm năng (Leads)</CardTitle>
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Khách tiềm năng</CardTitle>
             <div className="h-8 w-8 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex items-center justify-center">
               <Users className="h-4.5 w-4.5 text-blue-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-extrabold text-foreground">{totalLeads}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Từ các nguồn quảng cáo & Fanpage</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Từ quảng cáo & FB</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/60 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Giá trị phễu cơ hội (Deals)</CardTitle>
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Trị giá Deals</CardTitle>
             <div className="h-8 w-8 bg-amber-50 dark:bg-amber-950/30 rounded-lg flex items-center justify-center">
               <Coins className="h-4.5 w-4.5 text-amber-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
+            <div className="text-xl font-extrabold text-amber-600 dark:text-amber-400 truncate">
               {totalDealValue.toLocaleString("vi-VN")}đ
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1">{activeDeals.length} cơ hội bán hàng đang chăm sóc</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{activeDeals.length} deals chăm sóc</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/60 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Lịch hẹn sắp diễn ra</CardTitle>
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Lịch hẹn sắp tới</CardTitle>
             <div className="h-8 w-8 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg flex items-center justify-center">
               <CalendarDays className="h-4.5 w-4.5 text-emerald-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-extrabold text-foreground">{pendingApts}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Lịch demo sản phẩm & gọi điện</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Lịch demo, tư vấn</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/60 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Sự cố cần giải quyết</CardTitle>
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Sự cố hỗ trợ</CardTitle>
             <div className="h-8 w-8 bg-rose-50 dark:bg-rose-950/30 rounded-lg flex items-center justify-center">
               <AlertTriangle className="h-4.5 w-4.5 text-rose-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400">{activeTickets}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">Khiếu nại/bảo hành chưa xử lý xong</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Ticket bảo hành lỗi</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 shadow-sm hover:shadow transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Liên hệ danh bạ</CardTitle>
+            <div className="h-8 w-8 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg flex items-center justify-center">
+              <UsersRound className="h-4.5 w-4.5 text-indigo-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-foreground">{contacts.length}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Đầu mối cá nhân</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 shadow-sm hover:shadow transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-bold text-muted-foreground uppercase">Công ty đối tác</CardTitle>
+            <div className="h-8 w-8 bg-sky-50 dark:bg-sky-950/30 rounded-lg flex items-center justify-center">
+              <Building className="h-4.5 w-4.5 text-sky-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-foreground">{companies.length}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Khách hàng pháp nhân</p>
           </CardContent>
         </Card>
       </div>
