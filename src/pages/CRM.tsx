@@ -210,6 +210,7 @@ export default function CRM() {
             tickets={tickets}
             createTicket={createTicket}
             updateTicketStatus={updateTicketStatus}
+            deals={deals}
           />
         </TabsContent>
 

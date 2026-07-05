@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, AlertTriangle, User, Phone, CheckCircle, RefreshCw, XCircle } from "lucide-react";
+import { Plus, AlertTriangle, User, Phone, CheckCircle, RefreshCw, XCircle, Calendar, Users, Eye, Link } from "lucide-react";
 
 interface TicketsTabProps {
   tickets: any[];
   createTicket: any;
   updateTicketStatus: any;
+  deals: any[];
 }
 
 const statusLabels: Record<string, string> = {
@@ -35,29 +36,67 @@ const priorityColors: Record<string, string> = {
   high: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400 dark:border-rose-900"
 };
 
-export function TicketsTab({ tickets, createTicket, updateTicketStatus }: TicketsTabProps) {
+const sourceLabels: Record<string, string> = {
+  facebook: "Facebook Chat",
+  phone: "Hotline Gọi điện",
+  email: "Email hỗ trợ",
+  shop: "Tại cửa hàng"
+};
+
+export function TicketsTab({ tickets, createTicket, updateTicketStatus, deals }: TicketsTabProps) {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     customer_name: "",
     phone: "",
     title: "",
     description: "",
-    priority: "medium"
+    priority: "medium",
+    source: "phone",
+    deal_link_id: "none",
+    due_date: "",
+    watchers: "none"
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.customer_name || !formData.title) return;
+    
+    // Add extra details into description to support SLA & Watchers in LocalState
+    let finalDesc = formData.description || "";
+    if (formData.due_date) {
+      finalDesc += `\n[SLA Hạn xử lý]: ${new Date(formData.due_date).toLocaleString("vi-VN")}`;
+    }
+    if (formData.watchers !== "none") {
+      finalDesc += `\n[Người liên quan theo dõi]: ${formData.watchers}`;
+    }
+    if (formData.deal_link_id !== "none") {
+      const deal = deals.find(d => d.id === formData.deal_link_id);
+      if (deal) {
+        finalDesc += `\n[Liên quan đến Cơ hội]: ${deal.title} (Trị giá: ${deal.amount.toLocaleString("vi-VN")}đ)`;
+      }
+    }
+
     await createTicket.mutateAsync({
       customer_name: formData.customer_name,
       phone: formData.phone || null,
       title: formData.title,
-      description: formData.description || null,
+      description: finalDesc,
       priority: formData.priority,
       status: "open",
-      assigned_to: null
+      assigned_to: formData.source // map source to assigned_to in mock
     });
-    setFormData({ customer_name: "", phone: "", title: "", description: "", priority: "medium" });
+
+    setFormData({
+      customer_name: "",
+      phone: "",
+      title: "",
+      description: "",
+      priority: "medium",
+      source: "phone",
+      deal_link_id: "none",
+      due_date: "",
+      watchers: "none"
+    });
     setOpen(false);
   };
 
@@ -84,7 +123,7 @@ export function TicketsTab({ tickets, createTicket, updateTicketStatus }: Ticket
               <div className="flex justify-between items-start flex-wrap gap-2">
                 <div className="space-y-1">
                   <div className="font-bold text-xs text-foreground flex items-center gap-1.5">{tkt.title}</div>
-                  <div className="flex gap-3 text-[10px] text-muted-foreground items-center">
+                  <div className="flex gap-3 text-[10px] text-muted-foreground items-center flex-wrap">
                     <div className="flex items-center gap-1">
                       <User className="h-3 w-3 text-indigo-500" /> {tkt.customer_name}
                     </div>
@@ -96,6 +135,9 @@ export function TicketsTab({ tickets, createTicket, updateTicketStatus }: Ticket
                     <span className="text-[9px] font-semibold text-muted-foreground font-mono">
                       Khởi tạo: {new Date(tkt.created_at).toLocaleDateString("vi-VN")}
                     </span>
+                    <Badge variant="secondary" className="text-[8px] font-bold px-1 rounded-sm">
+                      Nguồn: {sourceLabels[tkt.assigned_to || 'phone'] || "Hotline"}
+                    </Badge>
                   </div>
                 </div>
 
@@ -109,11 +151,30 @@ export function TicketsTab({ tickets, createTicket, updateTicketStatus }: Ticket
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description & Mapped details */}
               {tkt.description && (
-                <p className="text-xs text-foreground bg-slate-50 dark:bg-slate-900/40 border p-3 rounded-xl italic">
-                  "{tkt.description}"
-                </p>
+                <div className="text-xs text-foreground bg-slate-50 dark:bg-slate-900/40 border p-3 rounded-xl space-y-1.5">
+                  <p className="italic font-medium">"{tkt.description.split('\n')[0]}"</p>
+                  
+                  {/* Parse and show additional fields in styling */}
+                  <div className="flex flex-wrap gap-2 pt-1 border-t mt-1 text-[9px] font-semibold text-muted-foreground">
+                    {tkt.description.includes("[SLA Hạn xử lý]") && (
+                      <span className="flex items-center gap-1 text-rose-600 bg-rose-50 dark:bg-rose-950/20 px-1.5 py-0.5 rounded">
+                        <Calendar className="h-2.5 w-2.5" /> Hạn SLA: {tkt.description.match(/\[SLA Hạn xử lý\]:\s*(.*)/)?.[1]}
+                      </span>
+                    )}
+                    {tkt.description.includes("[Người liên quan theo dõi]") && (
+                      <span className="flex items-center gap-1 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/20 px-1.5 py-0.5 rounded">
+                        <Eye className="h-2.5 w-2.5" /> Theo dõi: {tkt.description.match(/\[Người liên quan theo dõi\]:\s*(.*)/)?.[1]}
+                      </span>
+                    )}
+                    {tkt.description.includes("[Liên quan đến Cơ hội]") && (
+                      <span className="flex items-center gap-1 text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
+                        <Link className="h-2.5 w-2.5" /> Cơ hội: {tkt.description.match(/\[Liên quan đến Cơ hội\]:\s*(.*)/)?.[1]}
+                      </span>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* Actions Footer */}
@@ -162,7 +223,7 @@ export function TicketsTab({ tickets, createTicket, updateTicketStatus }: Ticket
 
       {/* Add Ticket Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[420px] bg-background text-foreground text-xs">
+        <DialogContent className="sm:max-w-[450px] bg-background text-foreground text-xs max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
               <AlertTriangle className="h-4.5 w-4.5 text-rose-500" /> Tiếp nhận sự cố / Khiếu nại mới
@@ -209,19 +270,88 @@ export function TicketsTab({ tickets, createTicket, updateTicketStatus }: Ticket
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="font-semibold">Nguồn tiếp nhận</Label>
+                <Select
+                  value={formData.source}
+                  onValueChange={(val) => setFormData({ ...formData, source: val })}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-background">
+                    <SelectValue placeholder="Chọn nguồn..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover text-foreground">
+                    <SelectItem value="facebook">Facebook Chat</SelectItem>
+                    <SelectItem value="phone">Hotline Gọi điện</SelectItem>
+                    <SelectItem value="email">Email hỗ trợ</SelectItem>
+                    <SelectItem value="shop">Tại cửa hàng</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-semibold">Độ khẩn cấp</Label>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(val) => setFormData({ ...formData, priority: val })}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-background">
+                    <SelectValue placeholder="Độ ưu tiên..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover text-foreground">
+                    <SelectItem value="low">Thấp (Tư vấn thêm)</SelectItem>
+                    <SelectItem value="medium">Trung bình (Sai sót nhẹ)</SelectItem>
+                    <SelectItem value="high">Gấp (Lỗi in ấn / đền bù gấp)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="font-semibold">Liên quan đến Cơ hội</Label>
+                <Select
+                  value={formData.deal_link_id}
+                  onValueChange={(val) => setFormData({ ...formData, deal_link_id: val })}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-background">
+                    <SelectValue placeholder="Gắn với Deal..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover text-foreground">
+                    <SelectItem value="none">Không gắn liên kết</SelectItem>
+                    {deals.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="tktDueDate" className="font-semibold">Hạn xử lý (SLA)</Label>
+                <Input
+                  id="tktDueDate"
+                  type="datetime-local"
+                  className="h-8"
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div className="space-y-1">
-              <Label className="font-semibold">Mức độ khẩn cấp</Label>
+              <Label className="font-semibold">Thêm người theo dõi (Watchers)</Label>
               <Select
-                value={formData.priority}
-                onValueChange={(val) => setFormData({ ...formData, priority: val })}
+                value={formData.watchers}
+                onValueChange={(val) => setFormData({ ...formData, watchers: val })}
               >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Độ ưu tiên..." />
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Thêm người xem..." />
                 </SelectTrigger>
                 <SelectContent className="bg-popover text-foreground">
-                  <SelectItem value="low">Thấp (Tư vấn thêm)</SelectItem>
-                  <SelectItem value="medium">Trung bình (Sai sót nhẹ)</SelectItem>
-                  <SelectItem value="high">Gấp (Lỗi in ấn / đền bù gấp)</SelectItem>
+                  <SelectItem value="none">Không thêm ai</SelectItem>
+                  <SelectItem value="Nguyễn Văn B (Kỹ thuật)">Nguyễn Văn B (Kỹ thuật)</SelectItem>
+                  <SelectItem value="Trần Thị C (Xưởng in)">Trần Thị C (Xưởng in)</SelectItem>
+                  <SelectItem value="Phạm Văn D (CSKH)">Phạm Văn D (CSKH)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -230,7 +360,7 @@ export function TicketsTab({ tickets, createTicket, updateTicketStatus }: Ticket
               <Label htmlFor="tktDesc" className="font-semibold">Chi tiết phản ánh lỗi</Label>
               <Textarea
                 id="tktDesc"
-                className="min-h-[90px] text-xs"
+                className="min-h-[80px] text-xs"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Ví dụ: Khách báo khi nhận thùng hàng thấy rách băng keo và thiếu 20 sticker, yêu cầu in bù..."
