@@ -1,15 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, FolderKanban, Target, BarChart3, AlertTriangle, TrendingUp, Activity, Flame, Users2, ShieldAlert, Play, Sparkles, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, FolderKanban, Target, BarChart3, AlertTriangle, TrendingUp, Activity, Flame, Users2, ShieldAlert, Play, Sparkles, RefreshCw, ClipboardList, CheckSquare, Clock, ArrowRight, Trash, Award } from "lucide-react";
 import { useProjects, Project } from "@/hooks/useProjects";
 import { useKpiSeasons, KpiSeason } from "@/hooks/useKpiSeasons";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { KpiSeasonDialog } from "@/components/projects/KpiSeasonDialog";
 import { KpiMetricsManager } from "@/components/performance/KpiMetricsManager";
+import { useTasks, Task } from "@/hooks/useTasks";
+import { useCompanyMembers } from "@/hooks/useCompanyMembers";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -231,6 +253,192 @@ export default function ProjectManagement() {
     }
   };
 
+  // Tasks state
+  const [taskViewMode, setTaskViewMode] = useState<"my" | "team">("my");
+  const { 
+    myTasks = [], 
+    teamTasks = [], 
+    createTask, 
+    updateTask, 
+    acceptTask, 
+    startTask, 
+    completeTask 
+  } = useTasks();
+  const { members = [] } = useCompanyMembers();
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [completionNotesOpen, setCompletionNotesOpen] = useState(false);
+  const [selectedTaskIdForComplete, setSelectedTaskIdForComplete] = useState<string | null>(null);
+  const [completionNotes, setCompletionNotes] = useState("");
+
+  // New task form state
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState<"low" | "normal" | "high" | "urgent">("normal");
+  const [newTaskProjectId, setNewTaskProjectId] = useState<string>("none");
+  const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string>("none");
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");
+
+  const tasksToDisplay = taskViewMode === "my" ? myTasks : teamTasks;
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+
+    await createTask.mutateAsync({
+      title: newTaskTitle,
+      description: newTaskDesc || null,
+      priority: newTaskPriority,
+      project_id: newTaskProjectId === "none" ? null : newTaskProjectId,
+      assigned_to: newTaskAssignedTo === "none" ? null : newTaskAssignedTo,
+      due_date: newTaskDueDate ? new Date(newTaskDueDate).toISOString() : null,
+      source_type: "project"
+    });
+
+    // Reset form
+    setNewTaskTitle("");
+    setNewTaskDesc("");
+    setNewTaskPriority("normal");
+    setNewTaskProjectId("none");
+    setNewTaskAssignedTo("none");
+    setNewTaskDueDate("");
+    setTaskDialogOpen(false);
+  };
+
+  const handleOpenCompleteDialog = (taskId: string) => {
+    setSelectedTaskIdForComplete(taskId);
+    setCompletionNotes("");
+    setCompletionNotesOpen(true);
+  };
+
+  const handleCompleteTaskSubmit = async () => {
+    if (!selectedTaskIdForComplete) return;
+    await completeTask.mutateAsync({
+      taskId: selectedTaskIdForComplete,
+      notes: completionNotes
+    });
+    setCompletionNotesOpen(false);
+    setSelectedTaskIdForComplete(null);
+  };
+
+  const columns = [
+    { id: "pending", title: "Chờ nhận", color: "border-slate-500/20 bg-slate-500/5 text-slate-400" },
+    { id: "in_progress", title: "Đang làm", color: "border-sky-500/20 bg-sky-500/5 text-sky-400" },
+    { id: "done", title: "Hoàn thành", color: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400" },
+    { id: "cancelled", title: "Đã hủy", color: "border-rose-500/20 bg-rose-500/5 text-rose-400" }
+  ];
+
+  const renderKanbanCard = (task: Task) => {
+    const isOverdue = task.status !== "done" && task.status !== "cancelled" && task.due_date && new Date(task.due_date) < new Date();
+    
+    return (
+      <Card key={task.id} className="border-border/60 bg-muted/40 hover:bg-muted/70 transition-all shadow-xs p-3 space-y-2.5 text-xs">
+        <div className="flex items-start justify-between gap-1.5">
+          <span className="font-semibold text-foreground line-clamp-2 leading-snug">{task.title}</span>
+          <Badge className={cn(
+            "text-[9px] px-1 py-0 capitalize border shrink-0",
+            task.priority === "urgent" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+            task.priority === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+            task.priority === "normal" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+            "bg-slate-500/10 text-slate-500 border-slate-500/20"
+          )}>
+            {priorityLabels[task.priority] || task.priority}
+          </Badge>
+        </div>
+
+        {task.description && (
+          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{task.description}</p>
+        )}
+
+        {task.project_id && projects && (
+          <div className="flex items-center gap-1 text-[10px] font-semibold text-primary/80">
+            <FolderKanban className="h-3 w-3" />
+            <span>{projects.find(p => p.id === task.project_id)?.name || "Dự án liên kết"}</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Users2 className="h-3 w-3" />
+            <span>{members.find(m => m.id === task.assigned_to)?.name || "Chưa giao"}</span>
+          </div>
+          {task.due_date && (
+            <div className={cn("flex items-center gap-1 font-medium", isOverdue && "text-red-500 animate-pulse")}>
+              <Clock className="h-3 w-3" />
+              <span>{format(new Date(task.due_date), "dd/MM/yyyy")}</span>
+            </div>
+          )}
+        </div>
+
+        {task.status === "done" && task.completion_notes && (
+          <div className="mt-1.5 p-1.5 bg-emerald-500/5 rounded border border-emerald-500/10 text-[10px] text-emerald-400">
+            <strong>Ghi chú hoàn thành:</strong> {task.completion_notes}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-1 pt-1.5 border-t border-border/20">
+          {task.status === "pending" && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                type="button" 
+                onClick={() => acceptTask.mutate(task.id)}
+                className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-0.5"
+              >
+                Nhận việc
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                type="button" 
+                onClick={() => startTask.mutate(task.id)}
+                className="h-6 px-1.5 text-[10px] text-sky-500 hover:bg-sky-500/10 gap-0.5"
+              >
+                <Play className="h-2.5 w-2.5" /> Bắt đầu
+              </Button>
+            </>
+          )}
+
+          {task.status === "accepted" && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              type="button" 
+              onClick={() => startTask.mutate(task.id)}
+              className="h-6 px-1.5 text-[10px] text-sky-500 hover:bg-sky-500/10 gap-0.5"
+            >
+              <Play className="h-2.5 w-2.5" /> Bắt đầu
+            </Button>
+          )}
+
+          {(task.status === "in_progress" || task.status === "accepted" || task.status === "pending") && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              type="button" 
+              onClick={() => updateTask.mutate({ id: task.id, status: "cancelled" })}
+              className="h-6 px-1.5 text-[10px] text-red-500 hover:bg-red-500/10"
+            >
+              Hủy
+            </Button>
+          )}
+
+          {task.status === "in_progress" && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              type="button" 
+              onClick={() => handleOpenCompleteDialog(task.id)}
+              className="h-6 px-1.5 text-[10px] text-emerald-500 hover:bg-emerald-500/10 gap-0.5"
+            >
+              <CheckSquare className="h-2.5 w-2.5" /> Hoàn thành
+            </Button>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
   const formatDate = (d: string | null) => d ? format(new Date(d), "dd/MM/yyyy") : "—";
   const formatMoney = (n: number | null) => n ? n.toLocaleString("vi-VN") + " ₫" : "—";
 
@@ -248,6 +456,9 @@ export default function ProjectManagement() {
           </TabsTrigger>
           <TabsTrigger value="seasons" className="gap-2">
             <Target className="h-4 w-4" /> Kỳ KPI
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="gap-2">
+            <ClipboardList className="h-4 w-4" /> Công việc
           </TabsTrigger>
           <TabsTrigger value="progress_resources" className="gap-2">
             <BarChart3 className="h-4 w-4" /> Tiến độ & Nguồn lực
@@ -440,6 +651,75 @@ export default function ProjectManagement() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="tasks">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+              <div className="space-y-1">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <ClipboardList className="h-4.5 w-4.5 text-primary" /> Bảng phân công công việc (Pancake Work)
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Theo dõi và cập nhật tiến độ công việc dự án của phòng ban</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={taskViewMode} onValueChange={(val: any) => setTaskViewMode(val)}>
+                  <SelectTrigger className="h-8.5 text-xs w-[160px] bg-background">
+                    <SelectValue placeholder="Chế độ xem" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="my">Công việc của tôi</SelectItem>
+                    <SelectItem value="team">Công việc của Team</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" type="button" onClick={() => setTaskDialogOpen(true)} className="h-8.5 text-xs gap-1">
+                  <Plus className="h-4 w-4" /> Giao việc mới
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {columns.map(col => {
+                  const colTasks = tasksToDisplay.filter(t => {
+                    if (col.id === "pending") return t.status === "pending";
+                    if (col.id === "in_progress") return t.status === "in_progress" || t.status === "accepted";
+                    if (col.id === "done") return t.status === "done";
+                    if (col.id === "cancelled") return t.status === "cancelled";
+                    return false;
+                  });
+
+                  return (
+                    <div key={col.id} className="flex flex-col space-y-3 bg-muted/20 border border-border/40 rounded-xl p-3 h-[600px] overflow-hidden">
+                      <div className="flex items-center justify-between border-b pb-2 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("w-2 h-2 rounded-full", 
+                            col.id === 'pending' ? 'bg-slate-400' :
+                            col.id === 'in_progress' ? 'bg-sky-500' :
+                            col.id === 'done' ? 'bg-emerald-500' : 'bg-rose-500'
+                          )} />
+                          <h3 className="font-bold text-xs text-foreground uppercase tracking-wider">{col.title}</h3>
+                        </div>
+                        <Badge variant="secondary" className="h-4.5 px-1.5 py-0 text-[10px] rounded-full shrink-0 font-mono">
+                          {colTasks.length}
+                        </Badge>
+                      </div>
+
+                      <ScrollArea className="flex-1 pr-1 overflow-y-auto">
+                        <div className="space-y-2.5 pb-4">
+                          {colTasks.map(renderKanbanCard)}
+                          {colTasks.length === 0 && (
+                            <div className="text-center py-10 text-muted-foreground text-[10px] border border-dashed border-border/40 rounded-lg">
+                              Trống
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="progress_resources" className="mt-4 space-y-6">
             {/* Bộ Giả Lập Kịch Bản */}
             <Card className="border-primary/20 bg-primary/5">
@@ -614,6 +894,143 @@ export default function ProjectManagement() {
 
       <ProjectDialog open={projectDialogOpen} onOpenChange={setProjectDialogOpen} project={editingProject} />
       <KpiSeasonDialog open={seasonDialogOpen} onOpenChange={setSeasonDialogOpen} season={editingSeason} />
+
+      {/* Task Creation Dialog */}
+      <Dialog open={taskDialogOpen} onOpenChange={setTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[420px] bg-background text-foreground text-xs z-50">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
+              <ClipboardList className="h-4.5 w-4.5 text-primary" /> Phân công công việc mới
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Giao việc và thiết lập thời hạn cho nhân sự trong công ty.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateTask} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="font-semibold text-xs">Tiêu đề công việc *</Label>
+              <Input 
+                className="h-8.5 text-xs bg-background" 
+                placeholder="Nhập tiêu đề công việc..." 
+                value={newTaskTitle} 
+                onChange={e => setNewTaskTitle(e.target.value)} 
+                required 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-semibold text-xs">Mô tả công việc</Label>
+              <Textarea 
+                className="min-h-16 text-xs bg-background" 
+                placeholder="Nhập chi tiết yêu cầu công việc..." 
+                value={newTaskDesc} 
+                onChange={e => setNewTaskDesc(e.target.value)} 
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="font-semibold text-xs">Mức độ ưu tiên</Label>
+                <Select value={newTaskPriority} onValueChange={(val: any) => setNewTaskPriority(val)}>
+                  <SelectTrigger className="h-8.5 text-xs bg-background">
+                    <SelectValue placeholder="Chọn mức ưu tiên..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-[60]">
+                    <SelectItem value="low">Thấp</SelectItem>
+                    <SelectItem value="normal">Bình thường</SelectItem>
+                    <SelectItem value="high">Cao</SelectItem>
+                    <SelectItem value="urgent">Khẩn cấp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="font-semibold text-xs">Hạn hoàn thành</Label>
+                <Input 
+                  type="date"
+                  className="h-8.5 text-xs bg-background" 
+                  value={newTaskDueDate} 
+                  onChange={e => setNewTaskDueDate(e.target.value)} 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-semibold text-xs">Dự án liên kết</Label>
+              <Select value={newTaskProjectId} onValueChange={setNewTaskProjectId}>
+                <SelectTrigger className="h-8.5 text-xs bg-background">
+                  <SelectValue placeholder="Chọn dự án liên kết..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[60] max-h-52">
+                  <SelectItem value="none">Không liên kết dự án</SelectItem>
+                  {projects?.map((proj) => (
+                    <SelectItem key={proj.id} value={proj.id}>
+                      <span className="text-xs">[{proj.code}] {proj.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="font-semibold text-xs">Giao cho nhân viên *</Label>
+              <Select value={newTaskAssignedTo} onValueChange={setNewTaskAssignedTo}>
+                <SelectTrigger className="h-8.5 text-xs bg-background">
+                  <SelectValue placeholder="Chọn nhân sự thực hiện..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[60] max-h-52">
+                  <SelectItem value="none">Chưa giao (Để trống)</SelectItem>
+                  {members?.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      <span className="text-xs">{member.name} ({member.email})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setTaskDialogOpen(false)}>Hủy</Button>
+              <Button type="submit" size="sm" className="bg-primary text-white hover:bg-primary/90">Tạo công việc</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Completion Notes Dialog */}
+      <Dialog open={completionNotesOpen} onOpenChange={setCompletionNotesOpen}>
+        <DialogContent className="sm:max-w-[380px] bg-background text-foreground text-xs z-50">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-emerald-500">
+              <CheckSquare className="h-4.5 w-4.5" /> Báo cáo hoàn thành công việc
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Ghi nhận ghi chú kết quả hoàn thành hoặc kết quả bàn giao.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="font-semibold text-xs">Ghi chú kết quả hoàn thành *</Label>
+              <Textarea 
+                className="min-h-16 text-xs bg-background" 
+                placeholder="Nhập ghi chú hoặc liên kết tài liệu bàn giao..." 
+                value={completionNotes} 
+                onChange={e => setCompletionNotes(e.target.value)} 
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setCompletionNotesOpen(false)}>Hủy</Button>
+              <Button type="button" size="sm" onClick={handleCompleteTaskSubmit} className="bg-emerald-600 text-white hover:bg-emerald-500">
+                Xác nhận hoàn thành
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
