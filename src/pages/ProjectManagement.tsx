@@ -321,6 +321,152 @@ export default function ProjectManagement() {
     setSelectedTaskIdForComplete(null);
   };
 
+  // Task Details Modal (Pancake Work Style)
+  const [activeDetailTaskId, setActiveDetailTaskId] = useState<string | null>(null);
+  const [detailChecklist, setDetailChecklist] = useState<{ id: string; text: string; done: boolean }[]>([]);
+  const [detailComments, setDetailComments] = useState<{ id: string; author: string; text: string; createdAt: string }[]>([]);
+  const [detailActivities, setDetailActivities] = useState<{ id: string; text: string; createdAt: string }[]>([]);
+  const [newCommentText, setNewCommentText] = useState("");
+  const [newSubtaskText, setNewSubtaskText] = useState("");
+
+  const activeDetailTask = tasksToDisplay.find(t => t.id === activeDetailTaskId);
+
+  // Load task details from localStorage
+  useEffect(() => {
+    if (!activeDetailTaskId) return;
+    const key = `erp-mini-task-details-${activeDetailTaskId}`;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        setDetailChecklist(parsed.checklist || []);
+        setDetailComments(parsed.comments || []);
+        setDetailActivities(parsed.activities || []);
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      // Seed default checklist/comments for demo
+      let defaultChecklist: any[] = [];
+      let defaultComments: any[] = [];
+      let defaultActivities = [
+        { id: `act-1`, text: "Công việc đã được khởi tạo bởi hệ thống", createdAt: new Date().toISOString() }
+      ];
+
+      if (activeDetailTaskId === "task-local-1") {
+        defaultChecklist = [
+          { id: "sub-1", text: "Kiểm tra bình mực Epson L8050", done: true },
+          { id: "sub-2", text: "In test tem nhãn decal nhám", done: false },
+          { id: "sub-3", text: "Gia công bế đứt tem tròn 5cm", done: false }
+        ];
+        defaultComments = [
+          { id: "com-1", author: "Hệ thống", text: "Vui lòng hoàn thành trước thời hạn của đơn hàng.", createdAt: new Date().toISOString() }
+        ];
+      } else if (activeDetailTaskId === "task-local-2") {
+        defaultChecklist = [
+          { id: "sub-1", text: "Thiết kế logo combo shop", done: true },
+          { id: "sub-2", text: "Gửi market thiết kế cho khách duyệt", done: true }
+        ];
+        defaultActivities.push({ id: "act-2", text: "Trạng thái đổi sang Hoàn thành", createdAt: new Date().toISOString() });
+      }
+
+      setDetailChecklist(defaultChecklist);
+      setDetailComments(defaultComments);
+      setDetailActivities(defaultActivities);
+
+      localStorage.setItem(key, JSON.stringify({
+        checklist: defaultChecklist,
+        comments: defaultComments,
+        activities: defaultActivities
+      }));
+    }
+  }, [activeDetailTaskId]);
+
+  const saveTaskDetails = (checklist: any[], comments: any[], activities: any[]) => {
+    if (!activeDetailTaskId) return;
+    const key = `erp-mini-task-details-${activeDetailTaskId}`;
+    localStorage.setItem(key, JSON.stringify({ checklist, comments, activities }));
+  };
+
+  const handleAddSubtask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubtaskText.trim()) return;
+    const newItem = { id: `sub-${Date.now()}`, text: newSubtaskText, done: false };
+    const updated = [...detailChecklist, newItem];
+    setDetailChecklist(updated);
+    setNewSubtaskText("");
+
+    const newActivity = { id: `act-${Date.now()}`, text: `Đã thêm checklist: "${newItem.text}"`, createdAt: new Date().toISOString() };
+    const updatedActivities = [...detailActivities, newActivity];
+    setDetailActivities(updatedActivities);
+
+    saveTaskDetails(updated, detailComments, updatedActivities);
+    updateTaskProgress(updated);
+  };
+
+  const handleToggleSubtask = (subId: string) => {
+    const updated = detailChecklist.map(item => {
+      if (item.id === subId) {
+        const nextDone = !item.done;
+        // Log activity
+        const newActivity = { 
+          id: `act-${Date.now()}`, 
+          text: `Đã ${nextDone ? 'đánh dấu xong' : 'hủy đánh dấu'} checklist: "${item.text}"`, 
+          createdAt: new Date().toISOString() 
+        };
+        const updatedActivities = [...detailActivities, newActivity];
+        setDetailActivities(updatedActivities);
+        saveTaskDetails(detailChecklist, detailComments, updatedActivities);
+        return { ...item, done: nextDone };
+      }
+      return item;
+    });
+    setDetailChecklist(updated);
+    saveTaskDetails(updated, detailComments, detailActivities);
+    updateTaskProgress(updated);
+  };
+
+  const handleDeleteSubtask = (subId: string) => {
+    const target = detailChecklist.find(i => i.id === subId);
+    if (!target) return;
+    const updated = detailChecklist.filter(item => item.id !== subId);
+    setDetailChecklist(updated);
+
+    const newActivity = { id: `act-${Date.now()}`, text: `Đã xóa checklist: "${target.text}"`, createdAt: new Date().toISOString() };
+    const updatedActivities = [...detailActivities, newActivity];
+    setDetailActivities(updatedActivities);
+
+    saveTaskDetails(updated, detailComments, updatedActivities);
+    updateTaskProgress(updated);
+  };
+
+  const updateTaskProgress = (checklist: any[]) => {
+    if (!activeDetailTaskId || checklist.length === 0) return;
+    const doneCount = checklist.filter(c => c.done).length;
+    const progress = Math.round((doneCount / checklist.length) * 100);
+    updateTask.mutate({ id: activeDetailTaskId, progress });
+  };
+
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCommentText.trim()) return;
+    const newComment = {
+      id: `com-${Date.now()}`,
+      author: "Bạn (Quản lý/Admin)",
+      text: newCommentText,
+      createdAt: new Date().toISOString()
+    };
+    const updatedComments = [...detailComments, newComment];
+    setDetailComments(updatedComments);
+    setNewCommentText("");
+
+    const newActivity = { id: `act-${Date.now()}`, text: "Đã thêm bình luận mới", createdAt: new Date().toISOString() };
+    const updatedActivities = [...detailActivities, newActivity];
+    setDetailActivities(updatedActivities);
+
+    saveTaskDetails(detailChecklist, updatedComments, updatedActivities);
+  };
+
   const columns = [
     { id: "pending", title: "Chờ nhận", color: "border-slate-500/20 bg-slate-500/5 text-slate-400" },
     { id: "in_progress", title: "Đang làm", color: "border-sky-500/20 bg-sky-500/5 text-sky-400" },
@@ -332,9 +478,13 @@ export default function ProjectManagement() {
     const isOverdue = task.status !== "done" && task.status !== "cancelled" && task.due_date && new Date(task.due_date) < new Date();
     
     return (
-      <Card key={task.id} className="border-border/60 bg-muted/40 hover:bg-muted/70 transition-all shadow-xs p-3 space-y-2.5 text-xs">
+      <Card 
+        key={task.id} 
+        className="border-border/60 bg-muted/40 hover:bg-muted/75 transition-all shadow-xs p-3 space-y-2.5 text-xs cursor-pointer hover:border-primary/40 group/card"
+        onClick={() => setActiveDetailTaskId(task.id)}
+      >
         <div className="flex items-start justify-between gap-1.5">
-          <span className="font-semibold text-foreground line-clamp-2 leading-snug">{task.title}</span>
+          <span className="font-semibold text-foreground group-hover/card:text-primary transition-all line-clamp-2 leading-snug">{task.title}</span>
           <Badge className={cn(
             "text-[9px] px-1 py-0 capitalize border shrink-0",
             task.priority === "urgent" ? "bg-red-500/10 text-red-500 border-red-500/20" :
@@ -383,7 +533,7 @@ export default function ProjectManagement() {
                 variant="ghost" 
                 size="sm" 
                 type="button" 
-                onClick={() => acceptTask.mutate(task.id)}
+                onClick={(e) => { e.stopPropagation(); acceptTask.mutate(task.id); }}
                 className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-0.5"
               >
                 Nhận việc
@@ -392,7 +542,7 @@ export default function ProjectManagement() {
                 variant="ghost" 
                 size="sm" 
                 type="button" 
-                onClick={() => startTask.mutate(task.id)}
+                onClick={(e) => { e.stopPropagation(); startTask.mutate(task.id); }}
                 className="h-6 px-1.5 text-[10px] text-sky-500 hover:bg-sky-500/10 gap-0.5"
               >
                 <Play className="h-2.5 w-2.5" /> Bắt đầu
@@ -405,7 +555,7 @@ export default function ProjectManagement() {
               variant="ghost" 
               size="sm" 
               type="button" 
-              onClick={() => startTask.mutate(task.id)}
+              onClick={(e) => { e.stopPropagation(); startTask.mutate(task.id); }}
               className="h-6 px-1.5 text-[10px] text-sky-500 hover:bg-sky-500/10 gap-0.5"
             >
               <Play className="h-2.5 w-2.5" /> Bắt đầu
@@ -417,7 +567,7 @@ export default function ProjectManagement() {
               variant="ghost" 
               size="sm" 
               type="button" 
-              onClick={() => updateTask.mutate({ id: task.id, status: "cancelled" })}
+              onClick={(e) => { e.stopPropagation(); updateTask.mutate({ id: task.id, status: "cancelled" }); }}
               className="h-6 px-1.5 text-[10px] text-red-500 hover:bg-red-500/10"
             >
               Hủy
@@ -429,7 +579,7 @@ export default function ProjectManagement() {
               variant="ghost" 
               size="sm" 
               type="button" 
-              onClick={() => handleOpenCompleteDialog(task.id)}
+              onClick={(e) => { e.stopPropagation(); handleOpenCompleteDialog(task.id); }}
               className="h-6 px-1.5 text-[10px] text-emerald-500 hover:bg-emerald-500/10 gap-0.5"
             >
               <CheckSquare className="h-2.5 w-2.5" /> Hoàn thành
@@ -811,9 +961,13 @@ export default function ProjectManagement() {
                         tasksToDisplay.map((task) => {
                           const isOverdue = task.status !== "done" && task.status !== "cancelled" && task.due_date && new Date(task.due_date) < new Date();
                           return (
-                            <TableRow key={task.id} className="text-xs hover:bg-muted/20 transition-all">
+                            <TableRow 
+                              key={task.id} 
+                              className="text-xs hover:bg-muted/20 transition-all cursor-pointer group/row"
+                              onClick={() => setActiveDetailTaskId(task.id)}
+                            >
                               <TableCell className="font-mono text-[10px] text-muted-foreground pl-4">{task.id}</TableCell>
-                              <TableCell className="font-semibold text-foreground">
+                              <TableCell className="font-semibold text-foreground group-hover/row:text-primary transition-all">
                                 <div>{task.title}</div>
                                 {task.description && (
                                   <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 font-normal">{task.description}</div>
@@ -878,7 +1032,7 @@ export default function ProjectManagement() {
                               <TableCell className="max-w-[200px] truncate text-muted-foreground" title={task.completion_notes || undefined}>
                                 {task.completion_notes || <span className="text-muted-foreground/50">—</span>}
                               </TableCell>
-                              <TableCell className="text-right pr-4">
+                              <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex gap-1 justify-end">
                                   {task.status === "pending" && (
                                     <>
@@ -886,7 +1040,7 @@ export default function ProjectManagement() {
                                         variant="ghost" 
                                         size="icon" 
                                         type="button" 
-                                        onClick={() => acceptTask.mutate(task.id)}
+                                        onClick={(e) => { e.stopPropagation(); acceptTask.mutate(task.id); }}
                                         title="Nhận việc"
                                         className="h-7 w-7 text-primary hover:bg-primary/10"
                                       >
@@ -896,7 +1050,7 @@ export default function ProjectManagement() {
                                         variant="ghost" 
                                         size="icon" 
                                         type="button" 
-                                        onClick={() => startTask.mutate(task.id)}
+                                        onClick={(e) => { e.stopPropagation(); startTask.mutate(task.id); }}
                                         title="Bắt đầu"
                                         className="h-7 w-7 text-sky-500 hover:bg-sky-500/10"
                                       >
@@ -909,7 +1063,7 @@ export default function ProjectManagement() {
                                       variant="ghost" 
                                       size="icon" 
                                       type="button" 
-                                      onClick={() => startTask.mutate(task.id)}
+                                      onClick={(e) => { e.stopPropagation(); startTask.mutate(task.id); }}
                                       title="Bắt đầu"
                                       className="h-7 w-7 text-sky-500 hover:bg-sky-500/10"
                                     >
@@ -921,7 +1075,7 @@ export default function ProjectManagement() {
                                       variant="ghost" 
                                       size="icon" 
                                       type="button" 
-                                      onClick={() => handleOpenCompleteDialog(task.id)}
+                                      onClick={(e) => { e.stopPropagation(); handleOpenCompleteDialog(task.id); }}
                                       title="Hoàn thành"
                                       className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10"
                                     >
@@ -933,7 +1087,7 @@ export default function ProjectManagement() {
                                       variant="ghost" 
                                       size="icon" 
                                       type="button" 
-                                      onClick={() => updateTask.mutate({ id: task.id, status: "cancelled" })}
+                                      onClick={(e) => { e.stopPropagation(); updateTask.mutate({ id: task.id, status: "cancelled" }); }}
                                       title="Hủy"
                                       className="h-7 w-7 text-red-500 hover:bg-red-500/10"
                                     >
@@ -1264,6 +1418,230 @@ export default function ProjectManagement() {
             </DialogFooter>
           </div>
         </DialogContent>
+      </Dialog>
+
+      {/* Pancake Work Style Task Details Dialog */}
+      <Dialog open={!!activeDetailTaskId} onOpenChange={(open) => !open && setActiveDetailTaskId(null)}>
+        {activeDetailTask && (
+          <DialogContent className="sm:max-w-[720px] max-h-[85vh] overflow-hidden flex flex-col bg-background text-foreground text-xs p-0 border border-border/80 shadow-2xl z-50 rounded-xl">
+            {/* Top Workspace Bar */}
+            <div className="flex items-center justify-between px-5 py-3.5 bg-muted/30 border-b border-border/60 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                  <ClipboardList className="h-3 w-3 text-primary" />
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span>Không gian làm việc</span>
+                  <span>/</span>
+                  <span className="text-foreground">{projects?.find(p => p.id === activeDetailTask.project_id)?.name || "Công việc chung"}</span>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[9px] uppercase font-mono tracking-wider border-primary/20 bg-primary/5 text-primary">
+                {activeDetailTask.id}
+              </Badge>
+            </div>
+
+            {/* Main Pane (Scrollable Area) */}
+            <div className="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Left Pane - Title, Description, Checklists, Comments */}
+              <div className="md:col-span-2 space-y-5">
+                <div className="space-y-1.5">
+                  <h2 className="text-base font-bold text-foreground leading-snug">{activeDetailTask.title}</h2>
+                  {activeDetailTask.description && (
+                    <div className="p-3 bg-muted/20 border rounded-lg text-[11px] text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {activeDetailTask.description}
+                    </div>
+                  )}
+                </div>
+
+                {/* Subtask Checklist (Pancake Work standard) */}
+                <div className="space-y-3.5 pt-2 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <CheckSquare className="h-4 w-4 text-primary" /> Checklist công việc phụ ({detailChecklist.filter(c => c.done).length}/{detailChecklist.length})
+                    </h3>
+                    {detailChecklist.length > 0 && (
+                      <span className="text-[10px] font-mono font-bold text-primary">
+                        {Math.round((detailChecklist.filter(c => c.done).length / detailChecklist.length) * 100)}% hoàn thành
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Checklist Items list */}
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {detailChecklist.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/10 border border-border/20 group hover:bg-muted/20 transition-all">
+                        <label className="flex items-center gap-2 cursor-pointer flex-1">
+                          <input 
+                            type="checkbox" 
+                            checked={item.done} 
+                            onChange={() => handleToggleSubtask(item.id)}
+                            className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" 
+                          />
+                          <span className={cn("text-[11px]", item.done && "line-through text-muted-foreground")}>{item.text}</span>
+                        </label>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteSubtask(item.id)}
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    {detailChecklist.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground italic pl-6">Chưa có checklist phụ nào.</p>
+                    )}
+                  </div>
+
+                  {/* Add Subtask Input Form */}
+                  <form onSubmit={handleAddSubtask} className="flex gap-2">
+                    <Input 
+                      placeholder="Thêm mục checklist mới..." 
+                      className="h-8 text-xs bg-background flex-1" 
+                      value={newSubtaskText}
+                      onChange={e => setNewSubtaskText(e.target.value)}
+                    />
+                    <Button type="submit" size="sm" className="h-8 text-xs px-3">Thêm</Button>
+                  </form>
+                </div>
+
+                {/* Discussion & Comments */}
+                <div className="space-y-4 pt-4 border-t border-border/40">
+                  <h3 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    Thảo luận nhóm ({detailComments.length})
+                  </h3>
+
+                  {/* Comments Timeline */}
+                  <div className="space-y-3.5 max-h-56 overflow-y-auto pr-1">
+                    {detailComments.map((comment) => (
+                      <div key={comment.id} className="flex gap-2.5 items-start text-[11px] leading-relaxed">
+                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0 font-bold text-primary text-[10px]">
+                          {comment.author.substring(0, 2)}
+                        </div>
+                        <div className="flex-1 bg-muted/10 border p-2.5 rounded-lg space-y-1">
+                          <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                            <span className="font-bold text-foreground">{comment.author}</span>
+                            <span>{format(new Date(comment.createdAt), "dd/MM/yyyy HH:mm")}</span>
+                          </div>
+                          <p className="text-foreground/90">{comment.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {detailComments.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground italic text-center py-4">Chưa có bình luận nào.</p>
+                    )}
+                  </div>
+
+                  {/* Comment Input Form */}
+                  <form onSubmit={handleAddComment} className="flex gap-2 items-end">
+                    <Textarea 
+                      placeholder="Viết bình luận công việc..." 
+                      className="min-h-12 text-xs bg-background flex-1 resize-none" 
+                      value={newCommentText}
+                      onChange={e => setNewCommentText(e.target.value)}
+                    />
+                    <Button type="submit" size="sm" className="h-8.5 text-xs px-4">Gửi</Button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Right Pane - Metadata Side panel */}
+              <div className="bg-muted/20 border border-border/40 rounded-xl p-4 space-y-4 h-fit">
+                <h3 className="text-[11px] font-bold text-foreground uppercase tracking-wider border-b pb-1.5">Thuộc tính</h3>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-muted-foreground block font-medium">Trạng thái</span>
+                    <Badge variant="secondary" className={cn(
+                      "text-[10px] px-2 py-0.5 border font-semibold capitalize",
+                      activeDetailTask.status === "pending" ? "bg-slate-500/10 text-slate-500 border-slate-500/20" :
+                      activeDetailTask.status === "in_progress" || activeDetailTask.status === "accepted" ? "bg-sky-500/10 text-sky-500 border-sky-500/20" :
+                      activeDetailTask.status === "done" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                      "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                    )}>
+                      {activeDetailTask.status === "pending" ? "Chờ nhận" :
+                       activeDetailTask.status === "accepted" ? "Đã nhận" :
+                       activeDetailTask.status === "in_progress" ? "Đang làm" :
+                       activeDetailTask.status === "done" ? "Hoàn thành" : "Đã hủy"}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-muted-foreground block font-medium">Độ ưu tiên</span>
+                    <Badge className={cn(
+                      "text-[10px] px-2 py-0.5 capitalize border",
+                      activeDetailTask.priority === "urgent" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                      activeDetailTask.priority === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                      activeDetailTask.priority === "normal" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                      "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                    )}>
+                      {priorityLabels[activeDetailTask.priority] || activeDetailTask.priority}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-muted-foreground block font-medium">Người thực hiện</span>
+                    <span className="font-semibold text-foreground text-xs">
+                      {members.find(m => m.id === activeDetailTask.assigned_to)?.name || "Chưa giao"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-muted-foreground block font-medium">Thời hạn</span>
+                    <div className="flex items-center gap-1 text-xs text-foreground font-semibold">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{activeDetailTask.due_date ? format(new Date(activeDetailTask.due_date), "dd/MM/yyyy") : "—"}</span>
+                    </div>
+                  </div>
+
+                  {activeDetailTask.started_at && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-muted-foreground block font-medium">Bắt đầu lúc</span>
+                      <span className="text-foreground text-[11px] font-mono">{format(new Date(activeDetailTask.started_at), "dd/MM/yyyy HH:mm")}</span>
+                    </div>
+                  )}
+
+                  {activeDetailTask.completed_at && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-muted-foreground block font-medium">Hoàn thành lúc</span>
+                      <span className="text-foreground text-[11px] font-mono">{format(new Date(activeDetailTask.completed_at), "dd/MM/yyyy HH:mm")}</span>
+                    </div>
+                  )}
+
+                  {activeDetailTask.quality_score && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-muted-foreground block font-medium">Điểm đánh giá QC</span>
+                      <Badge variant="outline" className="text-emerald-500 font-bold border-emerald-500/20 bg-emerald-500/5 font-mono text-[10px]">
+                        {activeDetailTask.quality_score}/100
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Activity Feed */}
+                <div className="space-y-2 pt-3.5 border-t border-border/40">
+                  <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider block">Lịch sử thay đổi</span>
+                  <div className="space-y-2 max-h-40 overflow-y-auto text-[10px] pr-1">
+                    {detailActivities.slice().reverse().map(act => (
+                      <div key={act.id} className="space-y-0.5 border-l-2 border-primary/20 pl-2 py-0.5">
+                        <p className="text-foreground/90">{act.text}</p>
+                        <span className="text-[8px] text-muted-foreground block font-mono">
+                          {format(new Date(act.createdAt), "dd/MM HH:mm")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter className="px-5 py-3.5 bg-muted/30 border-t border-border/60 shrink-0">
+              <Button type="button" size="sm" variant="outline" onClick={() => setActiveDetailTaskId(null)}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </div>
   );
