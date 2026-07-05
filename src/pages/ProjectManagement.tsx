@@ -699,6 +699,45 @@ export default function ProjectManagement() {
               </div>
             </CardHeader>
             <CardContent className="pt-2">
+              {/* Task Analytics Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+                <Card className="border-border/50 bg-muted/25 p-3 space-y-1 hover:bg-muted/40 transition-all">
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tổng công việc</div>
+                  <div className="text-xl font-bold text-foreground">{tasksToDisplay.length}</div>
+                  <div className="text-[9px] text-muted-foreground">Nhiệm vụ được phân bổ</div>
+                </Card>
+                <Card className="border-border/50 bg-muted/25 p-3 space-y-1 hover:bg-muted/40 transition-all">
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Đang thực hiện</div>
+                  <div className="text-xl font-bold text-sky-500">
+                    {tasksToDisplay.filter(t => t.status === "in_progress" || t.status === "accepted").length}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground">Công việc đang chạy</div>
+                </Card>
+                <Card className="border-border/50 bg-muted/25 p-3 space-y-1 hover:bg-muted/40 transition-all">
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Đã hoàn thành</div>
+                  <div className="text-xl font-bold text-emerald-500">
+                    {tasksToDisplay.filter(t => t.status === "done").length}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground">
+                    Đúng hạn: {tasksToDisplay.filter(t => t.status === "done").length > 0
+                      ? Math.round((tasksToDisplay.filter(t => t.status === "done" && (!t.due_date || !t.completed_at || new Date(t.completed_at) <= new Date(t.due_date))).length / tasksToDisplay.filter(t => t.status === "done").length) * 100)
+                      : 100}%
+                  </div>
+                </Card>
+                <Card className="border-border/50 bg-muted/25 p-3 space-y-1 hover:bg-muted/40 transition-all">
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Trễ hạn</div>
+                  <div className={cn(
+                    "text-xl font-bold", 
+                    tasksToDisplay.filter(t => t.status !== "done" && t.status !== "cancelled" && t.due_date && new Date(t.due_date) < new Date()).length > 0 
+                      ? "text-rose-500 animate-pulse font-extrabold" 
+                      : "text-foreground"
+                  )}>
+                    {tasksToDisplay.filter(t => t.status !== "done" && t.status !== "cancelled" && t.due_date && new Date(t.due_date) < new Date()).length}
+                  </div>
+                  <div className="text-[9px] text-muted-foreground">Cần ưu tiên xử lý</div>
+                </Card>
+              </div>
+
               {taskViewLayout === "kanban" ? (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {columns.map(col => {
