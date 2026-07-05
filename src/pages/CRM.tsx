@@ -18,6 +18,7 @@ export default function CRM() {
     createLead,
     updateLeadStatus,
     convertLeadToPartner,
+    mergeLeads,
     
     deals,
     createDeal,
