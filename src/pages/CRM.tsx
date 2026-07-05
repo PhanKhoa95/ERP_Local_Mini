@@ -165,6 +165,15 @@ export default function CRM() {
             companies={companies}
             createContact={createContact}
             createCompany={createCompany}
+            mergeContacts={mergeContacts}
+            appointments={appointments}
+            deals={deals}
+            tickets={tickets}
+            tasks={tasks}
+            createAppointment={createAppointment}
+            createDeal={createDeal}
+            createTicket={createTicket}
+            createTask={createTask}
           />
         </TabsContent>
 

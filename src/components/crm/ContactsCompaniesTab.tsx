@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,23 +7,55 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Users, Building, Phone, Mail, FileText, CheckCircle2, UserCheck, ShieldCheck } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Plus, Users, Building, Phone, Mail, FileText, CheckCircle2, UserCheck, AlertTriangle, ArrowRight, CalendarDays, Coins, ClipboardList, CheckSquare } from "lucide-react";
 
 interface ContactsCompaniesTabProps {
   contacts: any[];
   companies: any[];
   createContact: any;
   createCompany: any;
+  mergeContacts: any;
+
+  // Activities references
+  appointments: any[];
+  deals: any[];
+  tickets: any[];
+  tasks: any[];
+  
+  // Actions references
+  createAppointment: any;
+  createDeal: any;
+  createTicket: any;
+  createTask: any;
 }
 
-export function ContactsCompaniesTab({ contacts, companies, createContact, createCompany }: ContactsCompaniesTabProps) {
+export function ContactsCompaniesTab({
+  contacts,
+  companies,
+  createContact,
+  createCompany,
+  mergeContacts,
+  appointments,
+  deals,
+  tickets,
+  tasks,
+  createAppointment,
+  createDeal,
+  createTicket,
+  createTask
+}: ContactsCompaniesTabProps) {
   const [subTab, setSubTab] = useState<"contacts" | "companies">("contacts");
   
   // Dialog Open States
   const [openContact, setOpenContact] = useState(false);
   const [openCompany, setOpenCompany] = useState(false);
+  const [openMerge, setOpenMerge] = useState(false);
 
-  // Form states
+  // Contact Details Sheet
+  const [selectedContact, setSelectedContact] = useState<any | null>(null);
+
+  // Forms states
   const [contactForm, setContactForm] = useState({
     name: "",
     phone: "",
@@ -39,6 +71,26 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
     phone: "",
     email: ""
   });
+
+  // Merge Duplicates Form State
+  const [mergeState, setMergeState] = useState<{
+    phoneOrEmail: string;
+    duplicates: any[];
+    mainContactId: string;
+  }>({ phoneOrEmail: "", duplicates: [], mainContactId: "" });
+
+  // Quick Create forms from Detail view
+  const [openQuickApt, setOpenQuickApt] = useState(false);
+  const [quickAptTime, setQuickAptTime] = useState("");
+  const [quickAptPurpose, setQuickAptPurpose] = useState("");
+
+  const [openQuickDeal, setOpenQuickDeal] = useState(false);
+  const [quickDealAmount, setQuickDealAmount] = useState("");
+  const [quickDealTitle, setQuickDealTitle] = useState("");
+
+  const [openQuickTicket, setOpenQuickTicket] = useState(false);
+  const [quickTicketTitle, setQuickTicketTitle] = useState("");
+  const [quickTicketDesc, setQuickTicketDesc] = useState("");
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +118,86 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
     });
     setCompanyForm({ name: "", tax_code: "", address: "", phone: "", email: "" });
     setOpenCompany(false);
+  };
+
+  // Find duplicates
+  const detectDuplicates = (c: any) => {
+    if (!c.phone && !c.email) return [];
+    return contacts.filter(other => 
+      other.id !== c.id && 
+      ((c.phone && other.phone === c.phone) || (c.email && other.email === c.email))
+    );
+  };
+
+  const handleTriggerMerge = (contact: any, dups: any[]) => {
+    const allDups = [contact, ...dups];
+    setMergeState({
+      phoneOrEmail: contact.phone || contact.email || "",
+      duplicates: allDups,
+      mainContactId: contact.id
+    });
+    setOpenMerge(true);
+  };
+
+  const handleMergeSubmit = async () => {
+    const duplicateIds = mergeState.duplicates
+      .map(d => d.id)
+      .filter(id => id !== mergeState.mainContactId);
+    
+    await mergeContacts.mutateAsync({
+      mainContactId: mergeState.mainContactId,
+      duplicateContactIds: duplicateIds
+    });
+    setOpenMerge(false);
+  };
+
+  // Quick Action Submits
+  const handleQuickAptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContact || !quickAptTime) return;
+    await createAppointment.mutateAsync({
+      customer_name: selectedContact.name,
+      phone: selectedContact.phone,
+      appointment_time: new Date(quickAptTime).toISOString(),
+      status: "scheduled",
+      purpose: quickAptPurpose || null
+    });
+    setQuickAptTime("");
+    setQuickAptPurpose("");
+    setOpenQuickApt(false);
+  };
+
+  const handleQuickDealSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContact || !quickDealTitle) return;
+    await createDeal.mutateAsync({
+      title: quickDealTitle,
+      amount: Number(quickDealAmount) || 0,
+      stage: "new",
+      priority: "medium",
+      close_date: null,
+      lead_id: null
+    });
+    setQuickDealTitle("");
+    setQuickDealAmount("");
+    setOpenQuickDeal(false);
+  };
+
+  const handleQuickTicketSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContact || !quickTicketTitle) return;
+    await createTicket.mutateAsync({
+      customer_name: selectedContact.name,
+      phone: selectedContact.phone,
+      title: quickTicketTitle,
+      description: quickTicketDesc || null,
+      priority: "medium",
+      status: "open",
+      assigned_to: null
+    });
+    setQuickTicketTitle("");
+    setQuickTicketDesc("");
+    setOpenQuickTicket(false);
   };
 
   return (
@@ -110,6 +242,7 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
                   <th className="p-3 font-semibold">Họ tên</th>
                   <th className="p-3 font-semibold">Thông tin liên lạc</th>
                   <th className="p-3 font-semibold">Công ty trực thuộc</th>
+                  <th className="p-3 font-semibold">Trùng lặp</th>
                   <th className="p-3 font-semibold">Mô tả/Ghi chú</th>
                   <th className="p-3 font-semibold">Ngày tạo</th>
                 </tr>
@@ -117,10 +250,16 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
               <tbody>
                 {contacts.map((c) => {
                   const comp = companies.find((co) => co.id === c.company_map_id);
+                  const dups = detectDuplicates(c);
                   return (
                     <tr key={c.id} className="border-b hover:bg-secondary/15 transition-colors">
-                      <td className="p-3 font-bold text-foreground flex items-center gap-1.5">
-                        <UserCheck className="h-3.5 w-3.5 text-indigo-500" /> {c.name}
+                      <td className="p-3">
+                        <button
+                          onClick={() => setSelectedContact(c)}
+                          className="font-bold text-foreground flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 text-left"
+                        >
+                          <UserCheck className="h-3.5 w-3.5 text-indigo-500" /> {c.name}
+                        </button>
                       </td>
                       <td className="p-3 space-y-1">
                         {c.phone && (
@@ -144,7 +283,21 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
                           <span className="text-muted-foreground text-[10px] italic">Cá nhân tự do</span>
                         )}
                       </td>
-                      <td className="p-3 text-[11px] text-muted-foreground max-w-[220px] truncate">
+                      <td className="p-3">
+                        {dups.length > 0 ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleTriggerMerge(c, dups)}
+                            className="h-6 text-[9px] font-bold border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 px-1.5 flex items-center gap-1"
+                          >
+                            <AlertTriangle className="h-3 w-3" /> Trùng ({dups.length})
+                          </Button>
+                        ) : (
+                          <span className="text-emerald-600 text-[10px] font-semibold">✓ Duy nhất</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-[11px] text-muted-foreground max-w-[180px] truncate">
                         {c.notes || "-"}
                       </td>
                       <td className="p-3 text-[10px] text-muted-foreground font-mono">
@@ -155,7 +308,7 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
                 })}
                 {contacts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-12 text-center text-muted-foreground italic">
+                    <td colSpan={6} className="p-12 text-center text-muted-foreground italic">
                       Danh sách liên hệ cá nhân đang trống.
                     </td>
                   </tr>
@@ -235,6 +388,320 @@ export function ContactsCompaniesTab({ contacts, companies, createContact, creat
           </CardContent>
         </Card>
       )}
+
+      {/* Merge Contacts Dialog */}
+      <Dialog open={openMerge} onOpenChange={setOpenMerge}>
+        <DialogContent className="sm:max-w-[480px] bg-background text-foreground text-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-rose-600">
+              <AlertTriangle className="h-4.5 w-4.5" /> Gộp trùng lặp Liên hệ
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Các tài khoản trùng SĐT/Email sẽ được gộp làm một. Chọn liên hệ chính để giữ lại. Ghi chú của các liên hệ cũ sẽ được tự động gộp nối tiếp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="font-semibold">Chọn bản ghi thông tin chính (Main Record):</Label>
+              <Select
+                value={mergeState.mainContactId}
+                onValueChange={(val) => setMergeState({ ...mergeState, mainContactId: val })}
+              >
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Chọn liên hệ giữ lại..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover text-foreground">
+                  {mergeState.duplicates.map(d => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} ({d.phone || d.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 border p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40">
+              <div className="text-[10px] font-bold text-foreground uppercase">Danh sách các bản ghi sẽ bị loại bỏ:</div>
+              <div className="space-y-1.5">
+                {mergeState.duplicates
+                  .filter(d => d.id !== mergeState.mainContactId)
+                  .map(d => (
+                    <div key={d.id} className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground p-1 border-b">
+                      <span>{d.name} ({d.phone || d.email})</span>
+                      <Badge variant="outline" className="text-[8px] bg-rose-50 text-rose-500 border-none">Sẽ xóa</Badge>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setOpenMerge(false)}>Thoát</Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleMergeSubmit}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm"
+            >
+              Xác nhận Gộp trùng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Details Sheet (Activity Stream) */}
+      <Sheet open={!!selectedContact} onOpenChange={(open) => !open && setSelectedContact(null)}>
+        <SheetContent className="sm:max-w-[450px] bg-background text-foreground text-xs overflow-y-auto">
+          {selectedContact && (
+            <div className="space-y-6">
+              <SheetHeader>
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-6 w-6 text-indigo-500" />
+                  <div>
+                    <SheetTitle className="text-sm font-bold text-left">{selectedContact.name}</SheetTitle>
+                    <SheetDescription className="text-[10px] text-left">
+                      Khởi tạo: {new Date(selectedContact.created_at).toLocaleDateString("vi-VN")}
+                    </SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+
+              {/* General Info Card */}
+              <Card className="border border-border/80 shadow-sm bg-slate-50/50 dark:bg-slate-900/10">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 text-indigo-500" />
+                    <span className="font-bold">{selectedContact.phone || "Chưa cập nhật SĐT"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="font-bold">{selectedContact.email || "Chưa cập nhật Email"}</span>
+                  </div>
+                  {selectedContact.notes && (
+                    <p className="text-[11px] text-muted-foreground italic border-t pt-2 mt-2 leading-relaxed">
+                      "{selectedContact.notes}"
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions Panel */}
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold text-foreground uppercase tracking-tight">Thao tác nhanh:</div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => setOpenQuickApt(true)} className="h-7 text-[10px] font-semibold bg-indigo-650 hover:bg-indigo-750 text-white gap-1 flex-1 shadow-sm">
+                    <CalendarDays className="h-3 w-3" /> Đặt lịch hẹn
+                  </Button>
+                  <Button size="sm" onClick={() => setOpenQuickDeal(true)} className="h-7 text-[10px] font-semibold bg-indigo-650 hover:bg-indigo-750 text-white gap-1 flex-1 shadow-sm">
+                    <Coins className="h-3 w-3" /> Tạo Cơ hội
+                  </Button>
+                  <Button size="sm" onClick={() => setOpenQuickTicket(true)} className="h-7 text-[10px] font-semibold bg-indigo-650 hover:bg-indigo-750 text-white gap-1 flex-1 shadow-sm">
+                    <AlertTriangle className="h-3 w-3" /> Báo sự cố
+                  </Button>
+                </div>
+              </div>
+
+              {/* Activity Stream Section */}
+              <div className="space-y-4 border-t pt-4">
+                <div className="text-[10px] font-bold text-foreground uppercase tracking-tight flex items-center gap-1">
+                  <ClipboardList className="h-3.5 w-3.5 text-indigo-500" /> Lịch sử hoạt động liên kết
+                </div>
+
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-0.5">
+                  {/* Matching Appointments */}
+                  {appointments
+                    .filter(a => a.customer_name === selectedContact.name || a.phone === selectedContact.phone)
+                    .map(apt => (
+                      <div key={apt.id} className="p-3 border rounded-xl bg-card space-y-1 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-[11px] text-foreground flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3 text-emerald-500" /> Lịch hẹn chăm sóc
+                          </span>
+                          <Badge variant="outline" className="text-[8px] font-bold bg-emerald-50 border-none text-emerald-600 px-1">{apt.status}</Badge>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-semibold">
+                          Thời gian: {new Date(apt.appointment_time).toLocaleString("vi-VN")}
+                        </p>
+                        {apt.purpose && <p className="text-[10px] text-muted-foreground italic">"{apt.purpose}"</p>}
+                      </div>
+                    ))}
+
+                  {/* Matching Tickets */}
+                  {tickets
+                    .filter(t => t.customer_name === selectedContact.name || t.phone === selectedContact.phone)
+                    .map(tkt => (
+                      <div key={tkt.id} className="p-3 border rounded-xl bg-card space-y-1 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-[11px] text-foreground flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3 text-rose-500" /> Khiếu nại/Sự cố: {tkt.title}
+                          </span>
+                          <Badge variant="outline" className="text-[8px] font-bold bg-rose-50 border-none text-rose-600 px-1">{tkt.status}</Badge>
+                        </div>
+                        {tkt.description && <p className="text-[10px] text-muted-foreground italic">"{tkt.description}"</p>}
+                      </div>
+                    ))}
+
+                  {/* Matching Deals */}
+                  {deals
+                    .filter(d => d.title.toLowerCase().includes(selectedContact.name.toLowerCase()))
+                    .map(deal => (
+                      <div key={deal.id} className="p-3 border rounded-xl bg-card space-y-1 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-[11px] text-foreground flex items-center gap-1">
+                            <Coins className="h-3 w-3 text-amber-500" /> Cơ hội bán hàng: {deal.title}
+                          </span>
+                          <Badge variant="outline" className="text-[8px] font-bold bg-amber-50 border-none text-amber-600 px-1">{deal.stage}</Badge>
+                        </div>
+                        <p className="text-[10px] text-indigo-650 font-bold">Trị giá: {Number(deal.amount || 0).toLocaleString("vi-VN")}đ</p>
+                      </div>
+                    ))}
+
+                  {/* Empty activities check */}
+                  {appointments.filter(a => a.customer_name === selectedContact.name || a.phone === selectedContact.phone).length === 0 &&
+                   tickets.filter(t => t.customer_name === selectedContact.name || t.phone === selectedContact.phone).length === 0 &&
+                   deals.filter(d => d.title.toLowerCase().includes(selectedContact.name.toLowerCase())).length === 0 && (
+                     <div className="text-center py-8 text-[11px] italic text-muted-foreground">
+                       Chưa ghi nhận lịch sử hoạt động liên kết nào.
+                     </div>
+                   )}
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Quick Create Appointments Dialog */}
+      <Dialog open={openQuickApt} onOpenChange={setOpenQuickApt}>
+        <DialogContent className="sm:max-w-[360px] bg-background text-foreground text-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
+              <CalendarDays className="h-4.5 w-4.5 text-indigo-500" /> Tạo lịch hẹn nhanh
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleQuickAptSubmit} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="quickAptTime" className="font-semibold">Thời gian hẹn *</Label>
+              <Input
+                id="quickAptTime"
+                type="datetime-local"
+                className="h-8"
+                value={quickAptTime}
+                onChange={(e) => setQuickAptTime(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="quickAptPurpose" className="font-semibold">Nội dung cuộc gọi / gặp</Label>
+              <Textarea
+                id="quickAptPurpose"
+                className="min-h-[60px] text-xs"
+                value={quickAptPurpose}
+                onChange={(e) => setQuickAptPurpose(e.target.value)}
+                placeholder="Ghi chú nội dung..."
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setOpenQuickApt(false)}>Thoát</Button>
+              <Button type="submit" size="sm" className="bg-indigo-650 hover:bg-indigo-750 text-white font-semibold">
+                Đặt lịch
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Create Deals Dialog */}
+      <Dialog open={openQuickDeal} onOpenChange={setOpenQuickDeal}>
+        <DialogContent className="sm:max-w-[360px] bg-background text-foreground text-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
+              <Coins className="h-4.5 w-4.5 text-indigo-500" /> Tạo cơ hội bán hàng nhanh
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleQuickDealSubmit} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="quickDealTitle" className="font-semibold">Tiêu đề Deal *</Label>
+              <Input
+                id="quickDealTitle"
+                className="h-8"
+                value={quickDealTitle}
+                onChange={(e) => setQuickDealTitle(e.target.value)}
+                placeholder={`Ví dụ: Hợp đồng in B2B cho ${selectedContact?.name}`}
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="quickDealAmount" className="font-semibold">Trị giá dự kiến (đ) *</Label>
+              <Input
+                id="quickDealAmount"
+                type="number"
+                className="h-8"
+                value={quickDealAmount}
+                onChange={(e) => setQuickDealAmount(e.target.value)}
+                placeholder="5000000"
+                required
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setOpenQuickDeal(false)}>Thoát</Button>
+              <Button type="submit" size="sm" className="bg-indigo-650 hover:bg-indigo-750 text-white font-semibold">
+                Tạo Deal
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Create Tickets Dialog */}
+      <Dialog open={openQuickTicket} onOpenChange={setOpenQuickTicket}>
+        <DialogContent className="sm:max-w-[360px] bg-background text-foreground text-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
+              <AlertTriangle className="h-4.5 w-4.5 text-rose-500" /> Báo cáo sự cố nhanh
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleQuickTicketSubmit} className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="quickTicketTitle" className="font-semibold">Tiêu đề lỗi sản phẩm *</Label>
+              <Input
+                id="quickTicketTitle"
+                className="h-8"
+                value={quickTicketTitle}
+                onChange={(e) => setQuickTicketTitle(e.target.value)}
+                placeholder="Ví dụ: Thiếu 50 sticker in ấn"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="quickTicketDesc" className="font-semibold">Chi tiết lỗi phản ánh</Label>
+              <Textarea
+                id="quickTicketDesc"
+                className="min-h-[60px] text-xs"
+                value={quickTicketDesc}
+                onChange={(e) => setQuickTicketDesc(e.target.value)}
+                placeholder="Ghi chú chi tiết sự cố..."
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setOpenQuickTicket(false)}>Thoát</Button>
+              <Button type="submit" size="sm" className="bg-rose-600 hover:bg-rose-700 text-white font-semibold">
+                Tạo Ticket
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Contact Dialog */}
       <Dialog open={openContact} onOpenChange={setOpenContact}>

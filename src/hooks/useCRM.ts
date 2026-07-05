@@ -721,6 +721,44 @@ export function useCRM() {
     }
   });
 
+  const mergeContacts = useMutation({
+    mutationFn: async ({ mainContactId, duplicateContactIds }: { mainContactId: string; duplicateContactIds: string[] }) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isDemo) {
+        const local = getLocal(CONTACTS_KEY, seedContacts(companyId));
+        const mainIdx = local.findIndex(c => c.id === mainContactId);
+        if (mainIdx === -1) throw new Error("Không tìm thấy liên hệ chính");
+
+        const duplicates = local.filter(c => duplicateContactIds.includes(c.id));
+        
+        // Merge notes
+        let mergedNotes = local[mainIdx].notes || "";
+        duplicates.forEach(dup => {
+          if (dup.notes) {
+            mergedNotes += `\n[Gộp từ ${dup.name}]: ${dup.notes}`;
+          }
+        });
+        local[mainIdx].notes = mergedNotes;
+
+        // Remove duplicates
+        const updated = local.filter(c => c.id === mainContactId || !duplicateContactIds.includes(c.id));
+        saveLocal(CONTACTS_KEY, updated);
+        return local[mainIdx];
+      } else {
+        const { error } = await supabase
+          .from("crm_contacts" as any)
+          .delete()
+          .in("id", duplicateContactIds);
+        if (error) throw error;
+        return { id: mainContactId };
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_contacts"] });
+      toast({ title: "Gộp các liên hệ trùng lặp thành công!" });
+    }
+  });
+
   // ==========================================
   // 8. CUSTOM FIELDS QUERIES & MUTATIONS (Advanced)
   // ==========================================
@@ -1000,6 +1038,7 @@ export function useCRM() {
     contacts: contactsQuery.data || [],
     contactsLoading: contactsQuery.isLoading,
     createContact,
+    mergeContacts,
 
     // Custom Fields (Advanced)
     customFields: customFieldsQuery.data || [],
