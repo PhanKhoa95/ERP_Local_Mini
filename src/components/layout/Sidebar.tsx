@@ -5,7 +5,7 @@ import {
   FolderOpen, TrendingUp, Trophy, Target, Gamepad2, UsersRound, Mic,
   ChevronDown, ClipboardList, FolderKanban, Stamp, Workflow, PackageSearch, Coins,
   FileSignature, CalendarDays, Activity, BookOpen, Bot, Database, CreditCard, Link2,
-  Shirt, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, Layers, History, Boxes, Award,
+  Shirt, ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, Layers, History, Boxes, Award, ShieldCheck,
   PackageCheck, RotateCcw, Truck, FileBarChart, FileCheck, Banknote, BarChart2, Factory, MessageSquare, Zap, Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
