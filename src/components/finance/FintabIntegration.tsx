@@ -54,7 +54,7 @@ export function FintabIntegration() {
   const [simDesc, setSimDesc] = useState("KHACH HANG CHUYEN KHOAN THANH TOAN DON HANG");
 
   // Circular 88 Selected Book template
-  const [selectedBook, setSelectedBook] = useState<"S1-HKD" | "S5-HKD" | "S6-HKD" | "S3-HKD">("S1-HKD");
+  const [selectedBook, setSelectedBook] = useState<"S1-HKD" | "S2-HKD" | "S3-HKD" | "S4-HKD" | "S5-HKD" | "S6-HKD">("S1-HKD");
   const [downloading, setDownloading] = useState(false);
 
   const handleOpenVoucherDialog = (invoice: FintabInvoice) => {
@@ -266,6 +266,12 @@ export function FintabIntegration() {
                 Sổ chi tiết Doanh thu bán hàng (S1-HKD)
               </div>
               <div
+                onClick={() => setSelectedBook("S2-HKD")}
+                className={`p-3 border rounded-xl cursor-pointer text-xs transition-all ${selectedBook === "S2-HKD" ? "border-indigo-400 bg-indigo-50/20 text-indigo-700 font-bold" : "bg-card text-muted-foreground"}`}
+              >
+                Sổ chi tiết vật tư, hàng hóa (S2-HKD)
+              </div>
+              <div
                 onClick={() => setSelectedBook("S5-HKD")}
                 className={`p-3 border rounded-xl cursor-pointer text-xs transition-all ${selectedBook === "S5-HKD" ? "border-indigo-400 bg-indigo-50/20 text-indigo-700 font-bold" : "bg-card text-muted-foreground"}`}
               >
@@ -276,6 +282,12 @@ export function FintabIntegration() {
                 className={`p-3 border rounded-xl cursor-pointer text-xs transition-all ${selectedBook === "S6-HKD" ? "border-indigo-400 bg-indigo-50/20 text-indigo-700 font-bold" : "bg-card text-muted-foreground"}`}
               >
                 Sổ quỹ tiền mặt &amp; tiền gửi ngân hàng (S6-HKD)
+              </div>
+              <div
+                onClick={() => setSelectedBook("S4-HKD")}
+                className={`p-3 border rounded-xl cursor-pointer text-xs transition-all ${selectedBook === "S4-HKD" ? "border-indigo-400 bg-indigo-50/20 text-indigo-700 font-bold" : "bg-card text-muted-foreground"}`}
+              >
+                Sổ thanh toán lương &amp; BHXH (S4-HKD)
               </div>
               <div
                 onClick={() => setSelectedBook("S3-HKD")}
@@ -314,9 +326,11 @@ export function FintabIntegration() {
                   <div className="text-center space-y-1">
                     <h3 className="font-extrabold text-sm uppercase tracking-wider">
                       {selectedBook === "S1-HKD" && "SỔ CHI TIẾT DOANH THU BÁN HÀNG HÓA, DỊCH VỤ"}
+                      {selectedBook === "S2-HKD" && "SỔ CHI TIẾT VẬT LIỆU, DỤNG CỤ, SẢN PHẨM, HÀNG HÓA"}
+                      {selectedBook === "S3-HKD" && "SỔ THEO DÕI NGHĨA VỤ THUẾ VỚI NGÂN SÁCH NHÀ NƯỚC"}
+                      {selectedBook === "S4-HKD" && "SỔ THEO DÕI THANH TOÁN LƯƠNG VÀ CÁC KHOẢN NỘP THEO LƯƠNG"}
                       {selectedBook === "S5-HKD" && "SỔ CHI PHÍ SẢN XUẤT KINH DOANH"}
                       {selectedBook === "S6-HKD" && "SỔ QUỸ TIỀN MẶT VÀ TIỀN GỬI NGÂN HÀNG"}
-                      {selectedBook === "S3-HKD" && "SỔ THEO DÕI NGHĨA VỤ THUẾ VỚI NGÂN SÁCH NHÀ NƯỚC"}
                     </h3>
                     <p className="text-[10px] italic">Tháng 7 năm 2026</p>
                   </div>
@@ -353,6 +367,57 @@ export function FintabIntegration() {
                           <td className="border border-slate-400 p-2">42,000,000đ</td>
                           <td className="border border-slate-400 p-2">—</td>
                           <td className="border border-slate-400 p-2">42,000,000đ</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  {selectedBook === "S2-HKD" && (
+                    <table className="w-full border-collapse border border-slate-400 text-[10px] text-left">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-900 font-bold text-center">
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Ngày ghi sổ</th>
+                          <th className="border border-slate-400 p-2" colSpan={2}>Chứng từ</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Nội dung nghiệp vụ</th>
+                          <th className="border border-slate-400 p-2" colSpan={2}>Nhập (Mua vào)</th>
+                          <th className="border border-slate-400 p-2" colSpan={2}>Xuất (Bán/Sử dụng)</th>
+                          <th className="border border-slate-400 p-2" colSpan={2}>Tồn kho cuối kỳ</th>
+                        </tr>
+                        <tr className="bg-slate-100 dark:bg-slate-900 font-bold text-center">
+                          <th className="border border-slate-400 p-2">Số hiệu</th>
+                          <th className="border border-slate-400 p-2">Ngày</th>
+                          <th className="border border-slate-400 p-2">S.Lượng</th>
+                          <th className="border border-slate-400 p-2">Trị giá</th>
+                          <th className="border border-slate-400 p-2">S.Lượng</th>
+                          <th className="border border-slate-400 p-2">Trị giá</th>
+                          <th className="border border-slate-400 p-2">S.Lượng</th>
+                          <th className="border border-slate-400 p-2">Trị giá</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border hover:bg-secondary/5 font-medium">
+                          <td className="border border-slate-400 p-2 text-center">01/07/2026</td>
+                          <td className="border border-slate-400 p-2 text-center font-mono">1C26-TA001</td>
+                          <td className="border border-slate-400 p-2 text-center">01/07/2026</td>
+                          <td className="border border-slate-400 p-2">Nhập kho Giấy cuộn in Sticker</td>
+                          <td className="border border-slate-400 p-2 text-right">100 cuộn</td>
+                          <td className="border border-slate-400 p-2 text-right">15,000,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">—</td>
+                          <td className="border border-slate-400 p-2 text-right">—</td>
+                          <td className="border border-slate-400 p-2 text-right font-bold">100 cuộn</td>
+                          <td className="border border-slate-400 p-2 text-right font-bold">15,000,000đ</td>
+                        </tr>
+                        <tr className="border hover:bg-secondary/5 font-medium">
+                          <td className="border border-slate-400 p-2 text-center">04/07/2026</td>
+                          <td className="border border-slate-400 p-2 text-center font-mono">PXK-00012</td>
+                          <td className="border border-slate-400 p-2 text-center">04/07/2026</td>
+                          <td className="border border-slate-400 p-2">Xuất kho giấy in đơn hàng Pancake VN</td>
+                          <td className="border border-slate-400 p-2 text-right">—</td>
+                          <td className="border border-slate-400 p-2 text-right">—</td>
+                          <td className="border border-slate-400 p-2 text-right">20 cuộn</td>
+                          <td className="border border-slate-400 p-2 text-right">3,000,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right font-bold">80 cuộn</td>
+                          <td className="border border-slate-400 p-2 text-right font-bold">12,000,000đ</td>
                         </tr>
                       </tbody>
                     </table>
@@ -438,6 +503,54 @@ export function FintabIntegration() {
                           <td className="border border-slate-400 p-2 text-right">—</td>
                           <td className="border border-slate-400 p-2 text-right">1,500,000đ</td>
                           <td className="border border-slate-400 p-2 text-right font-bold">43,860,000đ</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  {selectedBook === "S4-HKD" && (
+                    <table className="w-full border-collapse border border-slate-400 text-[10px] text-left">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-900 font-bold text-center">
+                          <th className="border border-slate-400 p-2" rowSpan={2}>STT</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Họ và tên nhân viên</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Lương chính</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Phụ cấp</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Tổng thu nhập</th>
+                          <th className="border border-slate-400 p-2" colSpan={3}>Các khoản trích nộp theo lương</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Thực lĩnh</th>
+                          <th className="border border-slate-400 p-2" rowSpan={2}>Ký nhận</th>
+                        </tr>
+                        <tr className="bg-slate-100 dark:bg-slate-900 font-bold text-center">
+                          <th className="border border-slate-400 p-2">BHXH (8%)</th>
+                          <th className="border border-slate-400 p-2">BHYT (1.5%)</th>
+                          <th className="border border-slate-400 p-2">Thuế TNCN</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border hover:bg-secondary/5 font-medium">
+                          <td className="border border-slate-400 p-2 text-center">1</td>
+                          <td className="border border-slate-400 p-2 font-bold">Nguyễn Văn Kế Toán</td>
+                          <td className="border border-slate-400 p-2 text-right">12,000,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">1,000,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">13,000,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">960,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">180,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">—</td>
+                          <td className="border border-slate-400 p-2 text-right font-bold text-indigo-650">11,860,000đ</td>
+                          <td className="border border-slate-400 p-2 text-center text-slate-400 italic">Đã nhận chuyển khoản</td>
+                        </tr>
+                        <tr className="border hover:bg-secondary/5 font-medium">
+                          <td className="border border-slate-400 p-2 text-center">2</td>
+                          <td className="border border-slate-400 p-2 font-bold">Trần Thị Thiết Kế</td>
+                          <td className="border border-slate-400 p-2 text-right">10,000,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">500,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">10,500,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">800,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">150,000đ</td>
+                          <td className="border border-slate-400 p-2 text-right">—</td>
+                          <td className="border border-slate-400 p-2 text-right font-bold text-indigo-650">9,550,000đ</td>
+                          <td className="border border-slate-400 p-2 text-center text-slate-400 italic">Đã nhận chuyển khoản</td>
                         </tr>
                       </tbody>
                     </table>
