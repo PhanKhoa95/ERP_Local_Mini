@@ -77,7 +77,7 @@ describe("Pancake CRM advanced business logic tests", () => {
   it("should allow status change of leads", async () => {
     const crm = useCRM();
     const result = await crm.updateLeadStatus.mutateAsync({
-      id: "lead-test-1",
+      id: "lead-1",
       status: "contacting"
     });
     expect(result).toBeDefined();
