@@ -77,7 +77,7 @@ test.describe("Category-Specific Promotions & Quick Customer E2E Tests", () => {
 
     // Product 2: "Giấy decal bóng (A4)" (Category: "Vat tu & Muc in", Price: 3,000đ)
     // Scroll down to click if needed, or filter
-    const searchProdInput = page.locator('input[placeholder="Tìm sản phẩm theo tên hoặc mã SKU..."]');
+    const searchProdInput = page.locator('input[placeholder*="sản phẩm"]');
     await searchProdInput.fill("decal");
     await page.waitForTimeout(500);
     await page.click("text=Giấy decal bóng (A4)");

@@ -48,6 +48,7 @@ import { OrderReturnDialog } from "./OrderReturnDialog";
 import { PartialReturnDialog } from "./PartialReturnDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -158,6 +159,7 @@ export function OrderDetailDialog({
   const [assignedStaff, setAssignedStaff] = useState<string>("Dương Kim Oanh");
   const [paymentStatus, setPaymentStatus] = useState<string>("pending");
   const [isCopied, setIsCopied] = useState(false);
+  const { maskPhone, maskName, maskAddress } = usePermissions();
 
   // Pancake POS custom fields states
   const [bankTransferAmount, setBankTransferAmount] = useState<number>(20000);
@@ -503,9 +505,9 @@ export function OrderDetailDialog({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, order, onOpenChange, remainingCOD, bankTransferVal, assignedStaff, marketer, onlyCollectReturnFee, expectedDeliveryDate, orderTags, editNotes, editInternalNotes, paymentStatus]);
 
-  const customerName = order ? getOrderCustomerName(order) : "";
-  const customerPhone = order ? getOrderCustomerPhone(order) : "";
-  const customerAddress = order ? getOrderCustomerAddress(order) : "";
+  const customerName = order ? maskName(getOrderCustomerName(order)) : "";
+  const customerPhone = order ? maskPhone(getOrderCustomerPhone(order)) : "";
+  const customerAddress = order ? maskAddress(getOrderCustomerAddress(order)) : "";
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");

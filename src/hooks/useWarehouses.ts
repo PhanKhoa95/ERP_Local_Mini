@@ -5,6 +5,8 @@ import { useCompanyContext } from "@/hooks/useCompanyContext";
 import { invalidateWarehouseRelated } from "@/lib/queryInvalidation";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { getLocalProducts } from "@/lib/localInventoryStore";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
+import { checkPlanLimit } from "@/lib/saasLimits";
 
 const WAREHOUSES_KEY = "erp-mini-local-demo-warehouses";
 
@@ -23,6 +25,7 @@ function getLocalWarehouses(companyId: string): Warehouse[] {
       is_default: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      allow_ordering: true,
     };
     localStorage.setItem(WAREHOUSES_KEY, JSON.stringify([defaultWarehouse]));
     return [defaultWarehouse];
@@ -49,6 +52,7 @@ interface Warehouse {
   is_default: boolean;
   created_at: string;
   updated_at: string;
+  allow_ordering: boolean;
 }
 
 interface WarehouseStock {
@@ -109,6 +113,7 @@ interface WarehouseInsert {
   manager_name?: string | null;
   is_active?: boolean;
   is_default?: boolean;
+  allow_ordering?: boolean;
 }
 
 interface StockTransferInsert {
@@ -122,6 +127,7 @@ export function useWarehouses() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { companyId } = useCompanyContext();
+  const { subscription } = useSubscriptions();
 
   // Fetch all warehouses
   const { data: warehouses = [], isLoading: warehousesLoading } = useQuery({
@@ -254,6 +260,13 @@ export function useWarehouses() {
   // Create warehouse
   const createWarehouse = useMutation({
     mutationFn: async (warehouse: WarehouseInsert) => {
+      // Check SaaS plan limits
+      const planType = subscription?.plan_type || "starter";
+      const currentCount = warehouses.length;
+      if (!checkPlanLimit(planType, "warehouses", currentCount)) {
+        throw new Error(`Đã đạt giới hạn tối đa ${currentCount} kho hàng cho gói ${planType.toUpperCase()}. Vui lòng nâng cấp gói cước.`);
+      }
+
       if (isLocalDemoAuthEnabled()) {
         const local = getLocalWarehouses(companyId || "");
         const newWarehouse: Warehouse = {
@@ -267,6 +280,7 @@ export function useWarehouses() {
           is_default: warehouse.is_default ?? false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          allow_ordering: warehouse.allow_ordering ?? true,
         };
         if (newWarehouse.is_default) {
           local.forEach(w => w.is_default = false);
@@ -322,6 +336,31 @@ export function useWarehouses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warehouses"] });
       toast({ title: "Cập nhật kho hàng thành công" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Lỗi", description: error.message });
+    },
+  });
+
+  // Delete warehouse
+  const deleteWarehouse = useMutation({
+    mutationFn: async (id: string) => {
+      if (isLocalDemoAuthEnabled()) {
+        const local = getLocalWarehouses(companyId || "");
+        const updated = local.filter(w => w.id !== id);
+        saveLocalWarehouses(updated);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("warehouses")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      toast({ title: "Xóa kho hàng thành công" });
     },
     onError: (error: Error) => {
       toast({ variant: "destructive", title: "Lỗi", description: error.message });
@@ -503,6 +542,7 @@ export function useWarehouses() {
     isLoading: warehousesLoading || stockLoading || transfersLoading,
     createWarehouse,
     updateWarehouse,
+    deleteWarehouse,
     createTransfer,
     completeTransfer,
     cancelTransfer,

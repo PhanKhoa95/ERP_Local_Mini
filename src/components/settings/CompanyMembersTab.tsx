@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Loader2, Shield, Users, UserPlus, FolderKanban, Users2, Award, Briefcase, Trash } from "lucide-react";
+import { Plus, Trash2, Loader2, Shield, Users, UserPlus, FolderKanban, Users2, Award, Briefcase, Trash, Sliders } from "lucide-react";
 import { useCompanyMembers } from "@/hooks/useCompanyMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
@@ -15,6 +15,76 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
+import { useWarehouses } from "@/hooks/useWarehouses";
+import { useWarehousePermissions } from "@/hooks/useWarehousePermissions";
+
+const DAYS_OF_WEEK = [
+  { key: "mon", label: "Thứ Hai" },
+  { key: "tue", label: "Thứ Ba" },
+  { key: "wed", label: "Thứ Tư" },
+  { key: "thu", label: "Thứ Năm" },
+  { key: "fri", label: "Thứ Sáu" },
+  { key: "sat", label: "Thứ Bảy" },
+  { key: "sun", label: "Chủ Nhật" },
+];
+
+const storePermissionGroups = [
+  {
+    title: "Cấu hình cửa hàng",
+    permissions: [
+      { key: "config_store_settings", label: "Cấu hình chung cửa hàng" },
+      { key: "config_staff_settings", label: "Cấu hình nhân viên & bộ phận" },
+      { key: "config_channel_settings", label: "Kết nối kênh bán hàng" },
+      { key: "config_warehouse_settings", label: "Cấu hình kho hàng & thêm/xóa kho" },
+      { key: "config_print_template", label: "Mẫu in hóa đơn" },
+      { key: "config_notifications", label: "Cấu hình thông báo tự động" },
+      { key: "config_commission_rules", label: "Quy tắc tính hoa hồng" },
+    ]
+  },
+  {
+    title: "Quản lý Sản phẩm & Khuyến mãi",
+    permissions: [
+      { key: "prod_create", label: "Thêm sản phẩm mới" },
+      { key: "prod_edit_info", label: "Sửa thông tin sản phẩm" },
+      { key: "prod_edit_price", label: "Sửa giá sản phẩm" },
+      { key: "prod_delete", label: "Ẩn/Xóa sản phẩm" },
+      { key: "prod_stock_manage", label: "Quản lý xuất nhập tồn" },
+      { key: "prod_stock_transfer", label: "Yêu cầu luân chuyển kho" },
+      { key: "prod_view_cost", label: "Xem giá vốn" },
+      { key: "prod_view_collaborator_price", label: "Xem giá CTV" },
+      { key: "prod_promo_view", label: "Xem danh sách khuyến mãi" },
+      { key: "prod_promo_create", label: "Tạo chương trình khuyến mãi" },
+      { key: "prod_promo_update", label: "Cập nhật khuyến mãi" },
+    ]
+  },
+  {
+    title: "Quản lý Bán hàng & Tài chính",
+    permissions: [
+      { key: "sales_customer_manage", label: "Quản lý thông tin khách hàng" },
+      { key: "sales_order_manage", label: "Quản lý đơn hàng" },
+      { key: "sales_export", label: "Xuất file danh sách đơn" },
+      { key: "sales_assign_order", label: "Phân bổ đơn cho Telesale" },
+      { key: "sales_assign_marketer", label: "Phân đơn cho Marketer" },
+      { key: "sales_invoice_create", label: "Tạo hóa đơn điện tử" },
+      { key: "sales_invoice_approve", label: "Ký duyệt hóa đơn" },
+      { key: "sales_push_carrier", label: "Giao vận chuyển" },
+      { key: "sales_reconciliation", label: "Đối soát COD nhà vận chuyển" },
+      { key: "config_cashflow_view", label: "Xem sổ quỹ thu chi" },
+      { key: "config_cashflow_create", label: "Lập phiếu thu chi" },
+      { key: "config_cashflow_update", label: "Cập nhật phiếu thu chi" },
+    ]
+  },
+  {
+    title: "Ứng dụng & Nhà cung cấp",
+    permissions: [
+      { key: "app_supplier_manage", label: "Quản lý Nhà cung cấp" },
+      { key: "app_brand_manage", label: "Quản lý thương hiệu" },
+      { key: "app_materials_manage", label: "Quản lý vật tư sản xuất" },
+      { key: "app_supplier_debt", label: "Xem công nợ nhà cung cấp" },
+    ]
+  }
+];
 
 const roleLabels: Record<string, string> = {
   admin: "Quản trị viên",
@@ -43,9 +113,17 @@ export function CompanyMembersTab() {
   const { role } = useCompanyContext();
   const isAdmin = role === "admin";
 
+  const { warehouses = [] } = useWarehouses();
+  const { whPermissions = [], saveWarehousePermission } = useWarehousePermissions();
+
   const [activeTab, setActiveTab] = useState("members");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ userId: "", role: "staff" });
+  const [addMethod, setAddMethod] = useState<"uuid" | "email" | "phone" | "facebook_id" | "username">("uuid");
+  const [inputValue, setInputValue] = useState("");
+
+  const [configuredMember, setConfiguredMember] = useState<any | null>(null);
+  const [activeWhId, setActiveWhId] = useState<string>("");
 
   // Departments & Sales Groups State
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -64,7 +142,7 @@ export function CompanyMembersTab() {
   useEffect(() => {
     const rawDept = localStorage.getItem("erp-mini-local-demo-departments");
     if (rawDept) {
-      try { setDepartments(JSON.parse(rawDept)); } catch (e) {}
+      try { setDepartments(JSON.parse(rawDept)); } catch (e) { console.error("Error parsing departments:", e); }
     } else {
       const defaultDepts: Department[] = [
         { id: "dept-1", name: "Vận hành chính", description: "Bộ phận xử lý đơn hàng và đóng gói", member_ids: ["member-1"] },
@@ -76,7 +154,7 @@ export function CompanyMembersTab() {
 
     const rawGroups = localStorage.getItem("erp-mini-local-demo-sales-groups");
     if (rawGroups) {
-      try { setSalesGroups(JSON.parse(rawGroups)); } catch (e) {}
+      try { setSalesGroups(JSON.parse(rawGroups)); } catch (e) { console.error("Error parsing sales groups:", e); }
     } else {
       // Find first staff/admin ID for leader or default "member-1"
       const leader = members[0]?.id || "member-1";
@@ -109,9 +187,16 @@ export function CompanyMembersTab() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addMemberById.mutateAsync({ userId: formData.userId, role: formData.role });
+    await addMemberById.mutateAsync({ 
+      userId: addMethod === "uuid" ? formData.userId : "", 
+      role: formData.role,
+      method: addMethod,
+      inputValue: addMethod === "uuid" ? "" : inputValue
+    });
     setDialogOpen(false);
     setFormData({ userId: "", role: "staff" });
+    setInputValue("");
+    setAddMethod("uuid");
   };
 
   const handleRoleChange = (memberId: string, newRole: string) => {
@@ -156,7 +241,7 @@ export function CompanyMembersTab() {
   const handleAssignDeptMember = (deptId: string, memberId: string) => {
     const updated = departments.map((d) => {
       // Remove from other departments first to ensure 1 member per department
-      let mIds = d.member_ids.filter((id) => id !== memberId);
+      const mIds = d.member_ids.filter((id) => id !== memberId);
       if (d.id === deptId) {
         if (!mIds.includes(memberId)) mIds.push(memberId);
       }
@@ -203,7 +288,7 @@ export function CompanyMembersTab() {
 
   const handleAssignGroupMember = (groupId: string, memberId: string) => {
     const updated = salesGroups.map((g) => {
-      let mIds = g.member_ids.filter((id) => id !== memberId);
+      const mIds = g.member_ids.filter((id) => id !== memberId);
       if (g.id === groupId) {
         if (!mIds.includes(memberId)) mIds.push(memberId);
       }
@@ -370,14 +455,30 @@ export function CompanyMembersTab() {
                           </>
                         )}
                         {isAdmin && m.user_id !== user?.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemove(m.id, m.user_id)}
-                            className="h-8 w-8 hover:bg-red-50 dark:hover:bg-red-950/20"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setConfiguredMember(m);
+                                if (warehouses && warehouses.length > 0) {
+                                  setActiveWhId(warehouses[0].id);
+                                }
+                              }}
+                              title="Cấu hình nâng cao"
+                              className="h-8 w-8 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-blue-600 dark:text-blue-400 mr-1"
+                            >
+                              <Sliders className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemove(m.id, m.user_id)}
+                              className="h-8 w-8 hover:bg-red-50 dark:hover:bg-red-950/20"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -499,6 +600,262 @@ export function CompanyMembersTab() {
                         })
                       )}
                     </div>
+
+                    {/* Department configuration settings */}
+                    <div className="flex items-center justify-between p-3.5 bg-secondary/10 rounded border border-border/40 mt-4">
+                      <div className="space-y-0.5">
+                        <Label className="text-xs font-semibold">Bộ phận mặc định</Label>
+                        <p className="text-[10px] text-muted-foreground">Nhân sự mới thêm vào cửa hàng sẽ tự động gán vào bộ phận này.</p>
+                      </div>
+                      <Switch
+                        checked={selectedDept.is_default || false}
+                        onCheckedChange={(checked) => {
+                          const updated = departments.map((d) => ({
+                            ...d,
+                            is_default: d.id === selectedDept.id ? checked : false // only one default
+                          }));
+                          saveDepartments(updated);
+                        }}
+                      />
+                    </div>
+
+                    {/* Worktime Section */}
+                    <div className="space-y-2 border-t pt-4">
+                      <span className="font-bold text-muted-foreground text-[10px] block">KHUNG GIỜ LÀM VIỆC BỘ PHẬN</span>
+                      <p className="text-[10px] text-muted-foreground">Áp dụng chung cho tất cả nhân sự thuộc bộ phận.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {DAYS_OF_WEEK.map((day) => {
+                          const dayConf = selectedDept.worktime?.[day.key] || { isRest: false, start: "08:00", end: "17:00" };
+                          return (
+                            <div key={day.key} className="flex items-center justify-between p-2 rounded bg-secondary/10 border border-border/40 gap-2">
+                              <span className="text-[11px] font-semibold w-16">{day.label}</span>
+                              <div className="flex items-center gap-1.5">
+                                <Switch
+                                  checked={!dayConf.isRest}
+                                  onCheckedChange={(checked) => {
+                                    const updatedWorktime = {
+                                      ...(selectedDept.worktime || {}),
+                                      [day.key]: { ...dayConf, isRest: !checked }
+                                    };
+                                    const updated = departments.map(d => d.id === selectedDept.id ? { ...d, worktime: updatedWorktime } : d);
+                                    saveDepartments(updated);
+                                  }}
+                                />
+                                <Input
+                                  type="time"
+                                  disabled={dayConf.isRest}
+                                  value={dayConf.start}
+                                  onChange={(e) => {
+                                    const updatedWorktime = {
+                                      ...(selectedDept.worktime || {}),
+                                      [day.key]: { ...dayConf, start: e.target.value }
+                                    };
+                                    const updated = departments.map(d => d.id === selectedDept.id ? { ...d, worktime: updatedWorktime } : d);
+                                    saveDepartments(updated);
+                                  }}
+                                  className="h-7 w-20 text-center text-xs"
+                                />
+                                <Input
+                                  type="time"
+                                  disabled={dayConf.isRest}
+                                  value={dayConf.end}
+                                  onChange={(e) => {
+                                    const updatedWorktime = {
+                                      ...(selectedDept.worktime || {}),
+                                      [day.key]: { ...dayConf, end: e.target.value }
+                                    };
+                                    const updated = departments.map(d => d.id === selectedDept.id ? { ...d, worktime: updatedWorktime } : d);
+                                    saveDepartments(updated);
+                                  }}
+                                  className="h-7 w-20 text-center text-xs"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Warehouse permissions mapping */}
+                    <div className="space-y-2 border-t pt-4">
+                      <span className="font-bold text-muted-foreground text-[10px] block">KHO HÀNG & PHÂN QUYỀN KHO CHUNG</span>
+                      <p className="text-[10px] text-muted-foreground">Thiết lập các kho thuộc quyền quản lý của bộ phận này.</p>
+                      <div className="space-y-2">
+                        {warehouses.map((wh) => {
+                          const isLinked = selectedDept.warehouse_ids?.includes(wh.id) || false;
+                          return (
+                            <div key={wh.id} className="p-3 border rounded-lg bg-secondary/10 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground">{wh.name}</span>
+                                <Switch
+                                  checked={isLinked}
+                                  onCheckedChange={(checked) => {
+                                    const whIds = selectedDept.warehouse_ids ? [...selectedDept.warehouse_ids] : [];
+                                    const newWhIds = checked
+                                      ? [...whIds, wh.id]
+                                      : whIds.filter((id) => id !== wh.id);
+                                    const updated = departments.map(d => d.id === selectedDept.id ? { ...d, warehouse_ids: newWhIds } : d);
+                                    saveDepartments(updated);
+                                  }}
+                                />
+                              </div>
+
+                              {isLinked && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-dashed">
+                                  {[
+                                    { key: "wh_view_stock", label: "Xem tồn" },
+                                    { key: "wh_create_receive", label: "Nhập kho" },
+                                    { key: "wh_adjust_stock", label: "Kiểm/Sửa" },
+                                    { key: "wh_create_transfer", label: "Chuyển kho" },
+                                  ].map((wp) => {
+                                    const rawPerms = selectedDept.warehouse_permissions?.[wh.id] || {};
+                                    const isWPAllowed = rawPerms[wp.key] ?? false;
+
+                                    return (
+                                      <label key={wp.key} className="flex items-center gap-1.5 text-[10px] cursor-pointer">
+                                        <Checkbox
+                                          checked={isWPAllowed}
+                                          onCheckedChange={(checked) => {
+                                            const whPermsObj = selectedDept.warehouse_permissions || {};
+                                            const whPerms = whPermsObj[wh.id] || {};
+                                            const updatedWhPerms = {
+                                              ...whPermsObj,
+                                              [wh.id]: {
+                                                ...whPerms,
+                                                [wp.key]: !!checked
+                                              }
+                                            };
+                                            const updated = departments.map(d => d.id === selectedDept.id ? { ...d, warehouse_permissions: updatedWhPerms } : d);
+                                            saveDepartments(updated);
+                                          }}
+                                        />
+                                        <span>{wp.label}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Department Limits & Data Masking */}
+                    <div className="space-y-4 border-t pt-4">
+                      <span className="font-bold text-muted-foreground text-[10px] block">GIỚI HẠN & BẢO MẬT DỮ LIỆU</span>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between p-3.5 bg-secondary/10 rounded border border-border/40">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs font-semibold">Ẩn số điện thoại</Label>
+                            <p className="text-[10px] text-muted-foreground">Che 4 số giữa SĐT khách hàng.</p>
+                          </div>
+                          <Switch
+                            checked={selectedDept.hide_phone || false}
+                            onCheckedChange={(checked) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, hide_phone: checked } : d);
+                              saveDepartments(updated);
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3.5 bg-secondary/10 rounded border border-border/40">
+                          <div className="space-y-0.5">
+                            <Label className="text-xs font-semibold">Ẩn thông tin khách hàng</Label>
+                            <p className="text-[10px] text-muted-foreground">Che tên và địa chỉ khách hàng.</p>
+                          </div>
+                          <Switch
+                            checked={selectedDept.hide_customer_info || false}
+                            onCheckedChange={(checked) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, hide_customer_info: checked } : d);
+                              saveDepartments(updated);
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Input fields for various constraints */}
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Trạng thái đơn được xem/sửa (phân cách bằng dấu phẩy)</Label>
+                          <Input
+                            value={selectedDept.allowed_statuses || ""}
+                            onChange={(e) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, allowed_statuses: e.target.value } : d);
+                              saveDepartments(updated);
+                            }}
+                            placeholder="Ví dụ: nhap, xac_nhan, dang_giao (để trống là xem tất cả)"
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Danh mục sản phẩm được phép bán (phân cách bằng dấu phẩy)</Label>
+                          <Input
+                            value={selectedDept.allowed_categories || ""}
+                            onChange={(e) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, allowed_categories: e.target.value } : d);
+                              saveDepartments(updated);
+                            }}
+                            placeholder="Ví dụ: Ao thun, Vay dam (để trống là xem tất cả)"
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nguồn đơn hàng được tiếp cận (phân cách bằng dấu phẩy)</Label>
+                          <Input
+                            value={selectedDept.allowed_channels || ""}
+                            onChange={(e) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, allowed_channels: e.target.value } : d);
+                              saveDepartments(updated);
+                            }}
+                            placeholder="Ví dụ: Shopee, Facebook, Website (để trống là xem tất cả)"
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Đơn vị vận chuyển được chỉ định (phân cách bằng dấu phẩy)</Label>
+                          <Input
+                            value={selectedDept.allowed_carriers || ""}
+                            onChange={(e) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, allowed_carriers: e.target.value } : d);
+                              saveDepartments(updated);
+                            }}
+                            placeholder="Ví dụ: GHTK, GHN, Viettel Post (để trống là xem tất cả)"
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nhà cung cấp được liên hệ (phân cách bằng dấu phẩy)</Label>
+                          <Input
+                            value={selectedDept.allowed_suppliers || ""}
+                            onChange={(e) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, allowed_suppliers: e.target.value } : d);
+                              saveDepartments(updated);
+                            }}
+                            placeholder="Ví dụ: Supplier A, Supplier B (để trống là xem tất cả)"
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Thẻ đơn hàng được lọc (phân cách bằng dấu phẩy)</Label>
+                          <Input
+                            value={selectedDept.allowed_tags || ""}
+                            onChange={(e) => {
+                              const updated = departments.map(d => d.id === selectedDept.id ? { ...d, allowed_tags: e.target.value } : d);
+                              saveDepartments(updated);
+                            }}
+                            placeholder="Ví dụ: VIP, Ship gap, Huy (để trống là xem tất cả)"
+                            className="text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ) : (
@@ -596,7 +953,43 @@ export function CompanyMembersTab() {
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4 space-y-4">
+                   <CardContent className="p-4 space-y-4">
+                    {/* General group settings switches */}
+                    <div className="space-y-3 p-3.5 rounded bg-secondary/10 border border-border/40">
+                      <h4 className="font-bold text-foreground text-[10px]">CÀI ĐẶT BẢO MẬT & PHÂN QUYỀN NHÓM</h4>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-semibold block">Chỉ thấy đơn cùng nhóm</span>
+                          <span className="text-[10px] text-muted-foreground">Nhân sự trong nhóm chỉ xem/sửa đơn hàng thuộc các thành viên trong nhóm.</span>
+                        </div>
+                        <Switch
+                          checked={selectedGroup.only_own_orders || false}
+                          onCheckedChange={(checked) => {
+                            const updated = salesGroups.map((g) =>
+                              g.id === selectedGroup.id ? { ...g, only_own_orders: checked } : g
+                            );
+                            saveSalesGroups(updated);
+                          }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-dashed pt-2.5 mt-2.5">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-semibold block">Chỉ thấy thu chi cùng nhóm</span>
+                          <span className="text-[10px] text-muted-foreground">Chỉ hiển thị dòng tiền thu chi của nhóm cho các thành viên.</span>
+                        </div>
+                        <Switch
+                          checked={selectedGroup.only_own_cashflow || false}
+                          onCheckedChange={(checked) => {
+                            const updated = salesGroups.map((g) =>
+                              g.id === selectedGroup.id ? { ...g, only_own_cashflow: checked } : g
+                            );
+                            saveSalesGroups(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+
                     {/* Add member */}
                     {isAdmin && (
                       <div className="flex gap-2 items-center max-w-sm">
@@ -668,16 +1061,49 @@ export function CompanyMembersTab() {
           </DialogHeader>
           <form onSubmit={handleAdd} className="space-y-4">
             <div className="space-y-2">
-              <Label>User ID *</Label>
-              <Input
-                value={formData.userId}
-                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                placeholder="UUID của người dùng"
-              />
+              <Label>Phương thức định danh</Label>
+              <Select value={addMethod} onValueChange={(v: any) => setAddMethod(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="uuid">User ID (UUID)</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="phone">Số điện thoại</SelectItem>
+                  <SelectItem value="facebook_id">Facebook ID</SelectItem>
+                  <SelectItem value="username">Tên đăng nhập</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Thông tin định danh *</Label>
+              {addMethod === "uuid" ? (
+                <Input
+                  value={formData.userId}
+                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                  placeholder="Ví dụ: 00000000-0000-4000-8000-000000000002"
+                />
+              ) : (
+                <Input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder={
+                    addMethod === "email"
+                      ? "Nhập email đăng ký Pancake ID..."
+                      : addMethod === "phone"
+                      ? "Nhập số điện thoại..."
+                      : addMethod === "facebook_id"
+                      ? "Nhập Facebook ID..."
+                      : "Nhập tên đăng nhập Pancake ID..."
+                  }
+                />
+              )}
               <p className="text-xs text-muted-foreground">
-                Người dùng cần đăng ký tài khoản trước. Lấy User ID từ hồ sơ cá nhân của họ.
+                Định danh nhân viên giúp liên kết tài khoản Supabase / Pancake ID của họ vào cửa hàng.
               </p>
             </div>
+
             <div className="space-y-2">
               <Label>Vai trò *</Label>
               <Select
@@ -701,7 +1127,10 @@ export function CompanyMembersTab() {
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={addMemberById.isPending || !formData.userId}>
+              <Button 
+                type="submit" 
+                disabled={addMemberById.isPending || (addMethod === "uuid" ? !formData.userId : !inputValue)}
+              >
                 {addMemberById.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Thêm
               </Button>
@@ -762,6 +1191,336 @@ export function CompanyMembersTab() {
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">Tạo nhóm</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Configure Member details (Store perms, Wh perms, Worktime) */}
+      <Dialog open={!!configuredMember} onOpenChange={(open) => { if (!open) setConfiguredMember(null); }}>
+        <DialogContent className="max-w-2xl bg-card border border-border max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cấu hình nhân sự: {configuredMember?.profile?.full_name || configuredMember?.id}</DialogTitle>
+            <DialogDescription>
+              Thiết lập vai trò, vùng miền, bộ phận, quyền cửa hàng riêng, phân quyền trên kho và thời gian làm việc.
+            </DialogDescription>
+          </DialogHeader>
+
+          {configuredMember && (
+            <Tabs defaultValue="info" className="space-y-4">
+              <TabsList className="grid grid-cols-4 w-full">
+                <TabsTrigger value="info">Thông tin</TabsTrigger>
+                <TabsTrigger value="store">Quyền cửa hàng</TabsTrigger>
+                <TabsTrigger value="warehouse">Quyền kho</TabsTrigger>
+                <TabsTrigger value="worktime">Giờ làm việc</TabsTrigger>
+              </TabsList>
+
+              {/* Tab 1: Info & Dept/Group */}
+              <TabsContent value="info" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>Vai trò</Label>
+                    <Select
+                      value={configuredMember.role}
+                      onValueChange={(val) => {
+                        const updated = members.map(m => m.id === configuredMember.id ? { ...m, role: val } : m);
+                        localStorage.setItem("erp-mini-local-demo-company-members", JSON.stringify(updated));
+                        setConfiguredMember({ ...configuredMember, role: val });
+                        handleRoleChange(configuredMember.id, val);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="admin">Quản trị viên</SelectItem>
+                        <SelectItem value="manager">Quản lý</SelectItem>
+                        <SelectItem value="staff">Nhân viên</SelectItem>
+                        {customRoles.map((r: any) => (
+                          <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Vùng miền</Label>
+                    <Select
+                      value={configuredMember.region || "all"}
+                      onValueChange={(val) => {
+                        const regionVal = val === "all" ? null : val;
+                        const updated = members.map(m => m.id === configuredMember.id ? { ...m, region: regionVal } : m);
+                        localStorage.setItem("erp-mini-local-demo-company-members", JSON.stringify(updated));
+                        setConfiguredMember({ ...configuredMember, region: regionVal });
+                        handleRegionChange(configuredMember.id, regionVal);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="all">Toàn quốc</SelectItem>
+                        <SelectItem value="Miền Bắc">Miền Bắc</SelectItem>
+                        <SelectItem value="Miền Trung">Miền Trung</SelectItem>
+                        <SelectItem value="Miền Nam">Miền Nam</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Department Assignment */}
+                  <div className="space-y-1">
+                    <Label>Bộ phận</Label>
+                    <Select
+                      value={getMemberDepartment(configuredMember.id)?.id || "none"}
+                      onValueChange={(val) => {
+                        const updatedDepts = departments.map((d) => {
+                          const mIds = d.member_ids.filter((id) => id !== configuredMember.id);
+                          if (d.id === val) {
+                            mIds.push(configuredMember.id);
+                          }
+                          return { ...d, member_ids: mIds };
+                        });
+                        saveDepartments(updatedDepts);
+                        toast({ title: "Đã cập nhật bộ phận" });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="none">Không thuộc bộ phận</SelectItem>
+                        {departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Sales Group Assignment */}
+                  <div className="space-y-1">
+                    <Label>Nhóm kinh doanh</Label>
+                    <Select
+                      value={getMemberSalesGroup(configuredMember.id)?.id || "none"}
+                      onValueChange={(val) => {
+                        const updatedGroups = salesGroups.map((g) => {
+                          const mIds = g.member_ids.filter((id) => id !== configuredMember.id);
+                          let leaderId = g.leader_id;
+                          if (g.id === val) {
+                            mIds.push(configuredMember.id);
+                          } else if (g.leader_id === configuredMember.id) {
+                            leaderId = ""; // remove from leader
+                          }
+                          return { ...g, member_ids: mIds, leader_id: leaderId };
+                        });
+                        saveSalesGroups(updatedGroups);
+                        toast({ title: "Đã cập nhật nhóm kinh doanh" });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover">
+                        <SelectItem value="none">Không thuộc nhóm nào</SelectItem>
+                        {salesGroups.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Tab 2: Store Permissions */}
+              <TabsContent value="store" className="space-y-4">
+                {getMemberDepartment(configuredMember.id) ? (
+                  <div className="p-4 border rounded-lg bg-yellow-50 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-400">
+                    Nhân viên này thuộc bộ phận **{getMemberDepartment(configuredMember.id)?.name}**. Quyền cửa hàng của họ được kế thừa hoàn toàn từ bộ phận và không thể chỉnh sửa riêng lẻ.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground text-[10px]">
+                      Quyền cửa hàng cá nhân áp dụng trực tiếp cho nhân viên khi không thuộc bộ phận nào.
+                    </p>
+                    {storePermissionGroups.map((group) => (
+                      <div key={group.title} className="space-y-2 border-b pb-3">
+                        <h4 className="font-bold text-foreground text-xs">{group.title}</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {group.permissions.map((p) => {
+                            const isAllowed = configuredMember.custom_permissions?.[p.key] ?? false;
+                            return (
+                              <div key={p.key} className="flex items-center justify-between p-2 rounded bg-secondary/10 border border-border/40">
+                                <span className="text-[11px] font-medium">{p.label}</span>
+                                <Switch
+                                  checked={isAllowed}
+                                  onCheckedChange={(checked) => {
+                                    const customPerms = {
+                                      ...(configuredMember.custom_permissions || {}),
+                                      [p.key]: checked
+                                    };
+                                    const updated = members.map(m =>
+                                      m.id === configuredMember.id ? { ...m, custom_permissions: customPerms } : m
+                                    );
+                                    localStorage.setItem("erp-mini-local-demo-company-members", JSON.stringify(updated));
+                                    setConfiguredMember({ ...configuredMember, custom_permissions: customPerms });
+                                    toast({ title: "Đã cập nhật quyền" });
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Tab 3: Warehouse Permissions */}
+              <TabsContent value="warehouse" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Chọn kho hàng cấu hình</Label>
+                  <Select value={activeWhId} onValueChange={setActiveWhId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn kho..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {warehouses?.map((wh) => (
+                        <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {activeWhId && (
+                  <div className="space-y-3 pt-2">
+                    <h4 className="font-semibold text-xs text-foreground">
+                      Quyền hạn tại kho: {warehouses?.find(w => w.id === activeWhId)?.name}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground">
+                      Cấu hình này ghi đè quyền kho mặc định lấy từ bộ phận.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { key: "wh_view_stock", label: "Xem tồn kho" },
+                        { key: "wh_create_receive", label: "Nhập kho (Nhập/Trả)" },
+                        { key: "wh_adjust_stock", label: "Kiểm kho & điều chỉnh" },
+                        { key: "wh_create_transfer", label: "Yêu cầu chuyển kho" },
+                      ].map((wp) => {
+                        // Resolve current state
+                        const personalWH = whPermissions.find(
+                          (p) => p.user_id === configuredMember.user_id && p.warehouse_id === activeWhId
+                        );
+                        const isWPAllowed = personalWH?.permissions[wp.key] ?? false;
+
+                        return (
+                          <div key={wp.key} className="flex items-center justify-between p-2 rounded bg-secondary/10 border border-border/40">
+                            <span className="text-[11px] font-medium">{wp.label}</span>
+                            <Switch
+                              checked={isWPAllowed}
+                              onCheckedChange={(checked) => {
+                                const currentWH = whPermissions.find(
+                                  (p) => p.user_id === configuredMember.user_id && p.warehouse_id === activeWhId
+                                );
+                                const newWHPerms = {
+                                  ...(currentWH?.permissions || {}),
+                                  [wp.key]: checked,
+                                };
+                                saveWarehousePermission.mutate({
+                                  userId: configuredMember.user_id,
+                                  roleId: null,
+                                  warehouseId: activeWhId,
+                                  permissions: newWHPerms,
+                                });
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Tab 4: Worktime */}
+              <TabsContent value="worktime" className="space-y-4">
+                <p className="text-muted-foreground text-[10px]">
+                  Cấu hình khung giờ được truy cập hệ thống theo từng ngày. Ngoài khung giờ, nhân sự sẽ bị khóa truy cập.
+                </p>
+                <div className="space-y-3">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const dayConf = configuredMember.worktime?.[day.key] || { isRest: false, start: "08:00", end: "17:00" };
+
+                    return (
+                      <div key={day.key} className="flex items-center justify-between p-3 rounded-lg bg-secondary/10 border border-border/40 gap-4">
+                        <span className="font-semibold text-foreground w-20">{day.label}</span>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[10px] text-muted-foreground">Nghỉ</Label>
+                          <Switch
+                            checked={dayConf.isRest}
+                            onCheckedChange={(checked) => {
+                              const newWorktime = {
+                                ...(configuredMember.worktime || {}),
+                                [day.key]: { ...dayConf, isRest: checked }
+                              };
+                              const updated = members.map(m =>
+                                m.id === configuredMember.id ? { ...m, worktime: newWorktime } : m
+                              );
+                              localStorage.setItem("erp-mini-local-demo-company-members", JSON.stringify(updated));
+                              setConfiguredMember({ ...configuredMember, worktime: newWorktime });
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="time"
+                            disabled={dayConf.isRest}
+                            value={dayConf.start}
+                            onChange={(e) => {
+                              const newWorktime = {
+                                ...(configuredMember.worktime || {}),
+                                [day.key]: { ...dayConf, start: e.target.value }
+                              };
+                              const updated = members.map(m =>
+                                m.id === configuredMember.id ? { ...m, worktime: newWorktime } : m
+                              );
+                              localStorage.setItem("erp-mini-local-demo-company-members", JSON.stringify(updated));
+                              setConfiguredMember({ ...configuredMember, worktime: newWorktime });
+                            }}
+                            className="h-8 w-24 text-center text-xs"
+                          />
+                          <span className="text-muted-foreground">-</span>
+                          <Input
+                            type="time"
+                            disabled={dayConf.isRest}
+                            value={dayConf.end}
+                            onChange={(e) => {
+                              const newWorktime = {
+                                ...(configuredMember.worktime || {}),
+                                [day.key]: { ...dayConf, end: e.target.value }
+                              };
+                              const updated = members.map(m =>
+                                m.id === configuredMember.id ? { ...m, worktime: newWorktime } : m
+                              );
+                              localStorage.setItem("erp-mini-local-demo-company-members", JSON.stringify(updated));
+                              setConfiguredMember({ ...configuredMember, worktime: newWorktime });
+                            }}
+                            className="h-8 w-24 text-center text-xs"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+
+          <DialogFooter className="pt-4 border-t">
+            <Button onClick={() => setConfiguredMember(null)} className="font-semibold bg-blue-600 hover:bg-blue-700 text-white">
+              Đóng & Lưu cấu hình
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

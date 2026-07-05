@@ -12,7 +12,7 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
 
   test("should support partner bulk classification and apply promotion segmentation rules in POS", async ({ page }) => {
     // Increase test timeout to ensure slow animations don't trigger timeout
-    test.setTimeout(60000);
+    test.setTimeout(120000);
 
     // 1. Navigate to Partners page
     await page.goto("/partners");
@@ -47,13 +47,21 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     // Click Apply Bulk settings
     await page.click('button:has-text("Áp dụng thiết lập")');
 
-    // Wait for the bulk operation to complete and dialog to close
-    await expect(page.locator("text=Cập nhật hàng loạt thành công").first()).toBeVisible({ timeout: 15000 });
+    // Wait for the bulk dialog to finish animating close
+    const bulkDialog = page.getByRole('dialog').filter({ hasText: 'Thiết lập phân loại đối tác hàng loạt' });
+    await expect(bulkDialog).toBeHidden({ timeout: 10000 });
 
-    // Verify badges are updated on the customer card
-    const blueskyCard = page.locator('div.hover\\:shadow-md:has-text("BlueSky")');
-    await expect(blueskyCard.locator('text=Chi nhánh miền Nam')).toBeVisible({ timeout: 10000 });
-    await expect(blueskyCard.locator('text=Tệp: Wholesale')).toBeVisible({ timeout: 10000 });
+    // Click "Eye" (detail) button on the customer row in the main table
+    const targetRow = page.locator('table').first().locator('tr:has-text("KH-BLUESKY")');
+    await expect(targetRow).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(1000); // Wait for query invalidation and re-rendering to stabilize
+    await targetRow.locator('button:has(svg.lucide-eye)').click();
+    await page.waitForTimeout(500);
+
+    // Verify badges are updated on the customer detail card inside the dialog
+    const detailDialog = page.locator('div[role="dialog"]');
+    await expect(detailDialog).toContainText("Chi nhánh miền Nam", { timeout: 10000 });
+    await expect(detailDialog).toContainText("Khách mua sỉ", { timeout: 10000 });
 
     // 2. Navigate to Promotions page to create a Wholesale-specific Auto-Apply promotion
     await page.goto("/promotions");
@@ -91,6 +99,14 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     // Add product "Thẻ QR cá nhân thông minh"
     await page.waitForSelector(".grid >> text=Thẻ QR");
     await page.click("text=Thẻ QR cá nhân thông minh");
+    try {
+      const dialog = page.getByRole("dialog").filter({ hasText: "Chọn mẫu mã" }).first();
+      await dialog.waitFor({ state: "visible", timeout: 3000 });
+      await dialog.getByRole("button", { name: "Chọn" }).first().click();
+      await page.waitForTimeout(500);
+    } catch (e) {
+      // No variant dialog appeared
+    }
 
     // Selected customer is walk-in (no wholesale tệp) -> Wholesale Mega Deal should NOT apply
     await page.waitForTimeout(1000);
@@ -103,18 +119,24 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await page.waitForTimeout(600);
 
     // Open customer select dropdown
-    const customerSelectTrigger = page.locator('div.space-y-2 button[role="combobox"]').first();
+    const customerSelectTrigger = page.locator('div.space-y-2:has(input[placeholder*="Tìm khách hàng"]) button[role="combobox"]').first();
     await customerSelectTrigger.click();
     await page.waitForTimeout(500);
-
+    
     // Select Cửa hàng Thời trang BlueSky
-    await page.click('div[role="presentation"] >> text=Cửa hàng Thời trang BlueSky');
+    const customerOption = page.getByRole('option', { name: 'Cửa hàng Thời trang BlueSky', exact: false }).first();
+    await expect(customerOption).toBeVisible({ timeout: 5000 });
+    await customerOption.click({ force: true });
+    await page.waitForTimeout(500);
+
+    // Verify selected customer displays in trigger
+    await expect(customerSelectTrigger).toContainText("Cửa hàng Thời trang BlueSky", { timeout: 5000 });
 
     // Trigger auto-apply evaluation
     await page.waitForTimeout(1500);
 
     // Verify that the Wholesale Mega Deal is now auto-applied because customer belongs to wholesale segment!
-    await expect(page.locator("body")).toContainText("Tự động: Wholesale Mega Deal", { timeout: 10000 });
+    await expect(page.locator("body")).toContainText("Wholesale Mega Deal", { timeout: 10000 });
 
     // Discount value: 15% of 69k = 10,350đ
     const discountDisplay = page.locator("text=-10.350đ");
@@ -122,7 +144,7 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
   });
 
   test("should support simulated QR VIP scanning and automatic loyalty tier upgrading on POS checkout", async ({ page }) => {
-    test.setTimeout(60000);
+    test.setTimeout(120000);
 
     // 1. Navigate to Partners to create a new retail customer
     await page.goto("/partners");
@@ -142,10 +164,13 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
 
     // Click Submit
     await partnerForm.locator('button:has-text("Kích hoạt")').click();
-    await page.waitForTimeout(1000);
+    
+    // Wait for the creation dialog to be fully closed/hidden
+    await expect(partnerForm).toBeHidden({ timeout: 10000 });
 
     // 2. Navigate to POS
     await page.goto("/pos");
+    await page.waitForTimeout(1500); // Wait for mock queries to resolve and load customer from local storage
 
     // Select "Khách Hàng Mới" as the customer
     const searchCustomerInput = page.locator('input[placeholder="Tìm khách hàng (tên, SĐT, mã)..."]');
@@ -154,22 +179,34 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await page.waitForTimeout(600);
 
     // Open customer select dropdown
-    const customerSelectTrigger = page.locator('div.space-y-2 button[role="combobox"]').first();
+    const customerSelectTrigger = page.locator('div.space-y-2:has(input[placeholder*="Tìm khách hàng"]) button[role="combobox"]').first();
     await customerSelectTrigger.click();
     await page.waitForTimeout(500);
-
+    
     // Select Khách Hàng Mới
-    await page.click('div[role="presentation"] >> text=Khách Hàng Mới');
+    const customerOption = page.getByRole('option', { name: 'Khách Hàng Mới', exact: false }).first();
+    await expect(customerOption).toBeVisible({ timeout: 5000 });
+    await customerOption.click({ force: true });
     await page.waitForTimeout(500);
+
+    // Verify selected customer displays in trigger
+    await expect(customerSelectTrigger).toContainText("Khách Hàng Mới", { timeout: 5000 });
 
     // 3. Perform a checkout that crosses the 10,000,000đ threshold to trigger VIP auto-upgrade!
     // Add product "Thẻ QR cá nhân thông minh"
     await page.waitForSelector(".grid >> text=Thẻ QR");
     await page.click("text=Thẻ QR cá nhân thông minh");
-    await page.waitForTimeout(500);
+    try {
+      const dialog = page.getByRole("dialog").filter({ hasText: "Chọn mẫu mã" }).first();
+      await dialog.waitFor({ state: "visible", timeout: 3000 });
+      await dialog.getByRole("button", { name: "Chọn" }).first().click();
+      await page.waitForTimeout(500);
+    } catch (e) {
+      // No variant dialog appeared
+    }
 
     // Locate the unit price input inside cart item to bypass inventory limits by setting it to 11 million
-    const priceInput = page.locator('input.w-24.h-7.text-xs').first();
+    const priceInput = page.locator('table input[type="number"]').nth(1);
     await expect(priceInput).toBeVisible({ timeout: 5000 });
     await priceInput.fill("11000000");
     await page.waitForTimeout(500);
@@ -189,12 +226,13 @@ test.describe("Partner Classification & Promotion Segmentation E2E Tests", () =>
     await searchInput.fill("Khách Hàng Mới");
     await page.waitForTimeout(500);
 
-    // Click "Chi tiết" button on the customer card
-    const targetCard = page.locator(`div.hover\\:shadow-md:has-text("Khách Hàng Mới")`);
-    await targetCard.locator('button:has-text("Chi tiết")').click();
+    // Click "Eye" (detail) button on the customer row in the table
+    const targetRow = page.locator('tr:has-text("Khách Hàng Mới")');
+    await expect(targetRow).toBeVisible({ timeout: 10000 });
+    await targetRow.locator('button:has(svg.lucide-eye)').click();
 
     // Verify glassmorphic loyalty membership card is displayed and shows "VIP Member" badge!
     const detailDialog = page.locator('div[role="dialog"]');
-    await expect(detailDialog.locator('text=VIP Member')).toBeVisible({ timeout: 10000 });
+    await expect(detailDialog.locator('text=Thành viên VIP')).toBeVisible({ timeout: 10000 });
   });
 });

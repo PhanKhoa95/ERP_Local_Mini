@@ -53,6 +53,9 @@ import { WarehouseLocationsTab } from "@/components/warehouses/WarehouseLocation
 import { FleetManagementTab } from "@/components/warehouses/FleetManagementTab";
 import { CollaboratorWarehouseTab } from "@/components/warehouses/CollaboratorWarehouseTab";
 import { WarehouseAuditTab } from "@/components/warehouses/WarehouseAuditTab";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 const Warehouses = () => {
   const {
@@ -62,11 +65,14 @@ const Warehouses = () => {
     isLoading,
     createWarehouse,
     updateWarehouse,
+    deleteWarehouse,
     createTransfer,
     completeTransfer,
     cancelTransfer,
   } = useWarehouses();
   const { products } = useProducts();
+  const { hasStorePermission } = usePermissions();
+  const { toast } = useToast();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "stock");
@@ -97,6 +103,7 @@ const Warehouses = () => {
     phone: "",
     manager_name: "",
     is_active: true,
+    allow_ordering: true,
   });
 
   // Transfer form state
@@ -143,6 +150,15 @@ const Warehouses = () => {
   }, [warehouseStock]);
 
   const handleSaveWarehouse = () => {
+    if (!hasStorePermission("config_warehouse_settings")) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi phân quyền",
+        description: "Bạn không có quyền cấu hình kho hàng. Vui lòng liên hệ chủ cửa hàng.",
+      });
+      return;
+    }
+
     if (editingWarehouse) {
       updateWarehouse.mutate(
         { id: editingWarehouse.id, ...warehouseForm },
@@ -163,6 +179,25 @@ const Warehouses = () => {
     }
   };
 
+  const handleDeleteWarehouse = (id: string) => {
+    if (!hasStorePermission("config_warehouse_settings")) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi phân quyền",
+        description: "Bạn không có quyền cấu hình kho hàng. Vui lòng liên hệ chủ cửa hàng.",
+      });
+      return;
+    }
+
+    if (
+      confirm(
+        "Xóa kho là hành động không thể hoàn tác. Toàn bộ thông tin kho và dữ liệu tồn kho của các sản phẩm trong kho này sẽ bị xóa vĩnh viễn. Bạn có chắc chắn muốn xóa kho?"
+      )
+    ) {
+      deleteWarehouse.mutate(id);
+    }
+  };
+
   const resetWarehouseForm = () => {
     setWarehouseForm({
       code: "",
@@ -171,6 +206,7 @@ const Warehouses = () => {
       phone: "",
       manager_name: "",
       is_active: true,
+      allow_ordering: true,
     });
     setEditingWarehouse(null);
   };
@@ -184,6 +220,7 @@ const Warehouses = () => {
       phone: warehouse.phone || "",
       manager_name: warehouse.manager_name || "",
       is_active: warehouse.is_active,
+      allow_ordering: warehouse.allow_ordering !== false,
     });
     setWarehouseDialogOpen(true);
   };
@@ -279,10 +316,20 @@ const Warehouses = () => {
               <ArrowRightLeft className="h-4 w-4 mr-2" />
               Luân chuyển
             </Button>
-            <Button onClick={() => setWarehouseDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Thêm kho
-            </Button>
+             <Button onClick={() => {
+               if (!hasStorePermission("config_warehouse_settings")) {
+                 toast({
+                   variant: "destructive",
+                   title: "Lỗi phân quyền",
+                   description: "Bạn không có quyền cấu hình kho hàng. Vui lòng liên hệ chủ cửa hàng.",
+                 });
+                 return;
+               }
+               setWarehouseDialogOpen(true);
+             }} className="cursor-pointer">
+               <Plus className="h-4 w-4 mr-2" />
+               Thêm kho
+             </Button>
           </div>
         }
       />
@@ -314,11 +361,18 @@ const Warehouses = () => {
                         <p className="text-xs text-muted-foreground">{wh.code}</p>
                       </div>
                     </div>
-                    {wh.is_default && (
-                      <Badge variant="secondary" className="text-xs">
-                        Mặc định
-                      </Badge>
-                    )}
+                    <div className="flex gap-1.5 items-center">
+                      {wh.allow_ordering === false && (
+                        <Badge variant="outline" className="text-xs border-amber-500 text-amber-500 bg-amber-500/5">
+                          Tắt tạo đơn
+                        </Badge>
+                      )}
+                      {wh.is_default && (
+                        <Badge variant="secondary" className="text-xs">
+                          Mặc định
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -334,14 +388,27 @@ const Warehouses = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8"
+                      className="h-8 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEditWarehouse(wh);
                       }}
                     >
-                      <Edit2 className="h-3 w-3" />
+                      <Edit2 className="h-3.5 w-3.5" />
                     </Button>
+                    {!wh.is_default && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 hover:bg-destructive/10 text-destructive cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteWarehouse(wh.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -646,6 +713,18 @@ const Warehouses = () => {
                   placeholder="Tên người quản lý"
                 />
               </div>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-secondary/10">
+              <div className="space-y-0.5">
+                <Label className="font-medium text-sm">Cho phép tạo đơn</Label>
+                <p className="text-xs text-muted-foreground">Bật/tắt quyền xuất hàng từ kho này.</p>
+              </div>
+              <Switch
+                checked={warehouseForm.allow_ordering}
+                onCheckedChange={(checked) =>
+                  setWarehouseForm({ ...warehouseForm, allow_ordering: checked })
+                }
+              />
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button

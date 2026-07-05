@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { RefreshCw, Save, Plus, Edit2, Trash2, Settings, ShieldAlert, Award } from "lucide-react";
+import { useLoyaltySettings, useReferralSettings } from "@/hooks/useLoyalty";
 
 export function LoyaltySettingsTab() {
   const { toast } = useToast();
+
+  const { settings: loyaltySettings, updateSettings: updateLoyalty } = useLoyaltySettings();
+  const { settings: referralSettings, updateSettings: updateReferral } = useReferralSettings();
 
   // Left panel state
   const [isLoyaltyEnabled, setIsLoyaltyEnabled] = useState(true);
@@ -26,6 +30,10 @@ export function LoyaltySettingsTab() {
   const [noPointWholesale, setNoPointWholesale] = useState(false);
   const [noPointDiscounted, setNoPointDiscounted] = useState(true);
   const [pointByTier, setPointByTier] = useState(true);
+
+  // Referral states
+  const [referrerRewardPoints, setReferrerRewardPoints] = useState("50");
+  const [refereeDiscountAmount, setRefereeDiscountAmount] = useState("50.000");
 
   const [syncOption, setSyncOption] = useState("all");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -46,7 +54,39 @@ export function LoyaltySettingsTab() {
   const [cardExclusions, setCardExclusions] = useState("3");
   const [noApplyDiscountedItems, setNoApplyDiscountedItems] = useState(false);
 
+  useEffect(() => {
+    if (loyaltySettings) {
+      setIsLoyaltyEnabled(loyaltySettings.is_enabled);
+      setPointRatioMoney(loyaltySettings.point_ratio_money.toLocaleString("vi-VN"));
+      setPointRatioPoints(loyaltySettings.point_ratio_points.toString());
+      setRedeemRatioPoints(loyaltySettings.redeem_ratio_points.toString());
+      setRedeemRatioMoney(loyaltySettings.redeem_ratio_money.toLocaleString("vi-VN"));
+      setNoPointDiscounted(loyaltySettings.no_point_discounted);
+    }
+  }, [loyaltySettings]);
+
+  useEffect(() => {
+    if (referralSettings) {
+      setReferrerRewardPoints(referralSettings.referrer_reward_points.toString());
+      setRefereeDiscountAmount(referralSettings.referee_discount_amount.toLocaleString("vi-VN"));
+    }
+  }, [referralSettings]);
+
   const handleSaveSettings = () => {
+    updateLoyalty({
+      is_enabled: isLoyaltyEnabled,
+      point_ratio_money: parseFloat(pointRatioMoney.replace(/\./g, "").replace(/,/g, "")),
+      point_ratio_points: parseInt(pointRatioPoints) || 1,
+      redeem_ratio_points: parseInt(redeemRatioPoints) || 1,
+      redeem_ratio_money: parseFloat(redeemRatioMoney.replace(/\./g, "").replace(/,/g, "")),
+      no_point_discounted: noPointDiscounted
+    });
+
+    updateReferral({
+      referrer_reward_points: parseInt(referrerRewardPoints) || 50,
+      referee_discount_amount: parseFloat(refereeDiscountAmount.replace(/\./g, "").replace(/,/g, ""))
+    });
+    
     toast({
       title: "Đã lưu cấu hình",
       description: "Cấu hình tích điểm và hạng thành viên đã được cập nhật thành công.",
@@ -70,143 +110,180 @@ export function LoyaltySettingsTab() {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-      {/* Left Panel: Cấu hình tích điểm */}
-      <Card className="xl:col-span-5 border border-border">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b mb-4">
-          <div>
-            <CardTitle className="text-sm font-semibold">Cài đặt tích điểm</CardTitle>
-            <CardDescription className="text-xs">Thiết lập công thức quy đổi điểm star</CardDescription>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/5 cursor-pointer">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-4 bg-popover z-50 space-y-4" align="end">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Đồng bộ lại tích điểm</h4>
-                  <p className="text-xs text-muted-foreground">Chọn phương thức tính toán lại điểm cho toàn bộ hệ thống:</p>
-                </div>
-                <RadioGroup value={syncOption} onValueChange={setSyncOption} className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <RadioGroupItem value="all" id="r-all" className="mt-1" />
-                    <Label htmlFor="r-all" className="text-xs leading-normal cursor-pointer font-normal">
-                      Đồng bộ lại tích điểm theo cấu hình hiện tại (Tất cả khách hàng)
-                    </Label>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <RadioGroupItem value="skip_used" id="r-skip" className="mt-1" />
-                    <Label htmlFor="r-skip" className="text-xs leading-normal cursor-pointer font-normal">
-                      Đồng bộ lại tích điểm theo cấu hình hiện tại (Bỏ qua khách hàng đã sử dụng điểm)
-                    </Label>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <RadioGroupItem value="history" id="r-history" className="mt-1" />
-                    <Label htmlFor="r-history" className="text-xs leading-normal cursor-pointer font-normal">
-                      Đồng bộ điểm thưởng khách nhận được qua các lần cấu hình tích điểm và trừ đi số điểm khách đã dùng
-                    </Label>
-                  </div>
-                </RadioGroup>
-                <Button 
-                  onClick={handleSyncPoints} 
-                  disabled={isSyncing} 
-                  className="w-full h-8 text-xs bg-destructive hover:bg-destructive/90 cursor-pointer"
-                >
-                  {isSyncing ? "Đang đồng bộ..." : "Đồng bộ"}
-                </Button>
-              </PopoverContent>
-            </Popover>
-
-            <Button onClick={handleSaveSettings} size="sm" className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 cursor-pointer">
-              <Save className="h-3.5 w-3.5" />
-              Lưu
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="loyalty-toggle" className="text-xs font-semibold cursor-pointer">Kích hoạt tích điểm</Label>
-            <Switch id="loyalty-toggle" checked={isLoyaltyEnabled} onCheckedChange={setIsLoyaltyEnabled} />
-          </div>
-
-          <div className="space-y-2.5">
-            <Label className="text-xs font-medium text-muted-foreground">Tỉ lệ điểm nhận được trên giá trị đơn hàng:</Label>
-            <div className="flex items-center gap-2">
-              <Input 
-                value={pointRatioMoney} 
-                onChange={(e) => setPointRatioMoney(e.target.value)} 
-                className="h-9 text-xs w-28 text-center" 
-              />
-              <span className="text-xs text-muted-foreground">đ</span>
-              <span className="text-xs">→</span>
-              <Input 
-                value={pointRatioPoints} 
-                onChange={(e) => setPointRatioPoints(e.target.value)} 
-                className="h-9 text-xs w-20 text-center" 
-              />
-              <span className="text-xs text-amber-500 font-semibold">★ star</span>
+      {/* Left Panel Container */}
+      <div className="xl:col-span-5 space-y-6">
+        {/* Left Panel: Cấu hình tích điểm */}
+        <Card className="border border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b mb-4">
+            <div>
+              <CardTitle className="text-sm font-semibold">Cài đặt tích điểm</CardTitle>
+              <CardDescription className="text-xs">Thiết lập công thức quy đổi điểm star</CardDescription>
             </div>
-          </div>
-
-          <div className="space-y-2.5">
-            <Label className="text-xs font-medium text-muted-foreground">Tỉ lệ đổi khi thanh toán bằng điểm:</Label>
-            <div className="flex items-center gap-2">
-              <Input 
-                value={redeemRatioPoints} 
-                onChange={(e) => setRedeemRatioPoints(e.target.value)} 
-                className="h-9 text-xs w-20 text-center" 
-              />
-              <span className="text-xs text-amber-500 font-semibold">★ star</span>
-              <span className="text-xs">→</span>
-              <Input 
-                value={redeemRatioMoney} 
-                onChange={(e) => setRedeemRatioMoney(e.target.value)} 
-                className="h-9 text-xs w-28 text-center" 
-              />
-              <span className="text-xs text-muted-foreground">đ</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Cấp độ không được sử dụng điểm và tích điểm:</Label>
-            <div className="border rounded-lg p-2 flex flex-wrap gap-1.5 bg-muted/10 min-h-[44px]">
-              {excludedTiers.map(t => (
-                <Badge key={t} variant="secondary" className="text-[10px] gap-1 px-2 py-0.5">
-                  {t}
-                  <span 
-                    onClick={() => setExcludedTiers(excludedTiers.filter(x => x !== t))}
-                    className="cursor-pointer font-bold text-muted-foreground hover:text-foreground text-[8px]"
+            <div className="flex items-center gap-1.5">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/5 cursor-pointer">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4 bg-popover z-50 space-y-4" align="end">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Đồng bộ lại tích điểm</h4>
+                    <p className="text-xs text-muted-foreground">Chọn phương thức tính toán lại điểm cho toàn bộ hệ thống:</p>
+                  </div>
+                  <RadioGroup value={syncOption} onValueChange={setSyncOption} className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <RadioGroupItem value="all" id="r-all" className="mt-1" />
+                      <Label htmlFor="r-all" className="text-xs leading-normal cursor-pointer font-normal">
+                        Đồng bộ lại tích điểm theo cấu hình hiện tại (Tất cả khách hàng)
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <RadioGroupItem value="skip_used" id="r-skip" className="mt-1" />
+                      <Label htmlFor="r-skip" className="text-xs leading-normal cursor-pointer font-normal">
+                        Đồng bộ lại tích điểm theo cấu hình hiện tại (Bỏ qua khách hàng đã sử dụng điểm)
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <RadioGroupItem value="history" id="r-history" className="mt-1" />
+                      <Label htmlFor="r-history" className="text-xs leading-normal cursor-pointer font-normal">
+                        Đồng bộ điểm thưởng khách nhận được qua các lần cấu hình tích điểm và trừ đi số điểm khách đã dùng
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  <Button 
+                    onClick={handleSyncPoints} 
+                    disabled={isSyncing} 
+                    className="w-full h-8 text-xs bg-destructive hover:bg-destructive/90 cursor-pointer"
                   >
-                    ×
-                  </span>
-                </Badge>
-              ))}
-              {excludedTiers.length === 0 && <span className="text-xs text-muted-foreground">Áp dụng cho tất cả cấp độ</span>}
-            </div>
-          </div>
+                    {isSyncing ? "Đang đồng bộ..." : "Đồng bộ"}
+                  </Button>
+                </PopoverContent>
+              </Popover>
 
-          <div className="space-y-3.5 pt-2 border-t">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="no-online" className="text-xs cursor-pointer text-muted-foreground">Không tích điểm với đơn online</Label>
-              <Switch id="no-online" checked={noPointOnline} onCheckedChange={setNoPointOnline} />
+              <Button onClick={handleSaveSettings} size="sm" className="h-8 gap-1.5 bg-blue-600 hover:bg-blue-700 cursor-pointer">
+                <Save className="h-3.5 w-3.5" />
+                Lưu
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="no-wholesale" className="text-xs cursor-pointer text-muted-foreground">Không tích điểm với đơn sỉ</Label>
-              <Switch id="no-wholesale" checked={noPointWholesale} onCheckedChange={setNoPointWholesale} />
+              <Label htmlFor="loyalty-toggle" className="text-xs font-semibold cursor-pointer">Kích hoạt tích điểm</Label>
+              <Switch id="loyalty-toggle" checked={isLoyaltyEnabled} onCheckedChange={setIsLoyaltyEnabled} />
             </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="no-discount" className="text-xs cursor-pointer text-muted-foreground">Tích 0% số điểm với những SP giảm giá</Label>
-              <Switch id="no-discount" checked={noPointDiscounted} onCheckedChange={setNoPointDiscounted} />
+
+            <div className="space-y-2.5">
+              <Label className="text-xs font-medium text-muted-foreground">Tỉ lệ điểm nhận được trên giá trị đơn hàng:</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  value={pointRatioMoney} 
+                  onChange={(e) => setPointRatioMoney(e.target.value)} 
+                  className="h-9 text-xs w-28 text-center" 
+                />
+                <span className="text-xs text-muted-foreground">đ</span>
+                <span className="text-xs">→</span>
+                <Input 
+                  value={pointRatioPoints} 
+                  onChange={(e) => setPointRatioPoints(e.target.value)} 
+                  className="h-9 text-xs w-20 text-center" 
+                />
+                <span className="text-xs text-amber-500 font-semibold">★ star</span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="point-by-tier" className="text-xs cursor-pointer text-muted-foreground">Tích điểm theo cấp độ khách hàng</Label>
-              <Switch id="point-by-tier" checked={pointByTier} onCheckedChange={setPointByTier} />
+
+            <div className="space-y-2.5">
+              <Label className="text-xs font-medium text-muted-foreground">Tỉ lệ đổi khi thanh toán bằng điểm:</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  value={redeemRatioPoints} 
+                  onChange={(e) => setRedeemRatioPoints(e.target.value)} 
+                  className="h-9 text-xs w-20 text-center" 
+                />
+                <span className="text-xs text-amber-500 font-semibold">★ star</span>
+                <span className="text-xs">→</span>
+                <Input 
+                  value={redeemRatioMoney} 
+                  onChange={(e) => setRedeemRatioMoney(e.target.value)} 
+                  className="h-9 text-xs w-28 text-center" 
+                />
+                <span className="text-xs text-muted-foreground">đ</span>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Cấp độ không được sử dụng điểm và tích điểm:</Label>
+              <div className="border rounded-lg p-2 flex flex-wrap gap-1.5 bg-muted/10 min-h-[44px]">
+                {excludedTiers.map(t => (
+                  <Badge key={t} variant="secondary" className="text-[10px] gap-1 px-2 py-0.5">
+                    {t}
+                    <span 
+                      onClick={() => setExcludedTiers(excludedTiers.filter(x => x !== t))}
+                      className="cursor-pointer font-bold text-muted-foreground hover:text-foreground text-[8px]"
+                    >
+                      ×
+                    </span>
+                  </Badge>
+                ))}
+                {excludedTiers.length === 0 && <span className="text-xs text-muted-foreground">Áp dụng cho tất cả cấp độ</span>}
+              </div>
+            </div>
+
+            <div className="space-y-3.5 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="no-online" className="text-xs cursor-pointer text-muted-foreground">Không tích điểm với đơn online</Label>
+                <Switch id="no-online" checked={noPointOnline} onCheckedChange={setNoPointOnline} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="no-wholesale" className="text-xs cursor-pointer text-muted-foreground">Không tích điểm với đơn sỉ</Label>
+                <Switch id="no-wholesale" checked={noPointWholesale} onCheckedChange={setNoPointWholesale} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="no-discount" className="text-xs cursor-pointer text-muted-foreground">Tích 0% số điểm với những SP giảm giá</Label>
+                <Switch id="no-discount" checked={noPointDiscounted} onCheckedChange={setNoPointDiscounted} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="point-by-tier" className="text-xs cursor-pointer text-muted-foreground">Tích điểm theo cấp độ khách hàng</Label>
+                <Switch id="point-by-tier" checked={pointByTier} onCheckedChange={setPointByTier} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Left Panel: Cấu hình giới thiệu (Referral) */}
+        <Card className="border border-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b mb-4">
+            <div>
+              <CardTitle className="text-sm font-semibold">Cấu hình giới thiệu (Referral)</CardTitle>
+              <CardDescription className="text-xs">Thiết lập thưởng cho người giới thiệu và người mua mới</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Điểm thưởng cho người giới thiệu (Referrer):</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  value={referrerRewardPoints} 
+                  onChange={(e) => setReferrerRewardPoints(e.target.value)} 
+                  className="h-9 text-xs w-28 text-center" 
+                />
+                <span className="text-xs text-amber-500 font-semibold">★ star</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Giảm giá cho người được giới thiệu (Referee) đơn đầu:</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  value={refereeDiscountAmount} 
+                  onChange={(e) => setRefereeDiscountAmount(e.target.value)} 
+                  className="h-9 text-xs w-28 text-center" 
+                />
+                <span className="text-xs text-muted-foreground">đ</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Right Panel: Các cấp khách hàng */}
       <Card className="xl:col-span-7 border border-border">

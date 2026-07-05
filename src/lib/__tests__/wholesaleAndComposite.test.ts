@@ -167,4 +167,118 @@ describe("Pancake POS Features Unit Tests", () => {
       expect(updatedCart[0].unit_price).toBe(65000);
     });
   });
+
+  describe("Combo/Set Inventory Deduction and Restoration Logic", () => {
+    // Simulated mock databases
+    const mockProducts = [
+      { id: "p-parent", name: "Combo X", stock_quantity: 10, is_service: false },
+      { id: "p-child1", name: "Ao M", stock_quantity: 20, is_service: false },
+      { id: "p-child2", name: "Ao L", stock_quantity: 15, is_service: false }
+    ];
+
+    const mockVariants = [
+      { id: "v-parent", product_id: "p-parent", stock_quantity: 10 },
+      { id: "v-child1", product_id: "p-child1", stock_quantity: 20 },
+      { id: "v-child2", product_id: "p-child2", stock_quantity: 15 }
+    ];
+
+    const mockComponents = [
+      { parent_variant_id: "v-parent", child_variant_id: "v-child1", quantity: 2 },
+      { parent_variant_id: "v-parent", child_variant_id: "v-child2", quantity: 3 }
+    ];
+
+    const simulateDeductStock = (orderItems: any[]) => {
+      const products = JSON.parse(JSON.stringify(mockProducts));
+      const variants = JSON.parse(JSON.stringify(mockVariants));
+
+      for (const item of orderItems) {
+        if (item.variant_id) {
+          const comps = mockComponents.filter(c => c.parent_variant_id === item.variant_id);
+          if (comps.length > 0) {
+            for (const c of comps) {
+              const qtyToDeduct = item.quantity * c.quantity;
+              const vIdx = variants.findIndex((v: any) => v.id === c.child_variant_id);
+              if (vIdx !== -1) {
+                variants[vIdx].stock_quantity -= qtyToDeduct;
+                const pIdx = products.findIndex((p: any) => p.id === variants[vIdx].product_id);
+                if (pIdx !== -1) {
+                  products[pIdx].stock_quantity -= qtyToDeduct;
+                }
+              }
+            }
+          } else {
+            const vIdx = variants.findIndex((v: any) => v.id === item.variant_id);
+            if (vIdx !== -1) {
+              variants[vIdx].stock_quantity -= item.quantity;
+              const pIdx = products.findIndex((p: any) => p.id === item.product_id);
+              if (pIdx !== -1) {
+                products[pIdx].stock_quantity -= item.quantity;
+              }
+            }
+          }
+        }
+      }
+      return { products, variants };
+    };
+
+    const simulateRestoreStock = (orderItems: any[]) => {
+      const products = JSON.parse(JSON.stringify(mockProducts));
+      const variants = JSON.parse(JSON.stringify(mockVariants));
+
+      for (const item of orderItems) {
+        if (item.variant_id) {
+          const comps = mockComponents.filter(c => c.parent_variant_id === item.variant_id);
+          if (comps.length > 0) {
+            for (const c of comps) {
+              const qtyToAdd = item.quantity * c.quantity;
+              const vIdx = variants.findIndex((v: any) => v.id === c.child_variant_id);
+              if (vIdx !== -1) {
+                variants[vIdx].stock_quantity += qtyToAdd;
+                const pIdx = products.findIndex((p: any) => p.id === variants[vIdx].product_id);
+                if (pIdx !== -1) {
+                  products[pIdx].stock_quantity += qtyToAdd;
+                }
+              }
+            }
+          } else {
+            const vIdx = variants.findIndex((v: any) => v.id === item.variant_id);
+            if (vIdx !== -1) {
+              variants[vIdx].stock_quantity += item.quantity;
+              const pIdx = products.findIndex((p: any) => p.id === item.product_id);
+              if (pIdx !== -1) {
+                products[pIdx].stock_quantity += item.quantity;
+              }
+            }
+          }
+        }
+      }
+      return { products, variants };
+    };
+
+    it("should deduct stock from child variants when confirming a combo order", () => {
+      const orderItems = [{ product_id: "p-parent", variant_id: "v-parent", quantity: 2 }];
+      const { products, variants } = simulateDeductStock(orderItems);
+
+      // Child 1: stock_quantity 20 -> should be 20 - (2 * 2) = 16
+      const child1 = variants.find((v: any) => v.id === "v-child1");
+      expect(child1?.stock_quantity).toBe(16);
+
+      // Child 2: stock_quantity 15 -> should be 15 - (2 * 3) = 9
+      const child2 = variants.find((v: any) => v.id === "v-child2");
+      expect(child2?.stock_quantity).toBe(9);
+    });
+
+    it("should restore stock to child variants when cancelling a combo order", () => {
+      const orderItems = [{ product_id: "p-parent", variant_id: "v-parent", quantity: 2 }];
+      const { products, variants } = simulateRestoreStock(orderItems);
+
+      // Child 1: stock_quantity 20 -> should be 20 + (2 * 2) = 24
+      const child1 = variants.find((v: any) => v.id === "v-child1");
+      expect(child1?.stock_quantity).toBe(24);
+
+      // Child 2: stock_quantity 15 -> should be 15 + (2 * 3) = 21
+      const child2 = variants.find((v: any) => v.id === "v-child2");
+      expect(child2?.stock_quantity).toBe(21);
+    });
+  });
 });

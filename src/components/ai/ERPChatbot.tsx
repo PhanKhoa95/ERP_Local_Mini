@@ -43,9 +43,6 @@ const suggestedQuestions = [
 
 export function ERPChatbot() {
   const location = useLocation();
-  if (location.pathname === "/pos") {
-    return null;
-  }
 
   const { companyId } = useCompanyContext();
   const { toast } = useToast();
@@ -72,6 +69,10 @@ export function ERPChatbot() {
 
   const { activeConfig, rotateActiveKey, rotateToNextProvider, activeProviderId } = useAIRotator();
 
+  if (location.pathname === "/pos") {
+    return null;
+  }
+
   const extractDraftOrder = (text: string, allProducts: any[]): DraftOrder | null => {
     // 1. Extract phone number (9-11 digits)
     const phoneRegex = /(?:0|\+84)\d{9,10}/g;
@@ -95,21 +96,17 @@ export function ERPChatbot() {
       if (isSkuMatch || isNameMatch) {
         let quantity = 1;
         const matchTerm = isSkuMatch ? prodSkuLower : prodNameLower;
-        const termIdx = cleanText.indexOf(matchTerm);
+        const escapedTerm = matchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const qtyRegexBefore = new RegExp(`(\\d+)\\s*(?:cái|chiếc|bộ|sản phẩm|sp|x)?\\s*${escapedTerm}`, "i");
+        const qtyRegexAfter = new RegExp(`${escapedTerm}\\s*(?:x|\\*|sử dụng)?\\s*(\\d+)`, "i");
         
-        if (termIdx !== -1) {
-          const contextBefore = cleanText.substring(Math.max(0, termIdx - 15), termIdx);
-          const contextAfter = cleanText.substring(termIdx + matchTerm.length, Math.min(cleanText.length, termIdx + matchTerm.length + 15));
-          
-          const numRegex = /\b(\d+)\b/;
-          const matchBefore = contextBefore.match(numRegex);
-          const matchAfter = contextAfter.match(numRegex);
-          
-          if (matchBefore) {
-            quantity = parseInt(matchBefore[1], 10);
-          } else if (matchAfter) {
-            quantity = parseInt(matchAfter[1], 10);
-          }
+        const beforeMatch = text.match(qtyRegexBefore);
+        const afterMatch = text.match(qtyRegexAfter);
+        
+        if (beforeMatch) {
+          quantity = parseInt(beforeMatch[1], 10);
+        } else if (afterMatch) {
+          quantity = parseInt(afterMatch[1], 10);
         }
         
         items.push({
@@ -131,7 +128,7 @@ export function ERPChatbot() {
       const kwIdx = cleanText.indexOf(kw);
       if (kwIdx !== -1) {
         const rawAddr = text.substring(kwIdx + kw.length).trim();
-        const cleanedAddr = rawAddr.split(/[,.;\n]/)[0].replace(/^[:\s\-]+/, "").trim();
+        const cleanedAddr = rawAddr.split(/[,.;\n]/)[0].replace(/^[:\s-]+/, "").trim();
         if (cleanedAddr) {
           address = cleanedAddr;
           break;

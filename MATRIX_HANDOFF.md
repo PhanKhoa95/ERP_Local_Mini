@@ -15,8 +15,8 @@ http://127.0.0.1:8017/
 For local UI testing, the demo shortcut account is:
 
 ```txt
-username: admin
-password: admin
+username: admin_demo
+password: admin_demo
 ```
 
 The demo shortcut is local-only and enabled for local Vite development. Real authentication still uses Supabase Auth and email confirmation.

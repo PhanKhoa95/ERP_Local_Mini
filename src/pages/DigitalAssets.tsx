@@ -9,8 +9,9 @@ import { IntegrationMarketplaceTab } from "@/components/digital-assets/Integrati
 import { ApiKeyManagementPanel } from "@/components/digital-assets/ApiKeyManagementPanel";
 import { IntegrationQueueViewer } from "@/components/digital-assets/IntegrationQueueViewer";
 import { WebhookLogsPanel } from "@/components/digital-assets/WebhookLogsPanel";
+import { AiMcpTab } from "@/components/digital-assets/AiMcpTab";
 import { useCompanyContext } from "@/hooks/useCompanyContext";
-import { PieChart, Coins, Fingerprint, Link2, Workflow } from "lucide-react";
+import { PieChart, Coins, Fingerprint, Link2, Workflow, Bot } from "lucide-react";
 
 const DigitalAssets = () => {
   const { role } = useCompanyContext();
@@ -25,6 +26,7 @@ const DigitalAssets = () => {
           <TabsTrigger value="tokens" className="gap-2"><Coins className="h-4 w-4" />Token</TabsTrigger>
           <TabsTrigger value="vneid" className="gap-2"><Fingerprint className="h-4 w-4" />Xác thực</TabsTrigger>
           {isAdmin && <TabsTrigger value="integration" className="gap-2"><Workflow className="h-4 w-4" />API Gateway</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="ai-mcp" className="gap-2"><Bot className="h-4 w-4" />Trợ lý AI (MCP)</TabsTrigger>}
           {isAdmin && <TabsTrigger value="blockchain" className="gap-2"><Link2 className="h-4 w-4" />Blockchain</TabsTrigger>}
         </TabsList>
 
@@ -39,6 +41,11 @@ const DigitalAssets = () => {
               <IntegrationQueueViewer />
               <WebhookLogsPanel />
             </div>
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="ai-mcp">
+            <AiMcpTab />
           </TabsContent>
         )}
         {isAdmin && <TabsContent value="blockchain"><BlockchainConfigTab /></TabsContent>}

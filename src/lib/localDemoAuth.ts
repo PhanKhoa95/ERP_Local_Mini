@@ -8,7 +8,7 @@ export const LOCAL_DEMO_USER_ID = "00000000-0000-4000-8000-000000000002";
 export const LOCAL_DEMO_EMAIL = "admin@local.test";
 
 export function isLocalDemoCredentials(email: string, password: string) {
-  return import.meta.env.DEV && email.trim().toLowerCase() === "admin" && password === "admin";
+  return import.meta.env.DEV && email.trim().toLowerCase() === "admin_demo" && password === "admin_demo";
 }
 
 export function isLocalDemoAuthEnabled() {

@@ -234,45 +234,116 @@ export function useCompanyMembers() {
   });
 
   const addMemberById = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    mutationFn: async ({ 
+      userId, 
+      role,
+      method = "uuid",
+      inputValue = ""
+    }: { 
+      userId: string; 
+      role: string;
+      method?: "uuid" | "email" | "phone" | "facebook_id" | "username";
+      inputValue?: string;
+    }) => {
       if (!companyId) throw new Error("Không tìm thấy công ty");
       
+      let targetUserId = userId;
+      let targetEmail = `${userId}@local.test`;
+      let targetPhone: string | null = null;
+      let targetFullName = `Demo User (${userId.substring(0, 4)})`;
+
+      if (method !== "uuid" && inputValue) {
+        targetUserId = `demo-u-${Date.now()}`;
+        if (method === "email") {
+          targetEmail = inputValue;
+          targetFullName = inputValue.split("@")[0];
+        } else if (method === "phone") {
+          targetPhone = inputValue;
+          targetFullName = `SĐT ${inputValue}`;
+          targetEmail = `phone-${inputValue}@local.test`;
+        } else if (method === "facebook_id") {
+          targetFullName = `FB User ${inputValue}`;
+          targetEmail = `fb-${inputValue}@local.test`;
+        } else if (method === "username") {
+          targetFullName = inputValue;
+          targetEmail = `${inputValue}@local.test`;
+        }
+      }
+
       if (isLocalDemoAuthEnabled()) {
         const membersList = getLocalCompanyMembers();
-        const existing = membersList.find((m: any) => m.user_id === userId);
+        const existing = membersList.find((m: any) => m.user_id === (method === "uuid" ? userId : targetUserId));
         if (existing) throw new Error("Người dùng đã là thành viên");
 
+        const newMemberId = `demo-member-${Date.now()}`;
         const newMember = {
-          id: `demo-member-${Date.now()}`,
-          user_id: userId,
+          id: newMemberId,
+          user_id: method === "uuid" ? userId : targetUserId,
           company_id: companyId,
           role,
           region: null,
           created_at: new Date().toISOString(),
           profile: {
-            full_name: `Demo User (${userId.substring(0, 4)})`,
-            phone: null,
+            full_name: targetFullName,
+            phone: targetPhone,
             avatar_url: null
           },
-          email: `${userId}@local.test`
+          email: targetEmail
         };
         membersList.push(newMember);
         localStorage.setItem(LOCAL_MEMBERS_KEY, JSON.stringify(membersList));
+
+        // Auto assign default department if set
+        const rawDept = localStorage.getItem("erp-mini-local-demo-departments");
+        if (rawDept) {
+          try {
+            const depts = JSON.parse(rawDept);
+            const defaultDept = depts.find((d: any) => d.is_default);
+            if (defaultDept) {
+              defaultDept.member_ids.push(newMemberId);
+              localStorage.setItem("erp-mini-local-demo-departments", JSON.stringify(depts));
+            }
+          } catch (e) {
+            console.error("Auto assign default department error:", e);
+          }
+        }
         return;
+      }
+
+      // Supabase Mode
+      let foundUserId = userId;
+      if (method !== "uuid" && inputValue) {
+        if (method === "phone") {
+          const { data: prof, error } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("phone", inputValue)
+            .maybeSingle();
+          if (error || !prof) throw new Error("Không tìm thấy profile với số điện thoại này");
+          foundUserId = prof.id;
+        } else {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("id")
+            .or(`full_name.eq.${inputValue},id.eq.${inputValue}`)
+            .maybeSingle();
+          if (!prof) throw new Error(`Không tìm thấy người dùng phù hợp với ${inputValue}`);
+          foundUserId = prof.id;
+        }
       }
 
       const { data: existing } = await supabase
         .from("company_members")
         .select("id")
         .eq("company_id", companyId)
-        .eq("user_id", userId)
+        .eq("user_id", foundUserId)
         .maybeSingle();
       
       if (existing) throw new Error("Người dùng đã là thành viên");
 
       const { error } = await supabase
         .from("company_members")
-        .insert({ company_id: companyId, user_id: userId, role });
+        .insert({ company_id: companyId, user_id: foundUserId, role });
       if (error) throw error;
     },
     onSuccess: () => {

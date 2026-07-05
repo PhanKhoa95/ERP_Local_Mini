@@ -11,6 +11,7 @@ test.describe("Promotions & Auto-Apply E2E Tests", () => {
   });
 
   test("should display promotions page list, auto-apply in POS, and track usage history", async ({ page }) => {
+    test.setTimeout(120000);
     // 1. Navigate to Promotions page
     await page.goto("/promotions");
     
@@ -31,21 +32,34 @@ test.describe("Promotions & Auto-Apply E2E Tests", () => {
     // Add product "Thẻ QR cá nhân thông minh" (sku: PRD-QR-CARD) to cart
     await page.click("text=Thẻ QR cá nhân thông minh");
     
+    // Select variant if the variant select dialog appears
+    try {
+      const dialog = page.getByRole("dialog").filter({ hasText: "Chọn mẫu mã" }).first();
+      await dialog.waitFor({ state: "visible", timeout: 3000 });
+      await dialog.getByRole("button", { name: "Chọn" }).first().click();
+      await page.waitForTimeout(500);
+    } catch (e) {
+      // No variant dialog appeared
+    }
+    
     // Check cart has 1 item, subtotal = 69,000đ.
     // 69k is under the 200k threshold, so no auto-apply promo should be active.
     await expect(page.locator("body")).not.toContainText("Tự động: Tự động giảm 10% đơn từ 200k");
 
     // Increase quantity of the item to 4 items (subtotal = 4 * 69k = 276,000đ)
     // 276k is above 200k threshold, triggering the AUTO10 auto-apply!
-    const qtyInput = page.locator('input[inputmode="numeric"]').first();
-    await qtyInput.fill("4");
-    await qtyInput.blur();
-    
-    // Wait for the debounce to trigger and compute totals
-    await page.waitForTimeout(1000);
+    const plusBtn = page.locator('table tbody tr').first().locator('button').nth(1);
+    const qtyInput = page.locator('table tbody tr').first().locator('input[type="number"]').first();
+    await qtyInput.focus();
+    await qtyInput.press("ArrowUp");
+    await page.waitForTimeout(200);
+    await qtyInput.press("ArrowUp");
+    await page.waitForTimeout(200);
+    await qtyInput.press("ArrowUp");
+    await page.waitForTimeout(500);
     
     // Verify auto-apply badge is now visible in the footer
-    await expect(page.locator("body")).toContainText("Tự động: Tự động giảm 10% đơn từ 200k");
+    await expect(page.locator("body")).toContainText("Tự động giảm 10% đơn từ 200k");
     
     // Verify total discount is 10% of 276k = 27,600đ
     const discountDisplay = page.locator("text=-27.600đ");

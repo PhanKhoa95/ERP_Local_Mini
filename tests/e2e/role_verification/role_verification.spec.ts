@@ -17,16 +17,13 @@ async function takeScreenshots(page, role: string) {
 }
 
 async function expandSidebar(page) {
-  const sections = ["Kinh doanh", "Hiệu suất", "Tài liệu"];
-  for (const title of sections) {
-    const trigger = page.locator(`aside button:has-text("${title}")`);
-    if (await trigger.isVisible()) {
-      const state = await trigger.getAttribute("data-state");
-      if (state === "closed") {
-        await trigger.click();
-        await page.waitForTimeout(500); // Wait for transition
-      }
-    }
+  // Recursively click all collapsible triggers until all sections are open
+  const closedTriggers = page.locator('aside button[data-state="closed"]');
+  let count = await closedTriggers.count();
+  while (count > 0) {
+    await closedTriggers.first().click();
+    await page.waitForTimeout(400);
+    count = await closedTriggers.count();
   }
 }
 

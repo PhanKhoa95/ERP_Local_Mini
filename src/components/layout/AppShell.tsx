@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { WorktimeInterceptor } from "./WorktimeInterceptor";
 
 const ERPChatbot = lazy(() => import("@/components/ai/ERPChatbot").then(m => ({ default: m.ERPChatbot })));
 
@@ -20,7 +21,8 @@ export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <WorktimeInterceptor>
+      <div className="min-h-screen bg-background">
       <div className="hidden lg:block">
         <Sidebar />
       </div>
@@ -53,5 +55,6 @@ export function AppShell({ children }: AppShellProps) {
       </Suspense>
       <OfflineIndicator />
     </div>
+    </WorktimeInterceptor>
   );
 }

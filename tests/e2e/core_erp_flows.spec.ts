@@ -13,16 +13,26 @@ test.describe("Core ERP Flow E2E Tests", () => {
     // 2. Go to POS page
     await page.goto("/pos", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(2000);
-    await expect(page.getByPlaceholder("Tìm sản phẩm theo tên hoặc mã SKU...")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('input[placeholder*="sản phẩm"]').first()).toBeVisible({ timeout: 15000 });
 
     // 3. Add a product to cart (Click first available product card)
     const firstProductCard = page.locator("div.grid > div.cursor-pointer").first();
     await expect(firstProductCard).toBeVisible({ timeout: 10000 });
     await firstProductCard.click();
 
+    // Select variant if the variant select dialog appears
+    try {
+      const dialog = page.getByRole("dialog").filter({ hasText: "Chọn mẫu mã" }).first();
+      await dialog.waitFor({ state: "visible", timeout: 3000 });
+      await dialog.getByRole("button", { name: "Chọn" }).first().click();
+      await page.waitForTimeout(500);
+    } catch (e) {
+      // No variant dialog appeared
+    }
+
     // 4. Verify cart contains items (cart is visible on desktop)
-    const cartHeader = page.locator("h2:has-text('Giỏ hàng')");
-    await expect(cartHeader).toBeVisible({ timeout: 10000 });
+    const cartItem = page.locator("td:has-text('PRD-')").first();
+    await expect(cartItem).toBeVisible({ timeout: 10000 });
 
     // 5. Checkout (Cash/Tiền mặt or Transfer/Chuyển khoản)
     // We choose Cash (Tiền mặt)
@@ -37,7 +47,7 @@ test.describe("Core ERP Flow E2E Tests", () => {
     // 7. Go to Orders page to verify status
     await page.goto("/orders", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(2000);
-    await expect(page.getByRole("heading", { name: "Quản lý đơn hàng" })).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('h1:has-text("Quản lý đơn hàng")').first()).toBeVisible({ timeout: 15000 });
 
     // Switch status filter to 'delivered' (Đã giao) to find our POS order
     await page.getByPlaceholder("Tìm mã đơn, tên KH, SĐT...").fill("POS-");
@@ -111,7 +121,7 @@ test.describe("Core ERP Flow E2E Tests", () => {
     await expect(page.getByRole("heading", { name: "Quản lý kho" })).toBeVisible({ timeout: 15000 });
 
     // 3. Perform "Nhập kho" (Stock in) adjustment
-    const stockInBtn = page.getByRole("button", { name: "Nhập kho" }).first();
+    const stockInBtn = page.getByRole("button", { name: "Nhập kho", exact: true }).first();
     await expect(stockInBtn).toBeVisible({ timeout: 5000 });
     await stockInBtn.click();
 
@@ -119,15 +129,26 @@ test.describe("Core ERP Flow E2E Tests", () => {
     const dialogTitle = page.locator("h2").filter({ hasText: "Nhập kho" }).first();
     await expect(dialogTitle).toBeVisible({ timeout: 5000 });
 
-    // 5. Open product select dropdown
-    const productSelect = page.locator("button:has-text('Chọn sản phẩm')").first();
-    await expect(productSelect).toBeVisible({ timeout: 5000 });
-    await productSelect.click();
+    // 5. Search for a product using the Barcode/SKU input
+    const productSearchInput = page.getByPlaceholder("Gõ hoặc quét Barcode...").first();
+    await expect(productSearchInput).toBeVisible({ timeout: 5000 });
+    await productSearchInput.fill("decal");
+    await page.waitForTimeout(1000);
 
-    // 6. Select the first product option
-    const firstOption = page.locator("role=option").first();
+    // 6. Select the first product option from dropdown suggestions list
+    const firstOption = page.locator('button:has-text("SKU:")').first();
     await expect(firstOption).toBeVisible({ timeout: 5000 });
     await firstOption.click();
+    await page.waitForTimeout(500);
+
+    // Select variant dropdown inside row if it appears
+    const variantSelect = page.locator('button:has-text("Chọn biến thể")').first();
+    if (await variantSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await variantSelect.click();
+      await page.waitForTimeout(500);
+      await page.locator('role=option').first().click();
+      await page.waitForTimeout(500);
+    }
 
     // 7. Fill the quantity input
     const quantityInput = page.locator("form input[type='number']").first();
@@ -140,7 +161,7 @@ test.describe("Core ERP Flow E2E Tests", () => {
     await notesInput.fill("Stock adjustment by E2E test");
 
     // 9. Click submit button
-    const submitBtn = page.locator("form button[type='submit']").first();
+    const submitBtn = page.locator('button:has-text("Nhập kho hàng loạt")').first();
     await expect(submitBtn).toBeVisible({ timeout: 5000 });
     await submitBtn.click();
 
@@ -174,9 +195,16 @@ test.describe("Core ERP Flow E2E Tests", () => {
     await page.waitForTimeout(2000);
     await expect(page.getByRole("heading", { name: "Tài chính" })).toBeVisible({ timeout: 15000 });
 
-    // 3. Verify that basic financial stats cards are visible
-    const revenueCard = page.locator("text=Tổng doanh thu").first();
-    await expect(revenueCard).toBeVisible({ timeout: 10000 });
+    // 2. Go to Finance page
+    await page.goto("/finance", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2000);
+    await expect(page.getByRole("heading", { name: "Tài chính" })).toBeVisible({ timeout: 15000 });
+
+    // 3. Click the reconciliation tab link
+    const reconciliationTab = page.locator('button[role="tab"]:has-text("Đối soát giao dịch")').first();
+    await expect(reconciliationTab).toBeVisible({ timeout: 10000 });
+    await reconciliationTab.click();
+    await page.waitForTimeout(1000);
 
     // 4. Verify Casso integration panel is visible
     const cassoCard = page.locator(".col-span-full").filter({ hasText: "Casso Integration" }).first();

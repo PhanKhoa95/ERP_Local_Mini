@@ -31,7 +31,7 @@ export function PartialReturnDialog({ order, open, onOpenChange }: PartialReturn
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [isPending, setIsPending] = useState(false);
 
-  if (!order) return null;
+
 
   const toggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems(prev => {
@@ -54,12 +54,12 @@ export function PartialReturnDialog({ order, open, onOpenChange }: PartialReturn
   // Calculate return items values
   const totalReturnAmount = useMemo(() => {
     return Object.entries(selectedItems).reduce((sum, [itemId, qty]) => {
-      const item = order.order_items?.find(i => i.id === itemId);
+      const item = order?.order_items?.find(i => i.id === itemId);
       return sum + (item ? Number(item.unit_price) * qty : 0);
     }, 0);
-  }, [selectedItems, order.order_items]);
+  }, [selectedItems, order?.order_items]);
 
-  const originalTotal = Number(order.total || 0);
+  const originalTotal = Number(order?.total || 0);
   const newCODTotal = Math.max(0, originalTotal - totalReturnAmount);
 
   const handleSubmit = async () => {
@@ -135,6 +135,8 @@ export function PartialReturnDialog({ order, open, onOpenChange }: PartialReturn
       setIsPending(false);
     }
   };
+
+  if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

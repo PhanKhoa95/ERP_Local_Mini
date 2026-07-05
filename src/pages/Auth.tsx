@@ -67,7 +67,7 @@ const Auth = () => {
       enableLocalDemoAuth();
       setAuthNotice(null);
       setCanResendConfirmation(false);
-      toast({ title: "Đăng nhập demo thành công", description: "Bạn đang dùng tài khoản local admin/admin." });
+      toast({ title: "Đăng nhập demo thành công", description: "Bạn đang dùng tài khoản local admin_demo/admin_demo." });
       navigate("/");
       return;
     }
@@ -187,7 +187,7 @@ const Auth = () => {
               <div className="mb-4 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
                 Không có tài khoản mặc định. Hãy đăng ký bằng email thật, xác nhận email rồi quay lại đăng nhập.
                 {import.meta.env.DEV && (
-                  <span className="mt-2 block">Local dev: có thể dùng admin / admin để vào nhanh bản demo.</span>
+                  <span className="mt-2 block">Local dev: có thể dùng admin_demo / admin_demo để vào nhanh bản demo.</span>
                 )}
               </div>
               {authNotice && (

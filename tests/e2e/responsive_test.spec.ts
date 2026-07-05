@@ -35,7 +35,7 @@ test.describe("ERP Mini E2E Responsive Layout Verification", () => {
       // 1. POS page
       await page.goto("/pos", { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(2000);
-      await expect(page.getByPlaceholder("Tìm sản phẩm theo tên hoặc mã SKU...")).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('input[placeholder*="sản phẩm"]').first()).toBeVisible({ timeout: 15000 });
       await captureResponsiveScreenshot(page, "pos", "desktop");
 
       // 2. Orders page
@@ -71,7 +71,7 @@ test.describe("ERP Mini E2E Responsive Layout Verification", () => {
       // 1. POS page
       await page.goto("/pos", { waitUntil: "domcontentloaded" });
       await page.waitForTimeout(2000);
-      await expect(page.getByPlaceholder("Tìm sản phẩm theo tên hoặc mã SKU...")).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('text=Đơn 1').first()).toBeVisible({ timeout: 15000 });
       await captureResponsiveScreenshot(page, "pos", "mobile");
 
       // 2. Orders page

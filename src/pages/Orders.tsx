@@ -200,7 +200,7 @@ const Orders = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const { startDate, endDate } = useGlobalDateFilter();
 
-  const { getUserRegion, canCreate, canEdit, canDelete } = usePermissions();
+  const { getUserRegion, canCreate, canEdit, canDelete, maskPhone, maskName } = usePermissions();
   const userRegion = getUserRegion();
 
   const paramSearch = searchParams.get("search") || stateSearchTerm;
@@ -282,13 +282,13 @@ const Orders = () => {
     });
   }, [enrichedOrders]);
 
-  // Unique tags and staff for filtering
   const allUniqueTags = useMemo(() => {
     const tagsSet = new Set<string>();
     enrichedOrders.forEach(o => {
       if (o.tags) {
-        o.tags.split(",").forEach(t => {
-          const trimmed = t.trim();
+        const tagsArr = typeof o.tags === "string" ? o.tags.split(",") : (Array.isArray(o.tags) ? o.tags : []);
+        tagsArr.forEach(t => {
+          const trimmed = typeof t === "string" ? t.trim() : "";
           if (trimmed) tagsSet.add(trimmed);
         });
       }
@@ -339,7 +339,7 @@ const Orders = () => {
       // Tag filter
       let matchesTag = true;
       if (tagFilter !== "all") {
-        const tagsList = order.tags ? order.tags.split(",").map(t => t.trim().toLowerCase()) : [];
+        const tagsList = order.tags ? (typeof order.tags === "string" ? order.tags.split(",").map(t => t.trim().toLowerCase()) : (Array.isArray(order.tags) ? order.tags.map(t => String(t).trim().toLowerCase()) : [])) : [];
         if (!tagsList.includes(tagFilter.toLowerCase())) matchesTag = false;
       }
 
@@ -591,7 +591,7 @@ const Orders = () => {
       }
 
       try {
-        let mergedMasterCodes: string[] = [];
+        const mergedMasterCodes: string[] = [];
         
         if (isLocalDemoAuthEnabled()) {
           const rawOrders = localStorage.getItem("erp-mini-local-demo-orders");
@@ -1381,13 +1381,13 @@ const Orders = () => {
                                 </div>
                               </div>
                               <div className="space-y-0.5">
-                                <p className="text-sm text-foreground truncate font-medium">{getOrderCustomerName(order)}</p>
+                                <p className="text-sm text-foreground truncate font-medium">{maskName(getOrderCustomerName(order))}</p>
                                 {getOrderCustomerPhone(order) && (
-                                  <p className="text-xs text-muted-foreground truncate">{getOrderCustomerPhone(order)}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{maskPhone(getOrderCustomerPhone(order))}</p>
                                 )}
                               </div>
                               <div className="flex gap-1 flex-wrap items-center">
-                                {order.tags && order.tags.split(",").map((t: string) => t.trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
+                                {order.tags && (typeof order.tags === "string" ? order.tags.split(",") : (Array.isArray(order.tags) ? order.tags : [])).map((t: any) => String(t).trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
                                   <Badge key={idx} variant="outline" className={cn("text-[8px] px-1 py-0", getTagColorClass(tag))}>
                                     {tag}
                                   </Badge>
@@ -1410,7 +1410,7 @@ const Orders = () => {
                                           {group.name}
                                         </DropdownMenuLabel>
                                         {group.tags.map((tag) => {
-                                          const currentTags = order.tags ? order.tags.split(",").map((t: string) => t.trim()) : [];
+                                          const currentTags = order.tags ? (typeof order.tags === "string" ? order.tags.split(",").map((t: string) => t.trim()) : (Array.isArray(order.tags) ? order.tags.map((t: any) => String(t).trim()) : [])) : [];
                                           const hasTag = currentTags.includes(tag.name);
                                           return (
                                             <DropdownMenuCheckboxItem
@@ -1581,10 +1581,10 @@ const Orders = () => {
                               <span className="text-foreground">{getOrderSourceLabel(order.source_type)}</span>
                             </div>
                           </td>
-                          <td className="p-2 sm:p-3 text-foreground font-medium">{getOrderCustomerName(order)}</td>
+                          <td className="p-2 sm:p-3 text-foreground font-medium">{maskName(getOrderCustomerName(order))}</td>
                           <td className="p-2 sm:p-3 whitespace-nowrap">
                             <div className="flex flex-col gap-0.5">
-                              <span className="text-muted-foreground">{getOrderCustomerPhone(order) || "—"}</span>
+                              <span className="text-muted-foreground">{maskPhone(getOrderCustomerPhone(order)) || "—"}</span>
                               {getOrderCustomerPhone(order) && (
                                 <Badge variant="outline" className={cn(
                                   "text-[8px] px-1 py-0 w-max font-semibold",

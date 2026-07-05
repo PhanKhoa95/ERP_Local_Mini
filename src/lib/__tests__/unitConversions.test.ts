@@ -55,7 +55,7 @@ describe("Unit Conversions and Break Pack Logic Tests", () => {
   });
 
   it("2. should correctly adjust variant stocks when breaking package (xé lẻ) dynamic conversions", () => {
-    let variants = [...mockVariants];
+    const variants = [...mockVariants];
     const breakQty = 1; // Break 1 box
 
     // Find source (Box) and dest (Piece) variants

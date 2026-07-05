@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { RotateCcw, Loader2, AlertCircle, ShoppingBag, ArrowRightLeft, Send, Check, AlertTriangle, Image as ImageIcon, Eye } from "lucide-react";
 import { useOrderReturns } from "@/hooks/useOrderReturns";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
   requested: "Yêu cầu hoàn",

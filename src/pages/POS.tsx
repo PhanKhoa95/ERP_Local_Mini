@@ -63,7 +63,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { useProductVariants } from "@/hooks/useProductVariants";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useWholesaleSettings } from "@/hooks/useWholesaleSettings";
+import { usePriceLists } from "@/hooks/usePriceLists";
 import { applyWholesalePricing, calculateCompositeVariantStock } from "@/lib/wholesaleControl";
 import { POSVariantSelectDialog } from "@/components/pos/POSVariantSelectDialog";
 import { useQuery } from "@tanstack/react-query";
@@ -77,6 +79,7 @@ interface CartItem {
   unit_price: number;
   discount: number;
   is_wholesale?: boolean;
+  is_price_overridden?: boolean;
 }
 
 interface POSQuantityInputProps {
@@ -311,6 +314,7 @@ const POS = () => {
   const { toast } = useToast();
   const { memberships, tierConfigs = [], performTransaction } = useMemberships();
   const { vouchers, applyVoucher } = useVouchers();
+  const { maskPhone, maskName, maskAddress } = usePermissions();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -408,6 +412,7 @@ const POS = () => {
   // Wholesale pricing and variants database queries
   const { settings: wholesaleSettings } = useWholesaleSettings();
   const { variants: allVariants = [] } = useProductVariants();
+  const { priceLists = [] } = usePriceLists();
 
   const { data: allComponents = [] } = useQuery({
     queryKey: ["all-product-variant-components"],
@@ -466,6 +471,7 @@ const POS = () => {
       discount: 0,
       shippingFee: 0,
       notes: "",
+      orderTags: [],
       selectedCustomer: "walk-in",
       customerSearch: "",
       selectedChannel: selectedChannel || "",
@@ -490,6 +496,7 @@ const POS = () => {
         discount: 0,
         shippingFee: 0,
         notes: "",
+        orderTags: [],
         selectedCustomer: "walk-in",
         customerSearch: "",
         selectedChannel: selectedChannel || "",
@@ -542,7 +549,7 @@ const POS = () => {
 
   // Get default warehouse
   const defaultWarehouse = useMemo(() => {
-    return warehouses.find(w => w.is_default && w.is_active) || warehouses.find(w => w.is_active);
+    return warehouses.find(w => w.is_default && w.is_active && w.allow_ordering !== false) || warehouses.find(w => w.is_active && w.allow_ordering !== false);
   }, [warehouses]);
 
   // Get default sales channel (prioritize retail, then first active channel)
@@ -666,7 +673,8 @@ const POS = () => {
       customer,
       orderTags,
       wholesaleSettings,
-      allWholesalePrices
+      allWholesalePrices,
+      priceLists
     );
 
     const isChanged = updatedCart.some((item, idx) => {
@@ -679,19 +687,23 @@ const POS = () => {
 
     if (isChanged) {
       setCart(updatedCart);
+    }
+  }, [cart, selectedCustomer, orderTags, wholesaleSettings, allWholesalePrices, priceLists]);
 
-      if (wholesaleSettings.no_other_discounts && hasWholesaleApplied) {
-        if (discount > 0 || appliedVoucherId) {
-          setDiscount(0);
-          setAppliedVoucherId(null);
-          toast({
-            title: "Áp dụng giá bán sỉ",
-            description: "Đơn hàng đã được áp giá bán sỉ. Các mã giảm giá/voucher khác đã bị vô hiệu hóa.",
-          });
-        }
+  useEffect(() => {
+    if (!wholesaleSettings) return;
+    const hasWholesaleApplied = cart.some(item => item.is_wholesale);
+    if (wholesaleSettings.no_other_discounts && hasWholesaleApplied) {
+      if (discount > 0 || appliedVoucherId) {
+        setDiscount(0);
+        setAppliedVoucherId(null);
+        toast({
+          title: "Áp dụng giá bán sỉ",
+          description: "Đơn hàng đã được áp giá bán sỉ. Các mã giảm giá/voucher khác đã bị vô hiệu hóa.",
+        });
       }
     }
-  }, [cart, selectedCustomer, orderTags, wholesaleSettings, allWholesalePrices]);
+  }, [cart, discount, appliedVoucherId, wholesaleSettings]);
 
   const addToCart = (product: Product, variant?: any) => {
     if (product.has_variants && !variant) {
@@ -701,7 +713,7 @@ const POS = () => {
     }
 
     const existingItem = cart.find(
-      (item) => item.product.id === product.id && item.variant?.id === (variant?.id || null)
+      (item) => item.product.id === product.id && (item.variant?.id || null) === (variant?.id || null)
     );
     const isService = product.is_service === true;
     const isLimitedService = isService && ((product.stock_quantity || 0) > 0 || (product.min_stock || 0) > 0);
@@ -723,7 +735,7 @@ const POS = () => {
       }
       setCart(
         cart.map((item) =>
-          item.product.id === product.id && item.variant?.id === (variant?.id || null)
+          item.product.id === product.id && (item.variant?.id || null) === (variant?.id || null)
             ? { ...item, quantity: item.quantity + 1 }
             : item
         )
@@ -755,11 +767,10 @@ const POS = () => {
   };
 
   const updateQuantity = (productId: string, variantId: string | null, newQuantity: number) => {
-    if (newQuantity < 1) {
-      removeFromCart(productId, variantId);
+    if (newQuantity < 1 || isNaN(newQuantity)) {
       return;
     }
-    const item = cart.find((i) => i.product.id === productId && i.variant?.id === (variantId || null));
+    const item = cart.find((i) => i.product.id === productId && (i.variant?.id || null) === (variantId || null));
     if (!item) return;
 
     const isService = item.product.is_service === true;
@@ -780,7 +791,7 @@ const POS = () => {
     }
     setCart(
       cart.map((item) =>
-        item.product.id === productId && item.variant?.id === (variantId || null)
+        item.product.id === productId && (item.variant?.id || null) === (variantId || null)
           ? { ...item, quantity: newQuantity }
           : item
       )
@@ -790,15 +801,15 @@ const POS = () => {
   const updateItemPrice = (productId: string, variantId: string | null, newPrice: number) => {
     setCart(
       cart.map((item) =>
-        item.product.id === productId && item.variant?.id === (variantId || null)
-          ? { ...item, unit_price: newPrice }
+        item.product.id === productId && (item.variant?.id || null) === (variantId || null)
+          ? { ...item, unit_price: newPrice, is_price_overridden: true }
           : item
       )
     );
   };
 
   const removeFromCart = (productId: string, variantId: string | null) => {
-    setCart(cart.filter((item) => !(item.product.id === productId && item.variant?.id === (variantId || null))));
+    setCart(cart.filter((item) => !(item.product.id === productId && (item.variant?.id || null) === (variantId || null))));
   };
 
   const clearCart = () => {
@@ -1055,7 +1066,7 @@ const POS = () => {
           total,
           notes: selectedWarehouse ? `[Kho: ${warehouses.find(w => w.id === selectedWarehouse)?.name || selectedWarehouse}] ${notes}`.trim() : notes,
           status: "delivered", // POS orders are delivered immediately
-          tags: orderTags,
+          tags: orderTags.join(", "),
           payment_status: "paid", // POS orders are paid immediately
           paid_amount: total,
           voucher_id: appliedVoucherId,
@@ -1065,8 +1076,8 @@ const POS = () => {
           variant_id: item.variant?.id || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          discount: item.discount,
-          total: item.quantity * item.unit_price - item.discount,
+          discount: item.discount || 0,
+          total: item.quantity * item.unit_price - (item.discount || 0),
         })),
       });
 
@@ -1089,6 +1100,16 @@ const POS = () => {
           newSegment = "loyalty";
           didAutoUpgrade = true;
         }
+
+        console.log("[VIP_DEBUG]", {
+          customerName: customer.name,
+          customerPromoSegment: customer.promo_segment,
+          customerTotalSpent: customer.total_spent,
+          orderTotal: total,
+          newTotalSpent,
+          currentSegment,
+          didAutoUpgrade
+        });
 
         await updatePartner.mutateAsync({
           id: customer.id,
@@ -1192,9 +1213,9 @@ const POS = () => {
                 {filteredCustomers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
                     <div className="flex flex-col text-left">
-                      <span className="font-medium text-xs">{customer.name}</span>
+                      <span className="font-medium text-xs">{maskName(customer.name)}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        {customer.phone || customer.code}
+                        {maskPhone(customer.phone) || customer.code}
                         {customer.loyalty_points > 0 && ` • ${customer.loyalty_points} điểm`}
                       </span>
                     </div>
@@ -1230,7 +1251,7 @@ const POS = () => {
                 <SelectValue placeholder="Kho xuất" />
               </SelectTrigger>
               <SelectContent className="bg-popover z-50">
-                {warehouses.filter(w => w.is_active).map((warehouse) => (
+                {warehouses.filter(w => w.is_active && w.allow_ordering !== false).map((warehouse) => (
                   <SelectItem key={warehouse.id} value={warehouse.id}>
                     <span className="text-xs">{warehouse.name}</span>
                   </SelectItem>

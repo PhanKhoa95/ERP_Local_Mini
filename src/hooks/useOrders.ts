@@ -5,9 +5,11 @@ import { useCompanyContext } from "./useCompanyContext";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 import { createLocalInventoryTransaction, logLocalAction } from "@/lib/localInventoryStore";
 import { invalidateOrderRelated } from "@/lib/queryInvalidation";
+import { getLocalPartners, saveLocalPartners, serializePartnerMetadata, parsePartnerMetadata, type Partner } from "./usePartners";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
+import { checkPlanLimit } from "@/lib/saasLimits";
 import { toast } from "sonner";
 import { erpEventBus } from "@/lib/erpEventBus";
-import { getLocalPartners, saveLocalPartners, serializePartnerMetadata, parsePartnerMetadata, type Partner } from "./usePartners";
 
 function triggerAutoMessageForStatusChange(order: Order, newStatus: string) {
   if (typeof window === "undefined") return;
@@ -162,7 +164,22 @@ function scheduleBuybackReminders(order: Order) {
 
 async function updatePartnerPoints(companyId: string, partnerId: string | null, usedPoints: number, orderTotal: number) {
   if (!partnerId) return;
-  const pointsEarned = Math.floor(orderTotal / 100000);
+
+  let isEnabled = true;
+  let pointRatioMoney = 10000;
+  let pointRatioPoints = 1;
+
+  if (isLocalDemoAuthEnabled()) {
+    const rawSettings = localStorage.getItem("erp-mini-loyalty-settings");
+    if (rawSettings) {
+      const settings = JSON.parse(rawSettings);
+      isEnabled = settings.is_enabled;
+      pointRatioMoney = settings.point_ratio_money;
+      pointRatioPoints = settings.point_ratio_points;
+    }
+  }
+
+  const pointsEarned = isEnabled ? Math.floor(orderTotal / pointRatioMoney) * pointRatioPoints : 0;
   
   if (isLocalDemoAuthEnabled()) {
     const partners = getLocalPartners(companyId);
@@ -176,7 +193,7 @@ async function updatePartnerPoints(companyId: string, partnerId: string | null, 
       
       let promo_segment = p.promo_segment;
       if (lifetimePoints >= 300) {
-        promo_segment = "loyalty"; // VIP / Super
+        promo_segment = "loyalty"; 
       }
       
       partners[idx] = {
@@ -186,6 +203,35 @@ async function updatePartnerPoints(companyId: string, partnerId: string | null, 
         promo_segment,
       };
       saveLocalPartners(partners);
+
+      const txsRaw = localStorage.getItem("erp-mini-loyalty-transactions");
+      const txs = txsRaw ? JSON.parse(txsRaw) : [];
+      
+      if (usedPoints > 0) {
+        txs.unshift({
+          id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+          partner_id: partnerId,
+          order_id: null,
+          points: -usedPoints,
+          transaction_type: "redeem",
+          notes: "Tiêu điểm tại đơn hàng",
+          created_at: new Date().toISOString()
+        });
+      }
+      
+      if (pointsEarned > 0) {
+        txs.unshift({
+          id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+          partner_id: partnerId,
+          order_id: null,
+          points: pointsEarned,
+          transaction_type: "earn",
+          notes: "Tích điểm đơn hàng",
+          created_at: new Date().toISOString()
+        });
+      }
+      
+      localStorage.setItem("erp-mini-loyalty-transactions", JSON.stringify(txs));
     }
   } else {
     try {
@@ -219,7 +265,15 @@ async function updatePartnerPoints(companyId: string, partnerId: string | null, 
 
 async function rewardReferrer(companyId: string, referrerId: string | null, refereeName: string, refereeId: string | null) {
   if (!referrerId) return;
-  const rewardPoints = 50; // Thưởng 50 điểm
+  
+  let rewardPoints = 50;
+  if (isLocalDemoAuthEnabled()) {
+    const rawSettings = localStorage.getItem("erp-mini-referral-settings");
+    if (rawSettings) {
+      const settings = JSON.parse(rawSettings);
+      rewardPoints = settings.referrer_reward_points;
+    }
+  }
 
   if (isLocalDemoAuthEnabled()) {
     const partners = getLocalPartners(companyId);
@@ -230,7 +284,30 @@ async function rewardReferrer(companyId: string, referrerId: string | null, refe
         ...p,
         loyalty_points: (p.loyalty_points || 0) + rewardPoints,
       };
+      
+      // Update referred_by_id on the referee
+      const refereeIdx = partners.findIndex(p => p.id === refereeId);
+      if (refereeIdx !== -1) {
+        partners[refereeIdx] = {
+          ...partners[refereeIdx],
+          referred_by_id: referrerId
+        };
+      }
+      
       saveLocalPartners(partners);
+
+      const txsRaw = localStorage.getItem("erp-mini-loyalty-transactions");
+      const txs = txsRaw ? JSON.parse(txsRaw) : [];
+      txs.unshift({
+        id: `tx-${Math.random().toString(36).substr(2, 9)}`,
+        partner_id: referrerId,
+        order_id: null,
+        points: rewardPoints,
+        transaction_type: "earn",
+        notes: `Thưởng giới thiệu khách hàng mới ${refereeName}`,
+        created_at: new Date().toISOString()
+      });
+      localStorage.setItem("erp-mini-loyalty-transactions", JSON.stringify(txs));
 
       const rawNotes = localStorage.getItem("erp-mini-local-demo-partner-notes");
       const notes = rawNotes ? JSON.parse(rawNotes) : [];
@@ -255,6 +332,11 @@ async function rewardReferrer(companyId: string, referrerId: string | null, refe
           loyalty_points: (p.loyalty_points || 0) + rewardPoints,
         });
         await supabase.from("partners").update(serialized).eq("id", referrerId);
+
+        // Update referred_by_id on the referee
+        if (refereeId) {
+          await supabase.from("partners").update({ referred_by_id: referrerId }).eq("id", refereeId);
+        }
 
         await supabase.from("partner_notes").insert({
           partner_id: referrerId,
@@ -1264,6 +1346,7 @@ async function restoreSupabaseStock(items: OrderItem[], orderNumber: string, rea
 export function useOrders() {
   const { companyId } = useCompanyContext();
   const queryClient = useQueryClient();
+  const { subscription } = useSubscriptions();
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -1301,6 +1384,18 @@ export function useOrders() {
   const createOrder = useMutation({
     mutationFn: async (payload: { order: Omit<Order, "id" | "created_at" | "updated_at">; items?: any[] }) => {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+
+      // Check SaaS plan limits for orders
+      const planType = subscription?.plan_type || "starter";
+      const currentMonthOrdersCount = orders.filter(o => {
+        const d = o.created_at ? new Date(o.created_at) : new Date();
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }).length;
+
+      if (!checkPlanLimit(planType, "orders", currentMonthOrdersCount)) {
+        throw new Error(`Đã đạt giới hạn tối đa ${currentMonthOrdersCount} đơn hàng trong tháng cho gói ${planType.toUpperCase()}. Vui lòng nâng cấp gói cước.`);
+      }
       
       const { items, order: orderData } = payload;
 

@@ -21,9 +21,15 @@ test("verify Casso bank transfer auto-reconciliation flow", async ({ page }) => 
   // Seeding reloads the page, wait for it to load
   await page.waitForTimeout(3000);
 
-  // 3. Go to Finance page where Casso reconciliation is integrated
   console.log("Navigating to Finance page...");
   await page.goto("/finance", { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(2000);
+
+  // Click the reconciliation tab link
+  const reconciliationTab = page.locator('button[role="tab"]:has-text("Đối soát giao dịch")').first();
+  await expect(reconciliationTab).toBeVisible({ timeout: 10000 });
+  await reconciliationTab.click();
+  await page.waitForTimeout(1000);
 
   // 4. Verify Casso Reconciliation panel elements
   const cassoCard = page.locator(".col-span-full").filter({ hasText: "Casso Integration" });
@@ -37,7 +43,7 @@ test("verify Casso bank transfer auto-reconciliation flow", async ({ page }) => 
   await page.screenshot({ path: screenshotPath1 });
   console.log("Screenshot casso_01_simulator.png saved.");
 
-  const syncButton = cassoCard.getByRole("button");
+  const syncButton = cassoCard.getByRole("button", { name: "Đồng bộ giao dịch ngay" });
   await expect(syncButton).toBeVisible();
   await expect(cassoCard.locator('tr:has-text("DH7731")')).toHaveCount(0);
   await syncButton.click();

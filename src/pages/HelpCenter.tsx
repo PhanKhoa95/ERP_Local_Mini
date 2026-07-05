@@ -27,10 +27,12 @@ import {
   Users,
   Utensils,
   Warehouse,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { helpArticles } from "@/data/helpArticles";
 
 type HelpItem = {
   title: string;
@@ -38,6 +40,7 @@ type HelpItem = {
   icon: React.ComponentType<{ className?: string }>;
   accent: string;
   links: string[];
+  articleId?: string;
 };
 
 type HelpGroup = {
@@ -46,6 +49,56 @@ type HelpGroup = {
   description?: string;
   items: HelpItem[];
 };
+
+const pancakePosGroups: HelpGroup[] = [
+  {
+    eyebrow: "Vận hành Pancake POS Chuyên sâu",
+    title: "Hướng dẫn & Cấu hình Pancake POS",
+    description: "Cấu hình nghiệp vụ đa kênh, đa kho, livestream tự động và tối ưu hóa quy trình bán hàng.",
+    items: [
+      {
+        title: "Tự động hoá vận hành",
+        description: "Bật 4 luồng tự động trong Pancake POS — tạo đơn từ chat, xác thực thanh toán, đẩy đơn sang ĐVVC.",
+        icon: Settings,
+        accent: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
+        links: ["Giới thiệu tự động hoá", "Cấu hình luồng tự động", "Bắt comment & Tạo đơn"],
+        articleId: "st-p1"
+      },
+      {
+        title: "Kinh doanh đa quốc gia",
+        description: "Mở rộng shop sang nước ngoài: đa tiền tệ, kho theo quốc gia, ngôn ngữ nhân viên.",
+        icon: MapPin,
+        accent: "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30",
+        links: ["Cấu hình đa tiền tệ", "Tạo kho theo nước", "Nhân viên đổi ngôn ngữ"],
+        articleId: "st-p2"
+      },
+      {
+        title: "Quản lý đa kho",
+        description: "Quản lý đồng thời nhiều kho hàng: phân quyền thủ kho, tự động chọn kho theo vùng.",
+        icon: Warehouse,
+        accent: "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30",
+        links: ["Tạo kho hàng mới", "Phân quyền nhân viên", "Cấu hình đơn tự động"],
+        articleId: "st-p3"
+      },
+      {
+        title: "Bán hàng livestream",
+        description: "Tự động hoá quy trình chốt đơn livestream từ bình luận và ghim FB Catalog.",
+        icon: Monitor,
+        accent: "bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30",
+        links: ["Tạo đơn từ bình luận", "Giỏ hàng FB Catalog", "Kịch bản livestream"],
+        articleId: "st-p4"
+      },
+      {
+        title: "Bán hàng đa kênh",
+        description: "Kết nối Shopee, Lazada, TikTok Shop, Website, Facebook, Zalo.",
+        icon: ShoppingCart,
+        accent: "bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30",
+        links: ["Kết nối sàn TMĐT", "Đồng bộ tồn kho & giá", "Xử lý đơn tập trung"],
+        articleId: "st-p5"
+      }
+    ]
+  }
+];
 
 const guideGroups: HelpGroup[] = [
   {
@@ -57,42 +110,42 @@ const guideGroups: HelpGroup[] = [
         title: "Thiết lập cửa hàng",
         description: "Tài khoản, chi nhánh, nhân viên, vai trò và dữ liệu ban đầu.",
         icon: Store,
-        accent: "bg-blue-50 text-blue-700 border-blue-100",
+        accent: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
         links: ["Tài khoản và dữ liệu", "Thiết lập công ty", "Phân quyền nhân viên"],
       },
       {
         title: "Kênh bán hàng",
         description: "Cửa hàng, website, sàn thương mại điện tử và kênh mạng xã hội.",
         icon: ShoppingCart,
-        accent: "bg-emerald-50 text-emerald-700 border-emerald-100",
+        accent: "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30",
         links: ["POS tại quầy", "Website đặt hàng", "Shopee, Lazada, TikTok Shop"],
       },
       {
         title: "Sản phẩm và kho hàng",
         description: "Quản lý SKU, tồn kho, định mức, nhập xuất và cảnh báo thiếu hàng.",
         icon: Package,
-        accent: "bg-amber-50 text-amber-700 border-amber-100",
+        accent: "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30",
         links: ["Danh mục sản phẩm", "Kho và tồn kho", "Định mức BOM"],
       },
       {
         title: "Đơn hàng",
         description: "Tạo đơn, xử lý trạng thái, thanh toán, giao hàng và đổi trả.",
         icon: ClipboardList,
-        accent: "bg-indigo-50 text-indigo-700 border-indigo-100",
+        accent: "bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30",
         links: ["Tạo đơn hàng", "Nhập đơn từ Excel", "Theo dõi giao hàng"],
       },
       {
         title: "Khách hàng và công nợ",
         description: "Hồ sơ đối tác, nhóm khách hàng, lịch sử mua và hạn mức nợ.",
         icon: Users,
-        accent: "bg-rose-50 text-rose-700 border-rose-100",
+        accent: "bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30",
         links: ["Hồ sơ khách hàng", "Nhóm khách hàng", "Báo cáo công nợ"],
       },
       {
         title: "Báo cáo và tài chính",
         description: "Doanh thu, dòng tiền, kế toán, đối soát và cảnh báo bất thường.",
         icon: BarChart3,
-        accent: "bg-cyan-50 text-cyan-700 border-cyan-100",
+        accent: "bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30",
         links: ["Báo cáo bán hàng", "Dự báo dòng tiền", "Sổ cái kế toán"],
       },
     ],
@@ -106,21 +159,21 @@ const guideGroups: HelpGroup[] = [
         title: "Cấu hình AI",
         description: "Thiết lập OpenRouter, Gemini fallback và quyền truy cập AI Agent.",
         icon: Bot,
-        accent: "bg-violet-50 text-violet-700 border-violet-100",
+        accent: "bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-950/20 dark:text-violet-400 dark:border-violet-900/30",
         links: ["OpenRouter API key", "Model mặc định", "Phân quyền AI Agent"],
       },
       {
         title: "Workflow tự động",
         description: "Tạo luồng xử lý đơn hàng, phê duyệt, nhắc việc và gọi webhook.",
         icon: Settings,
-        accent: "bg-slate-50 text-slate-700 border-slate-100",
+        accent: "bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-800/30",
         links: ["Trình kéo thả workflow", "AI tạo workflow", "Nhật ký thực thi"],
       },
       {
         title: "Data Hub",
         description: "Thu thập dữ liệu thô, kiểm tra chất lượng và liên kết định danh.",
         icon: Database,
-        accent: "bg-teal-50 text-teal-700 border-teal-100",
+        accent: "bg-teal-50 text-teal-700 border-teal-100 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30",
         links: ["Nguồn dữ liệu", "Raw events", "Identity resolution"],
       },
     ],
@@ -136,21 +189,21 @@ const operationGroups: HelpGroup[] = [
         title: "Máy tính tiền",
         description: "Bán hàng và thanh toán nhanh tại quầy.",
         icon: Monitor,
-        accent: "bg-blue-50 text-blue-700 border-blue-100",
+        accent: "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
         links: ["Kết nối thiết bị", "Màn hình thu ngân"],
       },
       {
         title: "Máy in hóa đơn",
         description: "Thiết lập mẫu in, khổ giấy và máy in mặc định.",
         icon: Printer,
-        accent: "bg-orange-50 text-orange-700 border-orange-100",
+        accent: "bg-orange-50 text-orange-700 border-orange-100 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/30",
         links: ["Mẫu hóa đơn", "Cấu hình máy in"],
       },
       {
         title: "Máy quét mã vạch",
         description: "Quét SKU nhanh khi bán hàng, nhập kho và kiểm kho.",
         icon: ScanLine,
-        accent: "bg-lime-50 text-lime-700 border-lime-100",
+        accent: "bg-lime-50 text-lime-700 border-lime-100 dark:bg-lime-950/20 dark:text-lime-400 dark:border-lime-900/30",
         links: ["Quét sản phẩm", "Quy ước mã vạch"],
       },
     ],
@@ -163,36 +216,36 @@ const operationGroups: HelpGroup[] = [
         title: "Hóa đơn điện tử",
         description: "Phát hành, tra cứu và đồng bộ hóa đơn sau bán hàng.",
         icon: ReceiptText,
-        accent: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100",
+        accent: "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100 dark:bg-fuchsia-950/20 dark:text-fuchsia-400 dark:border-fuchsia-900/30",
         links: ["Cấu hình hóa đơn", "Đồng bộ dữ liệu thuế"],
       },
       {
         title: "Vận chuyển",
         description: "Thiết lập hãng vận chuyển, vùng giao và phí giao hàng.",
         icon: Truck,
-        accent: "bg-sky-50 text-sky-700 border-sky-100",
+        accent: "bg-sky-50 text-sky-700 border-sky-100 dark:bg-sky-950/20 dark:text-sky-400 dark:border-sky-900/30",
         links: ["Hãng vận chuyển", "Khu vực giao hàng"],
       },
       {
         title: "Nhà hàng và dịch vụ",
         description: "Đặt bàn, QR order, thực đơn và quy trình phục vụ.",
         icon: Utensils,
-        accent: "bg-red-50 text-red-700 border-red-100",
+        accent: "bg-red-50 text-red-700 border-red-100 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30",
         links: ["Đặt bàn", "QR order", "Thu ngân"],
       },
     ],
   },
 ];
 
-const allGroups: HelpGroup[] = [...guideGroups, ...operationGroups];
+const allGroups: HelpGroup[] = [...pancakePosGroups, ...guideGroups, ...operationGroups];
 
 const popularArticles = [
-  "Tạo đơn hàng đầu tiên từ POS",
-  "Nhập sản phẩm và tồn kho bằng Excel",
-  "Thiết lập OpenRouter cho AI Agent",
-  "Theo dõi đơn hàng công khai bằng số điện thoại",
-  "Khởi tạo nguồn dữ liệu trong Data Hub",
-  "Phân quyền quản lý cho nhân viên",
+  "Tự động hoá quy trình đóng hàng",
+  "Tạo đơn livestream tự động từ comment",
+  "Liên kết kho hàng Shopee và Pancake POS",
+  "Mở rộng shop đa quốc gia & tỉ giá quy đổi",
+  "Thiết lập nhiều kho hàng trên POS",
+  "Xử lý đánh giá Shopee tập trung",
 ];
 
 function normalize(value: string) {
@@ -208,26 +261,39 @@ function itemMatches(item: HelpItem, query: string) {
   return haystack.includes(normalize(query));
 }
 
-function HelpCard({ item }: { item: HelpItem }) {
+function HelpCard({ item, onOpenArticle }: { item: HelpItem; onOpenArticle?: (id: string) => void }) {
   const Icon = item.icon;
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (item.articleId && onOpenArticle) {
+      e.preventDefault();
+      onOpenArticle(item.articleId);
+    }
+  };
+
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+    <article 
+      onClick={item.articleId ? handleClick : undefined}
+      className={`rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 ${
+        item.articleId ? "cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/50" : ""
+      }`}
+    >
       <div className="flex items-start gap-4">
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${item.accent}`}>
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold text-slate-950">{item.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+          <h3 className="text-base font-semibold text-slate-950 dark:text-white">{item.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">{item.description}</p>
         </div>
       </div>
-      <div className="mt-5 space-y-2 border-t border-slate-100 pt-4">
+      <div className="mt-5 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
         {item.links.map((link) => (
           <a
             key={link}
-            href="#popular-articles"
-            className="flex items-center justify-between rounded-md px-2 py-2 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-blue-700"
+            href={item.articleId ? "#" : "#popular-articles"}
+            onClick={item.articleId ? handleClick : undefined}
+            className="flex items-center justify-between rounded-md px-2 py-2 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-blue-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-blue-400"
           >
             <span>{link}</span>
             <ArrowRight className="h-4 w-4" />
@@ -238,7 +304,15 @@ function HelpCard({ item }: { item: HelpItem }) {
   );
 }
 
-function HelpGroupSection({ group, query }: { group: HelpGroup; query: string }) {
+function HelpGroupSection({ 
+  group, 
+  query, 
+  onOpenArticle 
+}: { 
+  group: HelpGroup; 
+  query: string; 
+  onOpenArticle?: (id: string) => void;
+}) {
   const items = group.items.filter((item) => itemMatches(item, query));
 
   if (items.length === 0) return null;
@@ -247,9 +321,9 @@ function HelpGroupSection({ group, query }: { group: HelpGroup; query: string })
     <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">{group.eyebrow}</p>
-          <h2 className="mt-2 text-2xl font-bold text-slate-950">{group.title}</h2>
-          {group.description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{group.description}</p>}
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">{group.eyebrow}</p>
+          <h2 className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{group.title}</h2>
+          {group.description && <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">{group.description}</p>}
         </div>
         <Button variant="outline" className="w-full justify-center md:w-auto" asChild>
           <a href="#popular-articles">
@@ -260,7 +334,7 @@ function HelpGroupSection({ group, query }: { group: HelpGroup; query: string })
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
-          <HelpCard key={item.title} item={item} />
+          <HelpCard key={item.title} item={item} onOpenArticle={onOpenArticle} />
         ))}
       </div>
     </section>
@@ -269,28 +343,127 @@ function HelpGroupSection({ group, query }: { group: HelpGroup; query: string })
 
 export default function HelpCenter() {
   const [query, setQuery] = useState("");
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+
   const visibleCount = useMemo(
     () => allGroups.flatMap((group) => group.items).filter((item) => itemMatches(item, query)).length,
     [query],
   );
 
+  const selectedArticle = selectedArticleId ? helpArticles[selectedArticleId] : null;
+
+  // Simple and safe native JSX parser for the cleaned markdown format
+  const renderMarkdown = (content: string) => {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let keyIdx = 0;
+
+    const parseInline = (text: string) => {
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match;
+      
+      while ((match = linkRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(parseBold(text.substring(lastIndex, match.index)));
+        }
+        const linkText = match[1];
+        const linkUrl = match[2];
+        parts.push(
+          <a 
+            key={`link-${match.index}`} 
+            href={linkUrl} 
+            target={linkUrl.startsWith('http') ? '_blank' : undefined}
+            rel="noreferrer"
+            className="text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+          >
+            {linkText}
+          </a>
+        );
+        lastIndex = linkRegex.lastIndex;
+      }
+      
+      if (lastIndex < text.length) {
+        parts.push(parseBold(text.substring(lastIndex)));
+      }
+      
+      return parts;
+    };
+
+    const parseBold = (text: string) => {
+      const parts = text.split('**');
+      return parts.map((part, index) => 
+        index % 2 === 1 ? <strong key={index} className="font-bold text-slate-900 dark:text-white">{part}</strong> : part
+      );
+    };
+
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
+        const isH2 = trimmed.startsWith('## ');
+        const title = trimmed.replace(/^##+\s+/, '');
+        const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        elements.push(
+          isH2 ? (
+            <h2 key={keyIdx++} id={id} className="text-lg font-bold mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white flex items-center gap-2">
+              {title}
+            </h2>
+          ) : (
+            <h3 key={keyIdx++} id={id} className="text-base font-semibold mt-6 mb-3 text-slate-900 dark:text-white">
+              {title}
+            </h3>
+          )
+        );
+      } else if (trimmed.startsWith('- ')) {
+        const text = trimmed.substring(2);
+        elements.push(
+          <ul key={keyIdx++} className="list-disc pl-6 my-2 text-slate-700 dark:text-slate-300">
+            <li className="leading-relaxed text-sm">{parseInline(text)}</li>
+          </ul>
+        );
+      } else if (trimmed.startsWith('> ')) {
+        const text = trimmed.substring(2);
+        elements.push(
+          <div key={keyIdx++} className="my-4 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 text-blue-800 dark:text-blue-300 leading-relaxed text-sm">
+            {parseInline(text)}
+          </div>
+        );
+      } else {
+        elements.push(
+          <p key={keyIdx++} className="my-4 text-slate-700 dark:text-slate-300 leading-relaxed text-sm">
+            {parseInline(trimmed)}
+          </p>
+        );
+      }
+    });
+
+    return elements;
+  };
+
+  const handleOpenArticle = (id: string) => {
+    setSelectedArticleId(id);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/help" className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
               <HelpCircle className="h-5 w-5" />
             </div>
             <div className="leading-tight">
-              <p className="text-sm font-bold text-slate-950">Multi Sale Help</p>
-              <p className="hidden text-xs text-slate-500 sm:block">Trung tâm trợ giúp</p>
+              <p className="text-sm font-bold text-slate-950 dark:text-white">Pancake POS Help</p>
+              <p className="hidden text-xs text-slate-500 sm:block">Trung tâm trợ giúp vận hành</p>
             </div>
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-700 md:flex">
-            <a className="hover:text-blue-700" href="#guides">Tài liệu hướng dẫn</a>
-            <a className="hover:text-blue-700" href="#updates">Cập nhật mới</a>
-            <a className="hover:text-blue-700" href="#support">Gửi hỗ trợ</a>
+          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-700 md:flex dark:text-slate-300">
+            <a className="hover:text-blue-700 dark:hover:text-blue-400" href="#guides">Tài liệu hướng dẫn</a>
+            <a className="hover:text-blue-700 dark:hover:text-blue-400" href="#updates">Cập nhật mới</a>
+            <a className="hover:text-blue-700 dark:hover:text-blue-400" href="#support">Gửi hỗ trợ</a>
           </nav>
           <div className="flex items-center gap-2">
             <Button variant="ghost" className="hidden sm:inline-flex" asChild>
@@ -320,7 +493,7 @@ export default function HelpCenter() {
               Trung tâm trợ giúp Khách hàng Multi Sale Organizer
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200">
-              Tìm hướng dẫn thiết lập, vận hành bán hàng hợp kênh, quản lý kho, AI Agent, Data Hub và các quy trình hỗ trợ.
+              Tìm hướng dẫn thiết lập, vận hành bán hàng hợp kênh, quản lý kho, AI Agent, livestream và các quy trình hỗ trợ.
             </p>
             <div className="mt-8 max-w-2xl">
               <div className="relative">
@@ -329,7 +502,7 @@ export default function HelpCenter() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   className="h-14 rounded-lg border-white/20 bg-white pl-12 pr-4 text-base text-slate-950 shadow-xl placeholder:text-slate-400"
-                  placeholder="Tìm kiếm: đơn hàng, kho, OpenRouter, Data Hub..."
+                  placeholder="Tìm kiếm: đơn hàng, kho, livestream, đa kênh..."
                 />
               </div>
               {query && (
@@ -341,51 +514,61 @@ export default function HelpCenter() {
           </div>
         </section>
 
-        <section id="updates" className="border-b border-slate-200 bg-white">
+        <section id="updates" className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <div className="mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:px-6 md:grid-cols-3 lg:px-8">
-            <a href="#guides" className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/60">
+            <a href="#guides" className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
               <ShieldCheck className="h-5 w-5 text-emerald-600" />
-              <span className="text-sm font-medium text-slate-800">Bắt đầu nhanh cho tài khoản mới</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Bắt đầu nhanh cho tài khoản mới</span>
             </a>
-            <a href="#guides" className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/60">
+            <a href="#guides" className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
               <Bot className="h-5 w-5 text-violet-600" />
-              <span className="text-sm font-medium text-slate-800">Cập nhật cấu hình OpenRouter AI</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Cập nhật cấu hình OpenRouter AI</span>
             </a>
-            <a href="#support" className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/60">
+            <a href="#support" className="flex items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/20">
               <MessageCircle className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-medium text-slate-800">Liên hệ đội hỗ trợ vận hành</span>
+              <span className="text-sm font-medium text-slate-800 dark:text-slate-200">Liên hệ đội hỗ trợ vận hành</span>
             </a>
           </div>
         </section>
 
         <div id="guides" className="py-4">
           {allGroups.map((group) => (
-            <HelpGroupSection key={group.title} group={group} query={query} />
+            <HelpGroupSection key={group.title} group={group} query={query} onOpenArticle={handleOpenArticle} />
           ))}
         </div>
 
-        <section id="popular-articles" className="bg-white">
+        <section id="popular-articles" className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
           <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_360px] lg:px-8">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Bài viết phổ biến</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-950">Các hướng dẫn được xem nhiều</h2>
+              <p className="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Nghiệp vụ nổi bật</p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">Các hướng dẫn được xem nhiều</h2>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {popularArticles.map((article) => (
-                  <a
-                    key={article}
-                    href="#support"
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    <span>{article}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                ))}
+                {popularArticles.map((article) => {
+                  let articleId = "";
+                  if (article.includes("livestream")) articleId = "st-p4";
+                  else if (article.includes("đa quốc gia")) articleId = "st-p2";
+                  else if (article.includes("nhiều kho")) articleId = "st-p3";
+                  else if (article.includes("đóng hàng")) articleId = "st-p1";
+                  else if (article.includes("Shopee")) articleId = "st-p5";
+
+                  return (
+                    <a
+                      key={article}
+                      href={articleId ? "#" : "#support"}
+                      onClick={articleId ? (e) => { e.preventDefault(); handleOpenArticle(articleId); } : undefined}
+                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-blue-900 dark:hover:bg-blue-950/30"
+                    >
+                      <span>{article}</span>
+                      <ArrowRight className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
-            <aside className="rounded-lg border border-blue-100 bg-blue-50 p-5">
-              <BookOpen className="h-8 w-8 text-blue-700" />
-              <h3 className="mt-4 text-lg font-semibold text-slate-950">Không tìm thấy nội dung?</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+            <aside className="rounded-lg border border-blue-100 bg-blue-50 p-5 dark:border-blue-900/40 dark:bg-blue-950/20">
+              <BookOpen className="h-8 w-8 text-blue-700 dark:text-blue-400" />
+              <h3 className="mt-4 text-lg font-semibold text-slate-950 dark:text-white">Không tìm thấy nội dung?</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-400">
                 Gửi yêu cầu hỗ trợ kèm mô tả nghiệp vụ, ảnh màn hình và tài khoản đang gặp lỗi để đội vận hành kiểm tra nhanh hơn.
               </p>
               <Button className="mt-5 w-full" asChild>
@@ -399,7 +582,40 @@ export default function HelpCenter() {
         </section>
       </main>
 
-      <footer id="support" className="bg-slate-950 text-slate-200">
+      {/* Modern Slide-out Document Reader */}
+      {selectedArticle && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-sm transition-all duration-300 animate-in fade-in">
+          <div className="relative w-full max-w-4xl h-full bg-white dark:bg-slate-950 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Tài liệu vận hành Pancake POS</span>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">{selectedArticle.title}</h2>
+              </div>
+              <button 
+                onClick={() => setSelectedArticleId(null)}
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto px-8 py-6 max-w-3xl mx-auto w-full">
+              {renderMarkdown(selectedArticle.content)}
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end">
+              <Button onClick={() => setSelectedArticleId(null)}>
+                Đóng tài liệu
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <footer id="support" className="bg-slate-950 text-slate-200 border-t border-slate-800">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
           <div>
             <div className="flex items-center gap-3">

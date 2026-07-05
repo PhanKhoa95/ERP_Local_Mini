@@ -17,27 +17,11 @@ import {
 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
-
-interface PushLog {
-  id: string;
-  product_id: string;
-  product_name: string;
-  product_sku: string;
-  platform: "shopee" | "tiktok";
-  status: "success" | "failed";
-  error_msg?: string;
-  created_at: string;
-}
-
-interface CategoryMap {
-  pos_category: string;
-  platform: "shopee" | "tiktok";
-  platform_category: string;
-  size_chart_id?: string;
-}
+import { useProductBoost, type CategoryMap, type PushLog } from "@/hooks/useProductBoost";
 
 export default function ProductBoost() {
   const { products = [] } = useProducts();
+  const { categoryMaps, pushLogs, executePush, executeRetry, addCategoryMap } = useProductBoost();
   
   // Selection
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -55,45 +39,6 @@ export default function ProductBoost() {
   
   // Active selected log to retry
   const [selectedLog, setSelectedLog] = useState<PushLog | null>(null);
-
-  // Seed Data: Category Maps
-  const [categoryMaps, setCategoryMaps] = useState<CategoryMap[]>([
-    {
-      pos_category: "Sticker / Decal",
-      platform: "shopee",
-      platform_category: "Nhà cửa & Đời sống > Văn phòng phẩm > Sticker & Nhãn dán",
-      size_chart_id: "size-101"
-    },
-    {
-      pos_category: "Thiết kế & In ấn",
-      platform: "tiktok",
-      platform_category: "Sách & Văn phòng phẩm > Quà tặng & Đồ thủ công",
-      size_chart_id: "size-202"
-    }
-  ]);
-
-  // Seed Data: Push Logs
-  const [pushLogs, setPushLogs] = useState<PushLog[]>([
-    {
-      id: "log-1",
-      product_id: "p1",
-      product_name: "Sticker logo decal giấy",
-      product_sku: "PRD-STICKER",
-      platform: "shopee",
-      status: "success",
-      created_at: new Date(Date.now() - 3600000 * 2).toISOString()
-    },
-    {
-      id: "log-2",
-      product_id: "p2",
-      product_name: "Card cảm ơn / Thank you card",
-      product_sku: "PRD-CARD",
-      platform: "tiktok",
-      status: "failed",
-      error_msg: "Thiếu thuộc tính Thương hiệu (Brand) bắt buộc của ngành hàng",
-      created_at: new Date(Date.now() - 3600000 * 4).toISOString()
-    }
-  ]);
 
   // Extract unique POS categories from products
   const posCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
@@ -122,28 +67,27 @@ export default function ProductBoost() {
     setPushDialogOpen(true);
   };
 
-  const handleExecutePush = () => {
-    // Determine mapping or manual values
-    const newLogs: PushLog[] = selectedProductIds.map(id => {
+  const handleExecutePush = async () => {
+    const newLogs = selectedProductIds.map(id => {
       const p = products.find(prod => prod.id === id);
-      // Simulate success unless some condition
-      const mapped = categoryMaps.find(m => m.pos_category === p?.category && m.platform === targetPlatform);
-      
       return {
-        id: `log-${Date.now()}-${id}`,
         product_id: id,
         product_name: p?.name || "Sản phẩm POS",
         product_sku: p?.sku || "SKU-UNKNOWN",
         platform: targetPlatform,
         status: "success" as const,
-        created_at: new Date().toISOString()
+        error_msg: null
       };
     });
 
-    setPushLogs([...newLogs, ...pushLogs]);
-    toast.success(`Đã nhân bản thành công ${selectedProductIds.length} sản phẩm lên gian hàng ${targetPlatform === "shopee" ? "Shopee" : "TikTok Shop"}!`);
-    setSelectedProductIds([]);
-    setPushDialogOpen(false);
+    try {
+      await executePush.mutateAsync({ logs: newLogs });
+      toast.success(`Đã nhân bản thành công ${selectedProductIds.length} sản phẩm lên gian hàng ${targetPlatform === "shopee" ? "Shopee" : "TikTok Shop"}!`);
+      setSelectedProductIds([]);
+      setPushDialogOpen(false);
+    } catch (err) {
+      toast.error("Có lỗi xảy ra khi đẩy sản phẩm.");
+    }
   };
 
   const handleOpenRetry = (log: PushLog) => {
@@ -153,37 +97,22 @@ export default function ProductBoost() {
     setRetryDialogOpen(true);
   };
 
-  const handleExecuteRetry = () => {
+  const handleExecuteRetry = async () => {
     if (!selectedLog) return;
-    
-    // Update log status to success
-    const updated = pushLogs.map(l => {
-      if (l.id === selectedLog.id) {
-        return {
-          ...l,
-          status: "success" as const,
-          error_msg: undefined,
-          created_at: new Date().toISOString()
-        };
-      }
-      return l;
-    });
-
-    setPushLogs(updated);
-    setRetryDialogOpen(false);
-    toast.success(`Đã đẩy lại thành công sản phẩm: ${selectedLog.product_name}`);
+    try {
+      await executeRetry.mutateAsync(selectedLog.id);
+      setRetryDialogOpen(false);
+    } catch (err) {
+      // toast handled in hook
+    }
   };
 
-  const handleAddMap = (posCat: string, plat: "shopee" | "tiktok", platCat: string) => {
-    const exists = categoryMaps.findIndex(m => m.pos_category === posCat && m.platform === plat);
-    if (exists >= 0) {
-      const updated = [...categoryMaps];
-      updated[exists].platform_category = platCat;
-      setCategoryMaps(updated);
-    } else {
-      setCategoryMaps([...categoryMaps, { pos_category: posCat, platform: plat, platform_category: platCat }]);
+  const handleAddMap = async (posCat: string, plat: "shopee" | "tiktok", platCat: string) => {
+    try {
+      await addCategoryMap.mutateAsync({ posCategory: posCat, platform: plat, platformCategory: platCat });
+    } catch (err) {
+      // toast handled in hook
     }
-    toast.success("Đã cập nhật cấu hình đồng bộ ngành hàng!");
   };
 
   return (

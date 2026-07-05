@@ -34,6 +34,8 @@ const mockPermissions = {
   canCreate: vi.fn().mockReturnValue(true),
   canEdit: vi.fn().mockReturnValue(true),
   canDelete: vi.fn().mockReturnValue(true),
+  maskPhone: vi.fn().mockImplementation((phone) => phone),
+  maskName: vi.fn().mockImplementation((name) => name),
 };
 vi.mock("@/hooks/usePermissions", () => ({
   usePermissions: () => mockPermissions,
@@ -215,6 +217,7 @@ describe("Orders page - Bulk Action Bar", () => {
     vi.spyOn(window, "open").mockImplementation(mockWindowOpen);
 
     window.Element.prototype.scrollIntoView = vi.fn();
+    localStorage.setItem("erp-mini-local-demo-orders", JSON.stringify(mockOrders));
   });
 
   const setup = () => {
@@ -283,12 +286,22 @@ describe("Orders page - Bulk Action Bar", () => {
     const tagOption = await screen.findByText("Gắn thẻ");
     fireEvent.click(tagOption);
 
-    expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "Đã cập nhật thẻ",
-        description: expect.stringContaining("Đã cập nhật thẻ (tags) cho 3 đơn hàng"),
-      })
-    );
+    // Select a tag in BulkTagDialog
+    const tagBtn = await screen.findByText("Đơn gấp");
+    fireEvent.click(tagBtn);
+
+    // Click confirm in BulkTagDialog
+    const confirmTagBtn = screen.getByText("Xác nhận gắn thẻ");
+    fireEvent.click(confirmTagBtn);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Đã gắn thẻ đơn hàng",
+          description: expect.stringContaining("Đã cập nhật thành công cho 3 đơn hàng"),
+        })
+      );
+    });
 
     // Select again
     fireEvent.click(checkboxes[0]);
@@ -346,6 +359,15 @@ describe("Orders page - Bulk Action Bar", () => {
   });
 
   it("verifies printable view - Aggregated Product pick list", async () => {
+    const originalSetTimeout = window.setTimeout;
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation((cb: any, ms?: number, ...args: any[]) => {
+      if (ms === 250) {
+        cb(...args);
+        return 0 as any;
+      }
+      return originalSetTimeout(cb, ms, ...args);
+    });
+
     setup();
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[0]);
@@ -354,6 +376,10 @@ describe("Orders page - Bulk Action Bar", () => {
 
     const printProductsButton = screen.getByText("In sản phẩm");
     fireEvent.click(printProductsButton);
+
+    // Click "In danh sách" in the PrintProductsDialog
+    const printListButton = screen.getByText("In danh sách");
+    fireEvent.click(printListButton);
 
     // Should open window, write aggregated product table, and trigger print
     expect(mockWindowOpen).toHaveBeenCalledTimes(1);
@@ -365,7 +391,7 @@ describe("Orders page - Bulk Action Bar", () => {
     // Product A has sku SKU-A: ord-1 (qty 2) + ord-3 (qty 1) = 3 total quantity
     // Product B has sku SKU-B: ord-2 (qty 1) = 1 total quantity
     const writtenHtml = mockWrite.mock.calls[0][0];
-    expect(writtenHtml).toContain("DANH SÁCH TỔNG HỢP SẢN PHẨM CẦN NHẶT");
+    expect(writtenHtml).toContain("Danh sách gom sản phẩm đóng gói");
     expect(writtenHtml).toContain("SKU-A");
     expect(writtenHtml).toContain("Sản phẩm A");
     expect(writtenHtml).toContain("SKU-B");
@@ -374,6 +400,8 @@ describe("Orders page - Bulk Action Bar", () => {
     // Check that quantity 3 for SKU-A and 1 for SKU-B are rendered
     expect(writtenHtml).toContain(">3</td>");
     expect(writtenHtml).toContain(">1</td>");
+
+    setTimeoutSpy.mockRestore();
   });
 
   it("verifies printable view - Grouped Handover slips", async () => {

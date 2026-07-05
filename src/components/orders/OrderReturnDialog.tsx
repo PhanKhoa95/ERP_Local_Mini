@@ -53,8 +53,6 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
   const [shippingFee, setShippingFee] = useState("30.000");
   const [restockingFee, setRestockingFee] = useState("0"); // Phụ thu/phí trả hàng
 
-  if (!order) return null;
-
   const toggleItem = (itemId: string, maxQty: number) => {
     setSelectedItems(prev => {
       if (prev[itemId]) {
@@ -73,10 +71,10 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
   // Calculate return total
   const totalReturnAmount = useMemo(() => {
     return Object.entries(selectedItems).reduce((sum, [itemId, qty]) => {
-      const item = order.order_items?.find(i => i.id === itemId);
+      const item = order?.order_items?.find(i => i.id === itemId);
       return sum + (item ? Number(item.unit_price) * qty : 0);
     }, 0);
-  }, [selectedItems, order.order_items]);
+  }, [selectedItems, order?.order_items]);
 
   // Search products for exchange
   const filteredProducts = useMemo(() => {
@@ -123,7 +121,7 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
   const feeRestock = parseInt(restockingFee.replace(/\./g, '')) || 0;
   const feeShip = activeTab === "exchange" ? (parseInt(shippingFee.replace(/\./g, '')) || 0) : 0;
   
-  const originalOrderAmount = Number(order.total || 0);
+  const originalOrderAmount = Number(order?.total || 0);
   
   // Net cash adjustment: Total Exchange + Ship + Restock Fee - Total Return
   const netAdjustment = totalExchangeAmount + feeShip + feeRestock - totalReturnAmount;
@@ -229,6 +227,8 @@ export function OrderReturnDialog({ order, open, onOpenChange }: OrderReturnDial
       });
     }
   };
+
+  if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

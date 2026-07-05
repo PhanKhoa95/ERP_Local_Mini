@@ -51,7 +51,7 @@ echo.
 
 if not exist "node_modules\vite\" (
   echo [INFO] node_modules was not found. Installing dependencies...
-  call pnpm install
+  call npx pnpm install
 
   if errorlevel 1 (
     echo.
@@ -71,7 +71,7 @@ echo.
 echo [INFO] Khoi dong Cloudflare Tunnel o cua so moi...
 start "Cloudflare Tunnel" cmd /c npx cloudflared tunnel --url http://localhost:8017
 
-call pnpm run dev -- --host 0.0.0.0 --port 8017
+call npx pnpm run dev -- --host 0.0.0.0 --port 8017
 
 if errorlevel 1 (
   echo.

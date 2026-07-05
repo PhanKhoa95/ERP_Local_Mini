@@ -35,8 +35,10 @@ import { validateOrderPayload } from "@/lib/validation";
 import type { Tables } from "@/integrations/supabase/types";
 import { useProductVariants } from "@/hooks/useProductVariants";
 import { useWholesaleSettings } from "@/hooks/useWholesaleSettings";
+import { usePriceLists } from "@/hooks/usePriceLists";
 import { applyWholesalePricing, calculateCompositeVariantStock } from "@/lib/wholesaleControl";
 import { POSVariantSelectDialog } from "@/components/pos/POSVariantSelectDialog";
+import { useReferralSettings } from "@/hooks/useLoyalty";
 
 type Product = Tables<"products">;
 
@@ -78,6 +80,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
   const { autoSelectWarehouse, checkStockAvailability } = useWarehouseStock();
   const { members } = useCompanyMembers();
   const { toast } = useToast();
+  const { settings: referralSettings } = useReferralSettings();
 
   const [autoSendToCarrier, setAutoSendToCarrier] = useState(false);
   const [selectedCarrierId, setSelectedCarrierId] = useState("");
@@ -250,6 +253,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
   // Wholesale pricing and variants database queries
   const { settings: wholesaleSettings } = useWholesaleSettings();
   const { variants: allVariants = [] } = useProductVariants();
+  const { priceLists = [] } = usePriceLists();
 
   const { data: allComponents = [] } = useQuery({
     queryKey: ["all-product-variant-components-dialog"],
@@ -293,7 +297,8 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
       customer,
       formData.tags || [],
       wholesaleSettings,
-      allWholesalePrices
+      allWholesalePrices,
+      priceLists
     );
 
     const isChanged = updatedCart.some((item, idx) => {
@@ -322,7 +327,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
         }
       }
     }
-  }, [items, formData.partner_id, formData.tags, wholesaleSettings, allWholesalePrices]);
+  }, [items, formData.partner_id, formData.tags, wholesaleSettings, allWholesalePrices, priceLists]);
 
   // Auto-select warehouse based on order items
   const warehouseAnalysis = useMemo(() => {
@@ -572,7 +577,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
     setReferrerError("");
 
     const code = referrerCode.trim();
-    const referrer = customers.find(c => c.code === code || c.phone === code);
+    const referrer = customers.find(c => c.referral_code === code || c.code === code || c.phone === code);
 
     if (!referrer) {
       setReferrerError("Mã giới thiệu không tồn tại trong hệ thống");
@@ -601,8 +606,10 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
       return;
     }
 
+    const discountVal = referralSettings ? referralSettings.referee_discount_amount : 50000;
+
     setAppliedReferrer(referrer);
-    setReferrerDiscount(50000); // Giảm 50k
+    setReferrerDiscount(discountVal);
     setReferrerError("");
     setIsValidatingReferrer(false);
   };

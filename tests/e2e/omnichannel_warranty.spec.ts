@@ -17,9 +17,15 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await page.goto("/pos");
     await page.waitForSelector(".grid >> text=Thẻ QR");
 
-    // Add a warranty-eligible product to cart: "Thẻ QR cá nhân thông minh"
     await page.click("text=Thẻ QR cá nhân thông minh");
-    await page.waitForTimeout(500);
+    try {
+      const dialog = page.getByRole("dialog").filter({ hasText: "Chọn mẫu mã" }).first();
+      await dialog.waitFor({ state: "visible", timeout: 3000 });
+      await dialog.getByRole("button", { name: "Chọn" }).first().click();
+      await page.waitForTimeout(500);
+    } catch (e) {
+      // No variant dialog appeared
+    }
 
     // Click "+" button next to customer search input to quick add customer
     const plusBtn = page.locator('button[title="Thêm khách hàng mới"]');
@@ -46,13 +52,13 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await page.waitForSelector("text=Thêm mới");
 
     // Search for the newly auto-profiled customer
-    const searchInput = page.locator('input[placeholder="Tìm kiếm..."]').first();
+    const searchInput = page.locator('input[placeholder="Tìm kiếm..."]').last();
     await searchInput.fill("0988777666");
     await page.waitForTimeout(500);
 
-    // Verify profile is listed in table/cards
-    const card = page.locator('.hover\\:shadow-md', { hasText: 'Khách Hàng Ẩn Danh' });
-    await expect(card).toBeVisible({ timeout: 5000 });
+    // Verify profile is listed in the table
+    const row = page.locator('table tbody tr').filter({ hasText: 'Khách Hàng Ẩn Danh' }).first();
+    await expect(row).toBeVisible({ timeout: 5000 });
 
     // Step 3: Place another order in POS searching for the existing customer "0988777666"
     await page.goto("/pos");
@@ -86,8 +92,8 @@ test.describe("Omnichannel Auto-Profiling & Warranty E2E Tests", () => {
     await page.waitForTimeout(500);
 
     // Open detail dialog
-    const targetCard = page.locator('.hover\\:shadow-md', { hasText: 'Khách Hàng Ẩn Danh' });
-    await targetCard.locator('button:has-text("Chi tiết")').click();
+    const targetRow = page.locator('table tbody tr').filter({ hasText: 'Khách Hàng Ẩn Danh' }).first();
+    await targetRow.locator('button:has(svg.lucide-eye)').click();
 
     const detailDialog = page.locator('div[role="dialog"]');
     await expect(detailDialog).toBeVisible({ timeout: 5000 });

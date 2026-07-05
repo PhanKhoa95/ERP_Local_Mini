@@ -204,36 +204,110 @@ if (typeof window !== "undefined") {
     const orderItems = items || order.order_items || [];
     const orderNumber = order.order_number || order.id;
 
-    for (const item of orderItems) {
-      if (!item.product_id) continue;
-      try {
-        const bomItems = getLocalProductBom(item.product_id);
-        if (bomItems && bomItems.length > 0) {
-          for (const bomItem of bomItems) {
-            createLocalInventoryTransaction({
-              product_id: bomItem.material_id,
-              transaction_type: "out",
-              quantity: bomItem.quantity * (item.quantity || 1),
-              notes: `Trừ vật tư ${bomItem.material?.name || bomItem.material_id} cho đơn hàng ${orderNumber}`,
-            });
-          }
-        } else {
-          createLocalInventoryTransaction({
-            product_id: item.product_id,
-            transaction_type: "out",
-            quantity: item.quantity || 1,
-            notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
-          });
-        }
-      } catch (err: any) {
-        console.warn(`[EventBus-Inventory] Không thể trừ tồn kho cho ${item.product_id}:`, err);
-        throw new Error(`Inventory deduction failed for ${item.product_id}: ${err?.message}`);
-      }
-    }
+    // Backup current state for database consistency transaction rollback
+    const backupProducts = localStorage.getItem("erp-mini-local-demo-products");
+    const backupVariants = localStorage.getItem("erp-mini-local-demo-product-variants");
+    const backupTransactions = localStorage.getItem("erp-mini-local-demo-inventory-transactions");
+    const backupAuditLogs = localStorage.getItem("erp-mini-local-demo-audit-logs");
 
-    // Audit log
-    logLocalAction("EventBus: Trừ kho theo đơn hàng", "inventory_transactions", order.id,
-      null, { orderNumber, items_count: orderItems.length });
+    try {
+      for (const item of orderItems) {
+        if (!item.product_id) continue;
+        try {
+          const rawComponents = localStorage.getItem("erp-mini-local-demo-product-variant-components");
+          const components = rawComponents ? JSON.parse(rawComponents) : [];
+          const compositeComponents = item.variant_id 
+            ? components.filter((c: any) => c.parent_variant_id === item.variant_id)
+            : [];
+
+          if (compositeComponents.length > 0) {
+            const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+            const products = rawProducts ? JSON.parse(rawProducts) : [];
+            const rawVariants = localStorage.getItem("erp-mini-local-demo-product-variants");
+            const variants = rawVariants ? JSON.parse(rawVariants) : [];
+
+            for (const comp of compositeComponents) {
+              const qtyToSubtract = (item.quantity || 1) * (comp.quantity || 1);
+              const childVarIdx = variants.findIndex((v: any) => v.id === comp.child_variant_id);
+              if (childVarIdx !== -1) {
+                variants[childVarIdx].stock_quantity = Math.max(0, (variants[childVarIdx].stock_quantity || 0) - qtyToSubtract);
+                const childProdIdx = products.findIndex((p: any) => p.id === variants[childVarIdx].product_id);
+                if (childProdIdx !== -1) {
+                  products[childProdIdx].stock_quantity = Math.max(0, (products[childProdIdx].stock_quantity || 0) - qtyToSubtract);
+                }
+                
+                createLocalInventoryTransaction({
+                  product_id: variants[childVarIdx].product_id,
+                  transaction_type: "out",
+                  quantity: qtyToSubtract,
+                  notes: `Tieu hao thanh phan Combo - Don ${orderNumber}`,
+                });
+              }
+            }
+            localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(products));
+            localStorage.setItem("erp-mini-local-demo-product-variants", JSON.stringify(variants));
+          } else {
+            const bomItems = getLocalProductBom(item.product_id);
+            if (bomItems && bomItems.length > 0) {
+              for (const bomItem of bomItems) {
+                createLocalInventoryTransaction({
+                  product_id: bomItem.material_id,
+                  transaction_type: "out",
+                  quantity: bomItem.quantity * (item.quantity || 1),
+                  notes: `Trừ vật tư ${bomItem.material?.name || bomItem.material_id} cho đơn hàng ${orderNumber}`,
+                });
+              }
+            } else {
+              if (item.variant_id) {
+                const rawProducts = localStorage.getItem("erp-mini-local-demo-products");
+                const products = rawProducts ? JSON.parse(rawProducts) : [];
+                const rawVariants = localStorage.getItem("erp-mini-local-demo-product-variants");
+                const variants = rawVariants ? JSON.parse(rawVariants) : [];
+                const varIdx = variants.findIndex((v: any) => v.id === item.variant_id);
+                if (varIdx !== -1) {
+                  variants[varIdx].stock_quantity = Math.max(0, (variants[varIdx].stock_quantity || 0) - (item.quantity || 1));
+                }
+                const prodIdx = products.findIndex((p: any) => p.id === item.product_id);
+                if (prodIdx !== -1) {
+                  products[prodIdx].stock_quantity = Math.max(0, (products[prodIdx].stock_quantity || 0) - (item.quantity || 1));
+                }
+                localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(products));
+                localStorage.setItem("erp-mini-local-demo-product-variants", JSON.stringify(variants));
+              }
+              createLocalInventoryTransaction({
+                product_id: item.product_id,
+                transaction_type: "out",
+                quantity: item.quantity || 1,
+                notes: `Trừ tồn kho - Đơn hàng ${orderNumber}`,
+              });
+            }
+          }
+        } catch (err: any) {
+          console.warn(`[EventBus-Inventory] Không thể trừ tồn kho cho ${item.product_id}:`, err);
+          throw new Error(`Inventory deduction failed for ${item.product_id}: ${err?.message}`);
+        }
+      }
+
+      // Audit log
+      logLocalAction("EventBus: Trừ kho theo đơn hàng", "inventory_transactions", order.id,
+        null, { orderNumber, items_count: orderItems.length });
+    } catch (err: any) {
+      // Rollback to maintain database consistency
+      if (backupProducts !== null) localStorage.setItem("erp-mini-local-demo-products", backupProducts);
+      else localStorage.removeItem("erp-mini-local-demo-products");
+
+      if (backupVariants !== null) localStorage.setItem("erp-mini-local-demo-product-variants", backupVariants);
+      else localStorage.removeItem("erp-mini-local-demo-product-variants");
+
+      if (backupTransactions !== null) localStorage.setItem("erp-mini-local-demo-inventory-transactions", backupTransactions);
+      else localStorage.removeItem("erp-mini-local-demo-inventory-transactions");
+
+      if (backupAuditLogs !== null) localStorage.setItem("erp-mini-local-demo-audit-logs", backupAuditLogs);
+      else localStorage.removeItem("erp-mini-local-demo-audit-logs");
+
+      console.warn(`[EventBus-Inventory] Stock deduction failed, rolled back to preserve database consistency:`, err);
+      throw err;
+    }
   }, "InventoryHandler");
 
   // Helper for Accounting Store

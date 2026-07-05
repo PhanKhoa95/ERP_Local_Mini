@@ -3,7 +3,16 @@ import * as fs from "fs";
 import * as path from "path";
 
 export function getBrainPath(): string {
-  return process.env.BRAIN_PATH || "C:/Users/KHOA MEDIA/.gemini/antigravity/brain/0981d539-feb1-4def-9660-a5731a4a4b16";
+  if (process.env.BRAIN_PATH) return process.env.BRAIN_PATH;
+  
+  // Try to find the local AppData directory dynamically
+  const userProfile = process.env.USERPROFILE || process.env.HOME;
+  if (userProfile) {
+    // Current conversation ID is e572c9fa-8149-43a3-940b-5456bbfcec6a
+    return path.join(userProfile, ".gemini", "antigravity", "brain", "e572c9fa-8149-43a3-940b-5456bbfcec6a").replace(/\\/g, "/");
+  }
+  
+  return path.resolve(__dirname, "../../artifacts").replace(/\\/g, "/");
 }
 
 export function ensureDir(filePath: string) {
@@ -20,5 +29,6 @@ export async function loginLocalDemo(page: Page, role = "admin") {
     localStorage.setItem("erp-mini-local-demo-role", localRole);
   }, role);
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15000 });
+  // Accept both "Dashboard" and "Tổng quan" headings for compatibility
+  await expect(page.getByRole("heading", { name: /Dashboard|Tổng quan/ })).toBeVisible({ timeout: 15000 });
 }

@@ -89,8 +89,8 @@ export default function ProductionMaterials() {
       // NUT: total qty 604, stock 536, total cost 52,000
       // VAI: total qty 155, stock 18
       let qty = 0;
-      let cost = Number(m.cost_price || 0);
-      let stock = Number(m.stock_quantity || 0);
+      const cost = Number(m.cost_price || 0);
+      const stock = Number(m.stock_quantity || 0);
 
       if (m.sku === "CHI") {
         qty = 120;

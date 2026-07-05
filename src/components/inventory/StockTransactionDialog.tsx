@@ -118,7 +118,7 @@ export function StockTransactionDialog({
       prevItems.map((item) => {
         if (item.id === id) {
           const updated = { ...item, ...updates };
-          if (updates.hasOwnProperty("product_id")) {
+          if ("product_id" in updates) {
             updated.variant_id = ""; // Reset variant when product changes
             updated.uom_id = "";     // Reset unit conversion when product changes
             const selected = products.find((p) => p.id === updates.product_id);

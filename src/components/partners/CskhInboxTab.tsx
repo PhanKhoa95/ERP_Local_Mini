@@ -518,7 +518,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
       profiledInfo = profileNewCustomer(activeConv.customerName, messageContent);
     }
 
-    let updatedConvs = conversations.map(c => {
+    const updatedConvs = conversations.map(c => {
       if (c.id === activeConvId) {
         return {
           ...c,
@@ -551,7 +551,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
         const latestConv = JSON.parse(localStorage.getItem("erp-mini-cskh-conversations") || "[]")
           .find((c: any) => c.id === activeConvId) || activeConv;
 
-        let messagesList = [...latestConv.messages];
+        const messagesList = [...latestConv.messages];
 
         if (isComplex) {
           // Trigger Escalation Alarm
@@ -705,7 +705,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           const isFullyComplete = customerPhone && customerAddress && customerAddress !== "Chưa xác định";
 
           // Find if we already have an unfinished/draft order for this conversation
-          let existingOrderIndex = currentOrders.findIndex((o: any) => 
+          const existingOrderIndex = currentOrders.findIndex((o: any) => 
             (o.customer_phone && o.customer_phone === customerPhone) || 
             (o.customer_name === activeConv.customerName && o.notes?.includes("dang dở"))
           );
@@ -1023,7 +1023,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
 
       const isComplex = profilingResult.chatStyle.includes("Nóng vội");
 
-      let existConv = conversations.find(c => c.customerPhone === senderPhone);
+      const existConv = conversations.find(c => c.customerPhone === senderPhone);
       const newMsg: Message = {
         id: `m-web-${Date.now()}`,
         sender: "customer",
@@ -1032,7 +1032,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
         timestamp: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
       };
 
-      let currentMessages = existConv ? [...existConv.messages, newMsg] : [newMsg];
+      const currentMessages = existConv ? [...existConv.messages, newMsg] : [newMsg];
 
       if (isComplex && config.aiAutoReply) {
         const sysMsg: Message = {
@@ -1174,7 +1174,7 @@ ${enabledRAGDocs || "- Không có chính sách bổ sung nào."}
           const isFullyComplete = hasPhone && hasAddress;
 
           // Find if we already have an unfinished/draft order for this conversation
-          let existingOrderIndex = currentOrders.findIndex((o: any) => 
+          const existingOrderIndex = currentOrders.findIndex((o: any) => 
             (o.customer_phone && o.customer_phone === senderPhone) || 
             (o.customer_name === senderName && o.notes?.includes("dang dở"))
           );

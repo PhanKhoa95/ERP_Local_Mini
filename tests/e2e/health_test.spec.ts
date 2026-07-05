@@ -8,8 +8,8 @@ test("verify system health dashboard and data injection", async ({ page }) => {
   // 3. Navigate to settings
   await page.goto("/settings", { waitUntil: "domcontentloaded" });
 
-  // 4. Click health tab trigger
-  await page.locator('role=tab >> text=Sức khỏe').first().click();
+  // 4. Click 'Sức khỏe hệ thống' link in the settings index card
+  await page.click("text=Sức khỏe hệ thống");
 
   // 5. Verify the health check page elements are present
   await page.waitForSelector("text=NestJS Terminus Status");

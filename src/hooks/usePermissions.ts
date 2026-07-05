@@ -170,7 +170,11 @@ export function usePermissions() {
       if (!companyId || !user?.id) return null;
       if (isLocalDemoAuthEnabled()) {
         const members = getLocalCompanyMembers();
-        return members.find((m: any) => m.user_id === user.id) || null;
+        const activeMember = members.find((m: any) => m.user_id === user.id);
+        if (activeMember) {
+          activeMember.role = localStorage.getItem("erp-mini-local-demo-role") || "admin";
+        }
+        return activeMember || null;
       }
       const { data, error } = await supabase
         .from("company_members")
@@ -243,6 +247,48 @@ export function usePermissions() {
     return false;
   };
 
+  const hasStorePermission = (permissionKey: string): boolean => {
+    if (!userRole) return false;
+    const roleKey = userRole.toLowerCase();
+
+    if (roleKey === "admin") return true;
+
+    // 1. Resolve from department if local demo is active and member is assigned to a department
+    if (isLocalDemoAuthEnabled() && member) {
+      const rawDept = localStorage.getItem("erp-mini-local-demo-departments");
+      if (rawDept) {
+        try {
+          const depts = JSON.parse(rawDept);
+          const myDept = depts.find((d: any) => d.member_ids.includes(member.id));
+          if (myDept && myDept.store_permissions && myDept.store_permissions[permissionKey] !== undefined) {
+            return !!myDept.store_permissions[permissionKey];
+          }
+        } catch (e) {
+          console.error("Resolve store permission from department error:", e);
+        }
+      }
+
+      // 2. Resolve from personal custom permissions if not in a department
+      if (member.custom_permissions && (member.custom_permissions as any)[permissionKey] !== undefined) {
+        return !!(member.custom_permissions as any)[permissionKey];
+      }
+    }
+
+    if (customRole) {
+      const perms = customRole.permissions as any;
+      if (perms?.store_permissions && perms.store_permissions[permissionKey] !== undefined) {
+        return !!perms.store_permissions[permissionKey];
+      }
+    }
+
+    const roleMap = DEFAULT_STORE_PERMISSIONS[roleKey as keyof typeof DEFAULT_STORE_PERMISSIONS];
+    if (roleMap && (roleMap as any)[permissionKey] !== undefined) {
+      return !!(roleMap as any)[permissionKey];
+    }
+
+    return false;
+  };
+
   const hasFieldPermission = (module: string, field: string): boolean => {
     if (module === "inventory" && field === "cost_price") {
       if (!userRole) return false;
@@ -267,8 +313,57 @@ export function usePermissions() {
   const canEdit = (module: string) => hasPermission(module, "edit");
   const canDelete = (module: string) => hasPermission(module, "delete");
 
+  const getMaskingConfig = () => {
+    if (!isLocalDemoAuthEnabled() || !member) return { hidePhone: false, hideCustomerInfo: false };
+    const rawDept = localStorage.getItem("erp-mini-local-demo-departments");
+    if (rawDept) {
+      try {
+        const depts = JSON.parse(rawDept);
+        const myDept = depts.find((d: any) => d.member_ids.includes(member.id));
+        if (myDept) {
+          return {
+            hidePhone: !!myDept.hide_phone,
+            hideCustomerInfo: !!myDept.hide_customer_info
+          };
+        }
+      } catch (e) {
+        console.error("Error reading masking config:", e);
+      }
+    }
+    return { hidePhone: false, hideCustomerInfo: false };
+  };
+
+  const maskPhone = (phone: string | null | undefined): string => {
+    if (!phone) return "";
+    const config = getMaskingConfig();
+    if (!config.hidePhone) return phone;
+    if (phone.length <= 6) return "***";
+    const start = phone.substring(0, 3);
+    const end = phone.substring(phone.length - 3);
+    return `${start}***${end}`;
+  };
+
+  const maskName = (name: string | null | undefined): string => {
+    if (!name) return "";
+    const config = getMaskingConfig();
+    if (!config.hideCustomerInfo) return name;
+    const parts = name.trim().split(" ");
+    if (parts.length <= 1) return "***";
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+    return `${first} *** ${last}`;
+  };
+
+  const maskAddress = (address: string | null | undefined): string => {
+    if (!address) return "";
+    const config = getMaskingConfig();
+    if (!config.hideCustomerInfo) return address;
+    return "Địa chỉ đã ẩn";
+  };
+
   return {
     hasPermission,
+    hasStorePermission,
     hasFieldPermission,
     getUserRegion,
     canView,
@@ -277,6 +372,10 @@ export function usePermissions() {
     canDelete,
     userRole,
     userRegion,
+    maskPhone,
+    maskName,
+    maskAddress,
+    getMaskingConfig,
     isLoading: isMemberLoading || isRolesLoading,
     refetch: () => {
       refetchMember();
@@ -284,6 +383,136 @@ export function usePermissions() {
     }
   };
 }
+
+const DEFAULT_STORE_PERMISSIONS = {
+  admin: {
+    config_report_all: true,
+    config_report_margin: true,
+    config_report_commission: true,
+    config_report_financial: true,
+    config_cashflow_view: true,
+    config_cashflow_create: true,
+    config_cashflow_update: true,
+    config_store_merge: true,
+    config_store_settings: true,
+    config_staff_settings: true,
+    config_channel_settings: true,
+    config_warehouse_settings: true,
+    config_print_template: true,
+    config_notifications: true,
+    config_commission_rules: true,
+    prod_create: true,
+    prod_edit_info: true,
+    prod_edit_price: true,
+    prod_delete: true,
+    prod_stock_manage: true,
+    prod_stock_transfer: true,
+    prod_view_cost: true,
+    prod_view_collaborator_price: true,
+    prod_promo_view: true,
+    prod_promo_create: true,
+    prod_promo_update: true,
+    sales_customer_manage: true,
+    sales_order_manage: true,
+    sales_export: true,
+    sales_assign_order: true,
+    sales_assign_marketer: true,
+    sales_invoice_create: true,
+    sales_invoice_approve: true,
+    sales_push_carrier: true,
+    sales_reconciliation: true,
+    app_supplier_manage: true,
+    app_brand_manage: true,
+    app_materials_manage: true,
+    app_supplier_debt: true,
+    app_customer_debt: true,
+  },
+  manager: {
+    config_report_all: true,
+    config_report_margin: true,
+    config_report_commission: true,
+    config_report_financial: true,
+    config_cashflow_view: true,
+    config_cashflow_create: true,
+    config_cashflow_update: true,
+    config_store_merge: false,
+    config_store_settings: false,
+    config_staff_settings: false,
+    config_channel_settings: true,
+    config_warehouse_settings: true,
+    config_print_template: true,
+    config_notifications: true,
+    config_commission_rules: true,
+    prod_create: true,
+    prod_edit_info: true,
+    prod_edit_price: true,
+    prod_delete: false,
+    prod_stock_manage: true,
+    prod_stock_transfer: true,
+    prod_view_cost: true,
+    prod_view_collaborator_price: true,
+    prod_promo_view: true,
+    prod_promo_create: true,
+    prod_promo_update: true,
+    sales_customer_manage: true,
+    sales_order_manage: true,
+    sales_export: true,
+    sales_assign_order: true,
+    sales_assign_marketer: true,
+    sales_invoice_create: true,
+    sales_invoice_approve: true,
+    sales_push_carrier: true,
+    sales_reconciliation: true,
+    app_supplier_manage: true,
+    app_brand_manage: true,
+    app_materials_manage: true,
+    app_supplier_debt: true,
+    app_customer_debt: true,
+  },
+  staff: {
+    config_report_all: false,
+    config_report_margin: false,
+    config_report_commission: false,
+    config_report_financial: false,
+    config_cashflow_view: false,
+    config_cashflow_create: false,
+    config_cashflow_update: false,
+    config_store_merge: false,
+    config_store_settings: false,
+    config_staff_settings: false,
+    config_channel_settings: false,
+    config_warehouse_settings: false,
+    config_print_template: false,
+    config_notifications: false,
+    config_commission_rules: false,
+    prod_create: true,
+    prod_edit_info: true,
+    prod_edit_price: false,
+    prod_delete: false,
+    prod_stock_manage: false,
+    prod_stock_transfer: false,
+    prod_view_cost: false,
+    prod_view_collaborator_price: false,
+    prod_promo_view: true,
+    prod_promo_create: false,
+    prod_promo_update: false,
+    sales_customer_manage: true,
+    sales_order_manage: true,
+    sales_export: false,
+    sales_assign_order: false,
+    sales_assign_marketer: false,
+    sales_invoice_create: true,
+    sales_invoice_approve: false,
+    sales_push_carrier: false,
+    sales_reconciliation: false,
+    app_supplier_manage: false,
+    app_brand_manage: false,
+    app_materials_manage: false,
+    app_supplier_debt: false,
+    app_customer_debt: false,
+  }
+};
+
 
 export function getRegionFromProvince(province: string): string {
   if (!province) return "Khác";

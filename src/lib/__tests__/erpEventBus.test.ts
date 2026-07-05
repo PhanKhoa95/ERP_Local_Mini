@@ -322,4 +322,111 @@ describe("ERP Event Bus Integration Tests", () => {
     const acc131 = updatedAccounts.find((a: any) => a.code === "131");
     expect(acc131.balance).toBe(130000); // 100k + 30k
   });
+
+  it("should rollback inventory modifications if createLocalInventoryTransaction throws an error", () => {
+    // Setup initial data
+    const initialProducts = [
+      { id: "prod-rollback-1", sku: "P1", name: "Product 1", stock_quantity: 10, cost_price: 100 }
+    ];
+    const initialVariants = [
+      { id: "var-rollback-1", product_id: "prod-rollback-1", stock_quantity: 10 }
+    ];
+    localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(initialProducts));
+    localStorage.setItem("erp-mini-local-demo-product-variants", JSON.stringify(initialVariants));
+    
+    // Set mock to throw error on transaction creation
+    mockCreateLocalInventoryTransaction.mockImplementationOnce(() => {
+      throw new Error("Simulated database transaction error");
+    });
+
+    const payload = {
+      order: { id: "ord-rollback-test", total: 100000, company_id: "demo", order_number: "ORD-ROLLBACK-001" },
+      items: [
+        { product_id: "prod-rollback-1", variant_id: "var-rollback-1", quantity: 2 }
+      ]
+    };
+
+    // Publish event - it catches errors internally but rolls back the state
+    erpEventBus.publish("ORDER_CREATED", payload);
+
+    // Verify products and variants state was rolled back to initial value
+    const rolledBackProducts = JSON.parse(localStorage.getItem("erp-mini-local-demo-products")!);
+    expect(rolledBackProducts[0].stock_quantity).toBe(10);
+
+    const rolledBackVariants = JSON.parse(localStorage.getItem("erp-mini-local-demo-product-variants")!);
+    expect(rolledBackVariants[0].stock_quantity).toBe(10);
+
+    // Verify error was logged in event bus logs
+    const logs = erpEventBus.getPersistedLogs();
+    const latestLog = logs[0];
+    expect(latestLog.errors.some((e: any) => e.includes("Simulated database transaction error"))).toBe(true);
+  });
+
+  it("should rollback all preceding items if subsequent item in a multi-item order fails deduction", () => {
+    // Setup initial data
+    const initialProducts = [
+      { id: "prod-rollback-1", sku: "P1", name: "Product 1", stock_quantity: 10, cost_price: 100 },
+      { id: "prod-rollback-2", sku: "P2", name: "Product 2", stock_quantity: 5, cost_price: 200 }
+    ];
+    const initialVariants = [
+      { id: "var-rollback-1", product_id: "prod-rollback-1", stock_quantity: 10 },
+      { id: "var-rollback-2", product_id: "prod-rollback-2", stock_quantity: 5 }
+    ];
+    localStorage.setItem("erp-mini-local-demo-products", JSON.stringify(initialProducts));
+    localStorage.setItem("erp-mini-local-demo-product-variants", JSON.stringify(initialVariants));
+
+    // First item succeeds, second item throws error
+    mockCreateLocalInventoryTransaction
+      .mockImplementationOnce(() => {
+        // Success for first item
+        return {};
+      })
+      .mockImplementationOnce(() => {
+        // Error for second item
+        throw new Error("Simulated second item failure");
+      });
+
+    const payload = {
+      order: { id: "ord-multi-rollback-test", total: 150000, company_id: "demo", order_number: "ORD-ROLLBACK-002" },
+      items: [
+        { product_id: "prod-rollback-1", variant_id: "var-rollback-1", quantity: 2 },
+        { product_id: "prod-rollback-2", variant_id: "var-rollback-2", quantity: 1 }
+      ]
+    };
+
+    erpEventBus.publish("ORDER_CREATED", payload);
+
+    // Verify both products and variants rolled back
+    const rolledBackProducts = JSON.parse(localStorage.getItem("erp-mini-local-demo-products")!);
+    expect(rolledBackProducts.find((p: any) => p.id === "prod-rollback-1").stock_quantity).toBe(10);
+    expect(rolledBackProducts.find((p: any) => p.id === "prod-rollback-2").stock_quantity).toBe(5);
+
+    const rolledBackVariants = JSON.parse(localStorage.getItem("erp-mini-local-demo-product-variants")!);
+    expect(rolledBackVariants.find((v: any) => v.id === "var-rollback-1").stock_quantity).toBe(10);
+    expect(rolledBackVariants.find((v: any) => v.id === "var-rollback-2").stock_quantity).toBe(5);
+  });
+
+  it("should handle empty/null initial localStorage state and clean up correctly on rollback", () => {
+    // Make sure they are absent from localStorage
+    localStorage.removeItem("erp-mini-local-demo-products");
+    localStorage.removeItem("erp-mini-local-demo-product-variants");
+
+    mockCreateLocalInventoryTransaction.mockImplementationOnce(() => {
+      throw new Error("Simulated failure with empty DB");
+    });
+
+    const payload = {
+      order: { id: "ord-empty-rollback-test", total: 100000, company_id: "demo", order_number: "ORD-ROLLBACK-003" },
+      items: [
+        { product_id: "prod-rollback-1", variant_id: "var-rollback-1", quantity: 2 }
+      ]
+    };
+
+    erpEventBus.publish("ORDER_CREATED", payload);
+
+    // After rollback, they should remain absent/null (not "null" string or anything)
+    expect(localStorage.getItem("erp-mini-local-demo-products")).toBeNull();
+    expect(localStorage.getItem("erp-mini-local-demo-product-variants")).toBeNull();
+  });
 });
+

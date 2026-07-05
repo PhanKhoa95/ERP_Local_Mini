@@ -25,6 +25,7 @@ const AVAILABLE_SCOPES = [
 const PARTNER_TYPES = [
   { value: "sapo", label: "Sapo POS" },
   { value: "kiotviet", label: "KiotViet" },
+  { value: "mcp", label: "Trợ lý AI (MCP)" },
   { value: "custom", label: "Custom ERP" },
 ];
 
@@ -86,7 +87,18 @@ export function ApiKeyManagementPanel() {
           </div>
           <div className="grid gap-2">
             <Label>Loại đối tác</Label>
-            <Select value={partnerType} onValueChange={setPartnerType}>
+            <Select 
+              value={partnerType} 
+              onValueChange={(val) => {
+                setPartnerType(val);
+                if (val === "mcp") {
+                  setSelectedScopes(["read:orders", "read:inventory", "write:orders"]);
+                  if (!name) {
+                    setName("Pancake AI Assistant (MCP)");
+                  }
+                }
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PARTNER_TYPES.map((pt) => (

@@ -28,7 +28,7 @@ const updateItemState = (
   return items.map(item => {
     if (item.id === id) {
       const updated = { ...item, ...updates };
-      if (updates.hasOwnProperty("product_id")) {
+      if ("product_id" in updates) {
         updated.variant_id = ""; // Reset variant when product changes
         const selected = mockProducts.find((p) => p.id === updates.product_id);
         if (selected) {

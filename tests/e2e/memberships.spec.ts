@@ -8,7 +8,28 @@ test("verify membership card issuance, prepaid wallet deposit, and dynamic POS i
 
   await loginLocalDemo(page);
 
-  // 1. Navigate to Memberships & Wallet Page
+  // 1. Create a unique new customer first to guarantee they are available for membership card mapping
+  console.log("Creating unique customer on Partners page...");
+  await page.goto("/partners", { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(2000);
+  
+  // Make sure we are on the Khách hàng tab
+  await page.locator("button:has-text('Khách hàng')").first().click();
+  await page.waitForTimeout(500);
+  
+  // Click Thêm mới
+  await page.getByRole("button", { name: "Thêm mới" }).first().click();
+  await page.waitForTimeout(500);
+  
+  const uniqueId = Date.now();
+  const customerName = `Member Customer ${uniqueId}`;
+  await page.locator("#code").fill(`KH-${uniqueId}`);
+  await page.locator("#name").fill(customerName);
+  await page.locator("#phone").fill("09" + String(uniqueId).slice(-8));
+  await page.locator("form button[type='submit']").click();
+  await page.waitForTimeout(1500);
+
+  // 1.5. Navigate to Memberships & Wallet Page
   console.log("Navigating to Memberships & Wallet page...");
   await page.goto("/memberships", { waitUntil: "domcontentloaded" });
 
@@ -29,8 +50,8 @@ test("verify membership card issuance, prepaid wallet deposit, and dynamic POS i
 
   // Select customer
   await dialog.locator("button:has-text('Chọn khách hàng...')").click();
-  // Select first available customer
-  await page.locator("role=option").first().click();
+  // Select the newly created customer
+  await page.locator(`role=option >> text=${customerName}`).first().click();
 
   // Pick Gold tier
   await dialog.locator("button:has-text('Đồng (Bronze)')").click();

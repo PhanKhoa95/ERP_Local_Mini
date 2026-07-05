@@ -14,6 +14,340 @@ export type Database = {
   }
   public: {
     Tables: {
+      payment_settings: {
+        Row: {
+          id: string
+          company_id: string | null
+          bank_name: string | null
+          account_number: string | null
+          account_holder: string | null
+          branch: string | null
+          qr_type: string
+          attach_qr_to_message: boolean
+          allowed_staff_ids: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          bank_name?: string | null
+          account_number?: string | null
+          account_holder?: string | null
+          branch?: string | null
+          qr_type?: string
+          attach_qr_to_message?: boolean
+          allowed_staff_ids?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          bank_name?: string | null
+          account_number?: string | null
+          account_holder?: string | null
+          branch?: string | null
+          qr_type?: string
+          attach_qr_to_message?: boolean
+          allowed_staff_ids?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      platform_category_mappings: {
+        Row: {
+          id: string
+          company_id: string | null
+          pos_category: string
+          platform: string
+          platform_category: string
+          size_chart_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          pos_category: string
+          platform: string
+          platform_category: string
+          size_chart_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          pos_category?: string
+          platform?: string
+          platform_category?: string
+          size_chart_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_category_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      platform_push_logs: {
+        Row: {
+          id: string
+          company_id: string | null
+          product_id: string | null
+          product_name: string
+          product_sku: string
+          platform: string
+          status: string
+          error_msg: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          product_id?: string | null
+          product_name: string
+          product_sku: string
+          platform: string
+          status: string
+          error_msg?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          product_id?: string | null
+          product_name?: string
+          product_sku?: string
+          platform?: string
+          status?: string
+          error_msg?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_push_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_push_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      product_reviews: {
+        Row: {
+          id: string
+          company_id: string | null
+          platform: string
+          customer_name: string
+          customer_phone: string | null
+          rating: number
+          comment: string
+          reply_content: string | null
+          product_name: string
+          product_sku: string
+          product_image: string | null
+          order_number: string
+          images: string[] | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          platform: string
+          customer_name: string
+          customer_phone?: string | null
+          rating: number
+          comment: string
+          reply_content?: string | null
+          product_name: string
+          product_sku: string
+          product_image?: string | null
+          order_number: string
+          images?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          platform?: string
+          customer_name?: string
+          customer_phone?: string | null
+          rating?: number
+          comment?: string
+          reply_content?: string | null
+          product_name?: string
+          product_sku?: string
+          product_image?: string | null
+          order_number?: string
+          images?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      loyalty_settings: {
+        Row: {
+          id: string
+          company_id: string
+          is_enabled: boolean
+          point_ratio_money: number
+          point_ratio_points: number
+          redeem_ratio_points: number
+          redeem_ratio_money: number
+          no_point_discounted: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          is_enabled?: boolean
+          point_ratio_money?: number
+          point_ratio_points?: number
+          redeem_ratio_points?: number
+          redeem_ratio_money?: number
+          no_point_discounted?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          is_enabled?: boolean
+          point_ratio_money?: number
+          point_ratio_points?: number
+          redeem_ratio_points?: number
+          redeem_ratio_money?: number
+          no_point_discounted?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      referral_settings: {
+        Row: {
+          id: string
+          company_id: string
+          referrer_reward_points: number
+          referee_discount_amount: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          referrer_reward_points?: number
+          referee_discount_amount?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          referrer_reward_points?: number
+          referee_discount_amount?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      loyalty_transactions: {
+        Row: {
+          id: string
+          partner_id: string
+          order_id: string | null
+          points: number
+          transaction_type: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          partner_id: string
+          order_id?: string | null
+          points: number
+          transaction_type: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          partner_id?: string
+          order_id?: string | null
+          points?: number
+          transaction_type?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       product_variant_components: {
         Row: {
           id: string
@@ -3165,6 +3499,9 @@ export type Database = {
           assigned_to_name: string | null
           marketer_name: string | null
           print_count: number | null
+          points_earned: number | null
+          points_used: number | null
+          referral_discount: number | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -3222,6 +3559,9 @@ export type Database = {
           assigned_to_name?: string | null
           marketer_name?: string | null
           print_count?: number | null
+          points_earned?: number | null
+          points_used?: number | null
+          referral_discount?: number | null
         }
         Update: {
           cancelled_at?: string | null
@@ -3279,6 +3619,9 @@ export type Database = {
           assigned_to_name?: string | null
           marketer_name?: string | null
           print_count?: number | null
+          points_earned?: number | null
+          points_used?: number | null
+          referral_discount?: number | null
         }
         Relationships: [
           {
@@ -3345,6 +3688,8 @@ export type Database = {
           total_spent: number | null
           tags: string[] | null
           updated_at: string
+          referral_code: string | null
+          referred_by_id: string | null
         }
         Insert: {
           address?: string | null
@@ -3366,6 +3711,8 @@ export type Database = {
           tags?: string[] | null
           tags?: string[] | null
           updated_at?: string
+          referral_code?: string | null
+          referred_by_id?: string | null
         }
         Update: {
           address?: string | null
@@ -3387,6 +3734,8 @@ export type Database = {
           tags?: string[] | null
           tags?: string[] | null
           updated_at?: string
+          referral_code?: string | null
+          referred_by_id?: string | null
         }
         Relationships: [
           {
@@ -7174,6 +7523,68 @@ export type Database = {
           },
         ]
       }
+      warehouse_permissions: {
+        Row: {
+          id: string
+          company_id: string | null
+          user_id: string | null
+          role_id: string | null
+          warehouse_id: string | null
+          permissions: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id?: string | null
+          user_id?: string | null
+          role_id?: string | null
+          warehouse_id?: string | null
+          permissions?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string | null
+          user_id?: string | null
+          role_id?: string | null
+          warehouse_id?: string | null
+          permissions?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_permissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "custom_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_permissions_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       warehouse_stock: {
         Row: {
           created_at: string
@@ -7232,6 +7643,7 @@ export type Database = {
           name: string
           phone: string | null
           updated_at: string
+          allow_ordering: boolean
         }
         Insert: {
           address?: string | null
@@ -7245,6 +7657,7 @@ export type Database = {
           name: string
           phone?: string | null
           updated_at?: string
+          allow_ordering?: boolean
         }
         Update: {
           address?: string | null
@@ -7258,6 +7671,7 @@ export type Database = {
           name?: string
           phone?: string | null
           updated_at?: string
+          allow_ordering?: boolean
         }
         Relationships: [
           {

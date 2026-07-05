@@ -5,18 +5,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usePartnerDetail } from "@/hooks/usePartnerDetail";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useSalesPolicies, SEGMENT_COLORS, type PolicySegment } from "@/hooks/useSalesPolicies";
 import { useMemberships } from "@/hooks/useMemberships";
+import { useLoyaltyTransactions } from "@/hooks/useLoyalty";
+import { useToast } from "@/hooks/use-toast";
 import {
   User, ShoppingCart, CreditCard, Package, MessageSquare,
   Plus, Phone, Mail, MapPin, Star, Loader2, Check, Clock,
-  Trash2, Calendar, FileText, Sparkles, ShieldCheck, ShieldAlert
+  Trash2, Calendar, FileText, Sparkles, ShieldCheck, ShieldAlert,
+  Award, Copy, Share2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -69,6 +73,35 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
     if (!partner?.id) return [];
     return memberships.filter(m => m.partner_id === partner.id);
   }, [memberships, partner?.id]);
+
+  const { toast } = useToast();
+  const { transactions: loyaltyTxs = [], adjustPoints } = useLoyaltyTransactions(partner?.id);
+  const [adjPoints, setAdjPoints] = useState("");
+  const [adjNotes, setAdjNotes] = useState("");
+  const [isAdjusting, setIsAdjusting] = useState(false);
+
+  const handleAdjustPoints = async () => {
+    if (!partner?.id) return;
+    const pts = parseInt(adjPoints);
+    if (isNaN(pts)) {
+      toast({ title: "Lỗi", description: "Vui lòng nhập số điểm hợp lệ.", variant: "destructive" });
+      return;
+    }
+    if (!adjNotes.trim()) {
+      toast({ title: "Lỗi", description: "Vui lòng nhập lý do điều chỉnh.", variant: "destructive" });
+      return;
+    }
+    setIsAdjusting(true);
+    try {
+      await adjustPoints({ partnerId: partner.id, points: pts, notes: adjNotes });
+      setAdjPoints("");
+      setAdjNotes("");
+    } catch (e) {
+      // handled by mutation onError
+    } finally {
+      setIsAdjusting(false);
+    }
+  };
 
   const [noteContent, setNoteContent] = useState("");
   const [noteType, setNoteType] = useState("general");
@@ -213,7 +246,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
           </div>
         ) : (
           <Tabs defaultValue="overview" className="mt-4">
-            <TabsList className="w-full grid grid-cols-7">
+            <TabsList className="w-full grid grid-cols-8">
               <TabsTrigger value="overview" className="gap-1 text-xs sm:text-sm"><User className="h-4 w-4" /><span className="hidden sm:inline">Tổng quan</span></TabsTrigger>
               <TabsTrigger value="behavior" className="gap-1 text-xs sm:text-sm"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Hành vi & Phân tích</span></TabsTrigger>
               <TabsTrigger value="orders" className="gap-1 text-xs sm:text-sm"><ShoppingCart className="h-4 w-4" /><span className="hidden sm:inline">Đơn hàng</span></TabsTrigger>
@@ -221,6 +254,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
               <TabsTrigger value="products" className="gap-1 text-xs sm:text-sm"><Package className="h-4 w-4" /><span className="hidden sm:inline">Sản phẩm</span></TabsTrigger>
               <TabsTrigger value="warranty" className="gap-1 text-xs sm:text-sm"><ShieldCheck className="h-4 w-4" /><span className="hidden sm:inline">Bảo hành & CS</span></TabsTrigger>
               <TabsTrigger value="notes" className="gap-1 text-xs sm:text-sm"><MessageSquare className="h-4 w-4" /><span className="hidden sm:inline">CSKH</span></TabsTrigger>
+              <TabsTrigger value="loyalty" className="gap-1 text-xs sm:text-sm"><Award className="h-4 w-4" /><span className="hidden sm:inline">Tích điểm</span></TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
@@ -269,6 +303,26 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                         </div>
                       )}
                       {partner.notes && <div className="text-sm text-muted-foreground mt-2 p-3 bg-muted rounded-md">{partner.notes}</div>}
+                      <div className="flex items-center justify-between text-sm pt-2 border-t mt-2">
+                        <span className="flex items-center gap-2">
+                          <Share2 className="h-4 w-4 text-indigo-500" />
+                          <strong>Mã giới thiệu:</strong> 
+                          <code className="bg-muted px-1.5 py-0.5 rounded text-xs select-all font-mono">
+                            {partner.referral_code || `REF-${partner.code || partner.id.slice(0, 8)}`}
+                          </code>
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 cursor-pointer" 
+                          onClick={() => {
+                            navigator.clipboard.writeText(partner.referral_code || `REF-${partner.code || partner.id.slice(0, 8)}`);
+                            toast({ title: "Đã sao chép", description: "Mã giới thiệu đã được copy vào bộ nhớ tạm." });
+                          }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -842,6 +896,114 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                   })}
                 </div>
               )}
+            </TabsContent>
+
+            {/* Loyalty Points Tab */}
+            <TabsContent value="loyalty" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Adjust Points Form */}
+                <Card className="md:col-span-1 border border-border">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-semibold">Điều chỉnh điểm thưởng</CardTitle>
+                    <CardDescription className="text-xs">Cộng hoặc trừ điểm thủ công cho khách hàng</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="adjust-points-input" className="text-xs">Số điểm (Dùng số âm để trừ):</Label>
+                      <Input 
+                        id="adjust-points-input"
+                        type="number"
+                        placeholder="Ví dụ: 50 hoặc -20"
+                        value={adjPoints}
+                        onChange={(e) => setAdjPoints(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="adjust-points-notes" className="text-xs">Lý do điều chỉnh:</Label>
+                      <Input 
+                        id="adjust-points-notes"
+                        type="text"
+                        placeholder="Nhập lý do..."
+                        value={adjNotes}
+                        onChange={(e) => setAdjNotes(e.target.value)}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleAdjustPoints} 
+                      disabled={isAdjusting}
+                      className="w-full h-9 text-xs bg-amber-600 hover:bg-amber-700 cursor-pointer"
+                    >
+                      {isAdjusting ? "Đang điều chỉnh..." : "Xác nhận điều chỉnh"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Point History Log */}
+                <Card className="md:col-span-2 border border-border">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-semibold">Lịch sử tích điểm</CardTitle>
+                    <CardDescription className="text-xs">Chi tiết các lần cộng/trừ điểm thưởng</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0 px-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Thời gian</TableHead>
+                          <TableHead className="text-xs">Nghiệp vụ</TableHead>
+                          <TableHead className="text-xs text-center">Số điểm</TableHead>
+                          <TableHead className="text-xs">Ghi chú</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loyaltyTxs.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-6 text-xs text-muted-foreground">
+                              Chưa có lịch sử giao dịch điểm.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          loyaltyTxs.map((tx: any) => (
+                            <TableRow key={tx.id} className="text-xs">
+                              <TableCell className="py-2.5">
+                                {new Date(tx.created_at).toLocaleString("vi-VN", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </TableCell>
+                              <TableCell className="py-2.5">
+                                <Badge variant="secondary" className="text-[9px]">
+                                  {tx.transaction_type === "earn" ? "Tích lũy" :
+                                   tx.transaction_type === "redeem" ? "Tiêu điểm" :
+                                   tx.transaction_type === "refund" ? "Hoàn điểm" : "Điều chỉnh"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className={cn(
+                                "py-2.5 text-center font-bold text-xs",
+                                tx.points >= 0 ? "text-green-600" : "text-red-500"
+                              )}>
+                                {tx.points >= 0 ? `+${tx.points}` : tx.points}
+                              </TableCell>
+                              <TableCell className="py-2.5 max-w-[200px] truncate" title={tx.notes || ""}>
+                                {tx.notes || ""}
+                                {tx.order_number && (
+                                  <span className="text-[10px] text-muted-foreground block">
+                                    Đơn: {tx.order_number}
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
         )}

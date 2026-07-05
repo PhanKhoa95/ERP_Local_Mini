@@ -319,7 +319,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                           <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=closed]>&]:rotate-[-90deg]" />
                         </CollapsibleTrigger>
                         <CollapsibleContent className="space-y-0.5 mt-1 pl-4 border-l ml-5 border-sidebar-border">
-                          {item.subItems!.map((sub) => {
+                          {filterItems(item.subItems!).map((sub) => {
                             // Parse sub.path into pathname and search parts
                             const [subPath, subSearch] = sub.path.split('?');
                             const currentFullPath = location.pathname + location.search;

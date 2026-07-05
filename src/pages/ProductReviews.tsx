@@ -11,22 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Star, MessageSquare, AlertCircle, Sparkles, Send, Check, Search, Trash2, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-interface ProductReview {
-  id: string;
-  platform: "shopee" | "lazada" | "tiktok";
-  customer_name: string;
-  customer_phone?: string;
-  rating: number;
-  comment: string;
-  reply_content: string | null;
-  product_name: string;
-  product_sku: string;
-  product_image?: string;
-  order_number: string;
-  created_at: string;
-  images?: string[];
-}
+import { useProductReviews, type ProductReview } from "@/hooks/useProductReviews";
 
 const SEED_REVIEWS: ProductReview[] = [
   {
@@ -113,7 +98,7 @@ const QUICK_TEMPLATES = [
 ];
 
 export default function ProductReviews() {
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const { reviews, replyReview, deleteReview } = useProductReviews();
   const [selectedReview, setSelectedReview] = useState<ProductReview | null>(null);
   
   // Filters state
@@ -124,25 +109,14 @@ export default function ProductReviews() {
   
   // Reply text
   const [replyText, setReplyText] = useState("");
-  const [isReplying, setIsReplying] = useState(false);
 
+  // Select the first review when list loads
   useEffect(() => {
-    const raw = localStorage.getItem("erp-mini-local-demo-reviews");
-    if (!raw) {
-      localStorage.setItem("erp-mini-local-demo-reviews", JSON.stringify(SEED_REVIEWS));
-      setReviews(SEED_REVIEWS);
-      if (SEED_REVIEWS.length > 0) setSelectedReview(SEED_REVIEWS[0]);
-    } else {
-      const parsed = JSON.parse(raw) as ProductReview[];
-      setReviews(parsed);
-      if (parsed.length > 0) setSelectedReview(parsed[0]);
+    if (reviews.length > 0 && !selectedReview) {
+      setSelectedReview(reviews[0]);
+      setReplyText(reviews[0].reply_content || "");
     }
-  }, []);
-
-  const saveReviews = (newList: ProductReview[]) => {
-    localStorage.setItem("erp-mini-local-demo-reviews", JSON.stringify(newList));
-    setReviews(newList);
-  };
+  }, [reviews, selectedReview]);
 
   // Filter reviews
   const filteredReviews = reviews.filter(r => {
@@ -168,25 +142,19 @@ export default function ProductReviews() {
     setReplyText(review.reply_content || "");
   };
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
     if (!selectedReview) return;
     if (!replyText.trim()) {
       toast.error("Vui lòng nhập nội dung phản hồi");
       return;
     }
 
-    setIsReplying(true);
-    const updated = reviews.map(r => {
-      if (r.id === selectedReview.id) {
-        return { ...r, reply_content: replyText.trim() };
-      }
-      return r;
-    });
-
-    saveReviews(updated);
-    setSelectedReview({ ...selectedReview, reply_content: replyText.trim() });
-    setIsReplying(false);
-    toast.success("Đã đăng phản hồi khách hàng thành công!");
+    try {
+      await replyReview.mutateAsync({ id: selectedReview.id, replyContent: replyText.trim() });
+      setSelectedReview({ ...selectedReview, reply_content: replyText.trim() });
+    } catch (err) {
+      // toast is handled inside the hook
+    }
   };
 
   const handleGenerateAIReply = () => {
@@ -483,7 +451,7 @@ export default function ProductReviews() {
                 <div className="border-t p-3 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-2 rounded-b-xl">
                   <Button
                     type="button"
-                    disabled={isReplying}
+                    disabled={replyReview.isPending}
                     onClick={handleSendReply}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-9 text-xs flex items-center gap-1 px-4 cursor-pointer"
                   >

@@ -15,7 +15,7 @@ import { useSalesChannels } from "@/hooks/useSalesChannels";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
-import { User, Store, Shield, Loader2, Plus, Pencil, Trash2, CreditCard, Ticket, Truck, Users, History, FolderOpen, Mail, Bot, Building2, UsersRound, Link2, HardDrive, ShieldCheck, Activity, Tags, Zap, Award, ArrowLeft, MessageSquare, Facebook, ShoppingBag, Percent, Printer } from "lucide-react";
+import { User, Store, Shield, Loader2, Plus, Pencil, Trash2, CreditCard, Ticket, Truck, Users, History, FolderOpen, Mail, Bot, Building2, UsersRound, Link2, HardDrive, ShieldCheck, Activity, Tags, Zap, Award, ArrowLeft, MessageSquare, Facebook, ShoppingBag, Percent, Printer, Coins, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { usePlatformSync } from "@/hooks/usePlatformSync";
 import { BankSettingsTab } from "@/components/settings/BankSettingsTab";
@@ -448,6 +448,10 @@ const Settings = () => {
               <MessageSquare className="h-4 w-4 text-indigo-500" />
               <span className="hidden sm:inline">Cấu hình CSKH</span>
             </TabsTrigger>
+            <TabsTrigger value="auto_messages" className="gap-2">
+              <MessageSquare className="h-4 w-4 text-blue-500" />
+              <span className="hidden sm:inline">Tin nhắn tự động</span>
+            </TabsTrigger>
             <TabsTrigger value="lark" className="gap-2">
               <Zap className="h-4 w-4 text-emerald-500 animate-pulse" />
               <span className="hidden sm:inline">Đồng bộ Lark Suite</span>
@@ -487,6 +491,10 @@ const Settings = () => {
             <TabsTrigger value="wholesale" className="gap-2">
               <Percent className="h-4 w-4" />
               <span className="hidden sm:inline">Bán sỉ</span>
+            </TabsTrigger>
+            <TabsTrigger value="commissions" className="gap-2">
+              <Coins className="h-4 w-4 text-amber-500" />
+              <span className="hidden sm:inline">Hoa hồng</span>
             </TabsTrigger>
             <TabsTrigger value="print_template" className="gap-2">
               <Printer className="h-4 w-4" />
@@ -548,6 +556,12 @@ const Settings = () => {
               <TabsTrigger value="event_bus" className="gap-2">
                 <Zap className="h-4 w-4 text-warning" />
                 <span className="hidden sm:inline">Event Bus</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="event_sync" className="gap-2">
+                <RefreshCw className="h-4 w-4 text-emerald-500" />
+                <span className="hidden sm:inline">Đồng bộ sự kiện</span>
               </TabsTrigger>
             )}
           </TabsList>
