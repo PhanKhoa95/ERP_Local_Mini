@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import { CashVoucherTab } from "@/components/finance/CashVoucherTab";
+import { FintabIntegration } from "@/components/finance/FintabIntegration";
 
 const TYPE_LABELS: Record<string, string> = {
   asset: "Tài sản", liability: "Nợ phải trả", equity: "Vốn chủ sở hữu",
@@ -465,6 +466,7 @@ export default function Accounting() {
             <TabsTrigger value="journal"><FileText className="h-4 w-4 mr-1" />Bút toán</TabsTrigger>
             <TabsTrigger value="balance"><PieChart className="h-4 w-4 mr-1" />Bảng CĐKT</TabsTrigger>
             <TabsTrigger value="pnl"><TrendingUp className="h-4 w-4 mr-1" />P&L</TabsTrigger>
+            <TabsTrigger value="fintab"><RefreshCw className="h-4 w-4 mr-1" />Pancake Fintab</TabsTrigger>
           </TabsList>
 
           <TabsContent value="ledger">
@@ -697,6 +699,9 @@ export default function Accounting() {
           </TabsContent>
           <TabsContent value="cash_vouchers">
             <CashVoucherTab />
+          </TabsContent>
+          <TabsContent value="fintab">
+            <FintabIntegration />
           </TabsContent>
         </Tabs>
       </div>
