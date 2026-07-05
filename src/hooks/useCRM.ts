@@ -367,6 +367,44 @@ export function useCRM() {
     }
   });
 
+  const mergeLeads = useMutation({
+    mutationFn: async ({ mainLeadId, duplicateLeadIds }: { mainLeadId: string; duplicateLeadIds: string[] }) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isDemo) {
+        const local = getLocal(LEADS_KEY, seedLeads(companyId));
+        const mainIdx = local.findIndex(l => l.id === mainLeadId);
+        if (mainIdx === -1) throw new Error("Không tìm thấy Lead chính");
+
+        const duplicates = local.filter(l => duplicateLeadIds.includes(l.id));
+
+        // Merge notes
+        let mergedNotes = local[mainIdx].notes || "";
+        duplicates.forEach(dup => {
+          if (dup.notes) {
+            mergedNotes += `\n[Gộp từ Lead trùng]: ${dup.notes}`;
+          }
+        });
+        local[mainIdx].notes = mergedNotes;
+
+        // Remove duplicates
+        const updated = local.filter(l => l.id === mainLeadId || !duplicateLeadIds.includes(l.id));
+        saveLocal(LEADS_KEY, updated);
+        return local[mainIdx];
+      } else {
+        const { error } = await supabase
+          .from("crm_leads" as any)
+          .delete()
+          .in("id", duplicateLeadIds);
+        if (error) throw error;
+        return { id: mainLeadId };
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_leads"] });
+      toast({ title: "Gộp các Lead trùng lặp thành công!" });
+    }
+  });
+
   const updateLeadStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: CRMLead["status"] }) => {
       if (isDemo) {
@@ -1320,6 +1358,7 @@ export function useCRM() {
     createLead,
     updateLeadStatus,
     convertLeadToPartner,
+    mergeLeads,
 
     // Deals
     deals: dealsQuery.data || [],

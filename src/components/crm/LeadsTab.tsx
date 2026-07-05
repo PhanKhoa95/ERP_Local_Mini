@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Users, UserPlus, Phone, Mail, FileText, CheckCircle2, ListFilter } from "lucide-react";
+import { Plus, Users, UserPlus, Phone, Mail, FileText, CheckCircle2, ListFilter, AlertTriangle } from "lucide-react";
 import { CustomFieldsDialog } from "./CustomFieldsDialog";
 
 interface LeadsTabProps {
@@ -15,6 +15,7 @@ interface LeadsTabProps {
   createLead: any;
   updateLeadStatus: any;
   convertLeadToPartner: any;
+  mergeLeads: any;
   customFields: any[];
   customFieldValues: any[];
   saveCustomFieldValues: any;
@@ -47,6 +48,7 @@ export function LeadsTab({
   createLead,
   updateLeadStatus,
   convertLeadToPartner,
+  mergeLeads,
   customFields,
   customFieldValues,
   saveCustomFieldValues,
@@ -54,6 +56,7 @@ export function LeadsTab({
 }: LeadsTabProps) {
   const [open, setOpen] = useState(false);
   const [openFieldsConfig, setOpenFieldsConfig] = useState(false);
+  const [openMerge, setOpenMerge] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -65,6 +68,13 @@ export function LeadsTab({
 
   // Dynamic custom fields form state
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, string>>({});
+
+  // Merge Duplicates Form State
+  const [mergeState, setMergeState] = useState<{
+    phoneOrEmail: string;
+    duplicates: any[];
+    mainLeadId: string;
+  }>({ phoneOrEmail: "", duplicates: [], mainLeadId: "" });
 
   const handleCustomFieldChange = (fieldId: string, val: string) => {
     setCustomFieldsData((prev) => ({ ...prev, [fieldId]: val }));
@@ -104,6 +114,39 @@ export function LeadsTab({
       phone: lead.phone,
       email: lead.email
     });
+  };
+
+  // Find duplicates
+  const detectDuplicates = (l: any) => {
+    if (l.status === "converted") return [];
+    if (!l.phone && !l.email) return [];
+    return leads.filter(other => 
+      other.id !== l.id && 
+      other.status !== "converted" &&
+      ((l.phone && other.phone === l.phone) || (l.email && other.email === l.email))
+    );
+  };
+
+  const handleTriggerMerge = (lead: any, dups: any[]) => {
+    const allDups = [lead, ...dups];
+    setMergeState({
+      phoneOrEmail: lead.phone || lead.email || "",
+      duplicates: allDups,
+      mainLeadId: lead.id
+    });
+    setOpenMerge(true);
+  };
+
+  const handleMergeSubmit = async () => {
+    const duplicateIds = mergeState.duplicates
+      .map(d => d.id)
+      .filter(id => id !== mergeState.mainLeadId);
+    
+    await mergeLeads.mutateAsync({
+      mainLeadId: mergeState.mainLeadId,
+      duplicateLeadIds: duplicateIds
+    });
+    setOpenMerge(false);
   };
 
   return (
@@ -152,85 +195,100 @@ export function LeadsTab({
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} className="border-b hover:bg-secondary/15 transition-colors">
-                  <td className="p-3 font-bold text-foreground">{lead.name}</td>
-                  <td className="p-3 space-y-1">
-                    {lead.phone && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Phone className="h-3 w-3 text-indigo-500" /> {lead.phone}
-                      </div>
-                    )}
-                    {lead.email && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <Mail className="h-3 w-3 text-emerald-500" /> {lead.email}
-                      </div>
-                    )}
-                    {!lead.phone && !lead.email && <span className="text-[10px] italic text-muted-foreground">Chưa có liên hệ</span>}
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="outline" className="text-[9px] px-2 py-0 border-none font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      {sourceLabels[lead.source] || lead.source}
-                    </Badge>
-                  </td>
-
-                  {/* Dynamically render values for custom fields */}
-                  {customFields.map((f) => {
-                    const matchedVal = customFieldValues.find(
-                      (v) => v.entity_id === lead.id && v.field_id === f.id
-                    );
-                    return (
-                      <td key={f.id} className="p-3 font-semibold text-foreground">
-                        {matchedVal ? matchedVal.value : "-"}
-                      </td>
-                    );
-                  })}
-
-                  <td className="p-3 max-w-[200px] truncate text-[11px] italic text-muted-foreground">
-                    {lead.notes || "-"}
-                  </td>
-                  <td className="p-3">
-                    <Badge variant="outline" className={`text-[9px] px-2 py-0 border-none font-bold rounded-full ${statusColors[lead.status]}`}>
-                      {statusLabels[lead.status] || lead.status}
-                    </Badge>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {lead.status !== "converted" && (
-                        <>
-                          <Select
-                            value={lead.status}
-                            onValueChange={(val) => updateLeadStatus.mutateAsync({ id: lead.id, status: val })}
-                          >
-                            <SelectTrigger className="h-7 w-28 text-[10px] bg-background">
-                              <SelectValue placeholder="Đổi trạng thái" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-popover text-foreground text-[10px]">
-                              <SelectItem value="new">Mới tạo</SelectItem>
-                              <SelectItem value="contacting">Đang liên hệ</SelectItem>
-                              <SelectItem value="unqualified">Không tiềm năng</SelectItem>
-                            </SelectContent>
-                          </Select>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleConvert(lead)}
-                            className="h-7 text-[10px] font-semibold text-green-600 border-green-200 hover:bg-green-50 flex items-center gap-1"
-                          >
-                            <UserPlus className="h-3 w-3" /> Chuyển KH chính thức
-                          </Button>
-                        </>
-                      )}
-                      {lead.status === "converted" && (
-                        <div className="text-[10px] text-green-700 font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-md border border-green-200">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Đã thành khách hàng
+              {leads.map((lead) => {
+                const dups = detectDuplicates(lead);
+                return (
+                  <tr key={lead.id} className="border-b hover:bg-secondary/15 transition-colors">
+                    <td className="p-3 font-bold text-foreground">{lead.name}</td>
+                    <td className="p-3 space-y-1">
+                      {lead.phone && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Phone className="h-3 w-3 text-indigo-500" /> {lead.phone}
                         </div>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      {lead.email && (
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Mail className="h-3 w-3 text-emerald-500" /> {lead.email}
+                        </div>
+                      )}
+                      {!lead.phone && !lead.email && <span className="text-[10px] italic text-muted-foreground">Chưa có liên hệ</span>}
+                      
+                      {/* Render duplicate badge button if found */}
+                      {dups.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleTriggerMerge(lead, dups)}
+                          className="h-5 text-[8px] font-bold border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 px-1.5 flex items-center gap-1 mt-1"
+                        >
+                          <AlertTriangle className="h-2.5 w-2.5" /> Trùng ({dups.length})
+                        </Button>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="outline" className="text-[9px] px-2 py-0 border-none font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        {sourceLabels[lead.source] || lead.source}
+                      </Badge>
+                    </td>
+
+                    {/* Dynamically render values for custom fields */}
+                    {customFields.map((f) => {
+                      const matchedVal = customFieldValues.find(
+                        (v) => v.entity_id === lead.id && v.field_id === f.id
+                      );
+                      return (
+                        <td key={f.id} className="p-3 font-semibold text-foreground">
+                          {matchedVal ? matchedVal.value : "-"}
+                        </td>
+                      );
+                    })}
+
+                    <td className="p-3 max-w-[200px] truncate text-[11px] italic text-muted-foreground">
+                      {lead.notes || "-"}
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="outline" className={`text-[9px] px-2 py-0 border-none font-bold rounded-full ${statusColors[lead.status]}`}>
+                        {statusLabels[lead.status] || lead.status}
+                      </Badge>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {lead.status !== "converted" && (
+                          <>
+                            <Select
+                              value={lead.status}
+                              onValueChange={(val) => updateLeadStatus.mutateAsync({ id: lead.id, status: val })}
+                            >
+                              <SelectTrigger className="h-7 w-28 text-[10px] bg-background">
+                                <SelectValue placeholder="Đổi trạng thái" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-popover text-foreground text-[10px]">
+                                <SelectItem value="new">Mới tạo</SelectItem>
+                                <SelectItem value="contacting">Đang liên hệ</SelectItem>
+                                <SelectItem value="unqualified">Không tiềm năng</SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleConvert(lead)}
+                              className="h-7 text-[10px] font-semibold text-green-600 border-green-200 hover:bg-green-50 flex items-center gap-1"
+                            >
+                              <UserPlus className="h-3 w-3" /> Chuyển KH chính thức
+                            </Button>
+                          </>
+                        )}
+                        {lead.status === "converted" && (
+                          <div className="text-[10px] text-green-700 font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded-md border border-green-200">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Đã thành khách hàng
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {leads.length === 0 && (
                 <tr>
                   <td colSpan={6 + customFields.length} className="p-8 text-center text-muted-foreground italic">
@@ -242,6 +300,67 @@ export function LeadsTab({
           </table>
         </CardContent>
       </Card>
+
+      {/* Merge Leads Dialog */}
+      <Dialog open={openMerge} onOpenChange={setOpenMerge}>
+        <DialogContent className="sm:max-w-[480px] bg-background text-foreground text-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-rose-600">
+              <AlertTriangle className="h-4.5 w-4.5" /> Gộp trùng lặp Khách tiềm năng (Leads)
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Các lead trùng SĐT/Email sẽ được gộp làm một. Chọn lead chính để giữ lại. Ghi chú của các lead cũ sẽ được tự động gộp nối tiếp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label className="font-semibold">Chọn bản ghi chính (Keep Main Record):</Label>
+              <Select
+                value={mergeState.mainLeadId}
+                onValueChange={(val) => setMergeState({ ...mergeState, mainLeadId: val })}
+              >
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Chọn lead giữ lại..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover text-foreground">
+                  {mergeState.duplicates.map(d => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} ({d.phone || d.email}) - {statusLabels[d.status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 border p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40">
+              <div className="text-[10px] font-bold text-foreground uppercase">Danh sách các bản ghi sẽ bị loại bỏ:</div>
+              <div className="space-y-1.5">
+                {mergeState.duplicates
+                  .filter(d => d.id !== mergeState.mainLeadId)
+                  .map(d => (
+                    <div key={d.id} className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground p-1 border-b">
+                      <span>{d.name} ({d.phone || d.email})</span>
+                      <Badge variant="outline" className="text-[8px] bg-rose-50 text-rose-500 border-none">Sẽ xóa</Badge>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setOpenMerge(false)}>Thoát</Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleMergeSubmit}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-sm"
+            >
+              Xác nhận Gộp Leads
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Lead Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>

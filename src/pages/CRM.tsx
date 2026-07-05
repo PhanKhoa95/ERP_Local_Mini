@@ -163,6 +163,7 @@ export default function CRM() {
             createLead={createLead}
             updateLeadStatus={updateLeadStatus}
             convertLeadToPartner={convertLeadToPartner}
+            mergeLeads={mergeLeads}
             customFields={customFields}
             customFieldValues={customFieldValues}
             saveCustomFieldValues={saveCustomFieldValues}
