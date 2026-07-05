@@ -255,6 +255,7 @@ export default function ProjectManagement() {
 
   // Tasks state
   const [taskViewMode, setTaskViewMode] = useState<"my" | "team">("my");
+  const [taskViewLayout, setTaskViewLayout] = useState<"kanban" | "list">("kanban");
   const { 
     myTasks = [], 
     teamTasks = [], 
@@ -661,8 +662,30 @@ export default function ProjectManagement() {
                 <p className="text-xs text-muted-foreground">Theo dõi và cập nhật tiến độ công việc dự án của phòng ban</p>
               </div>
               <div className="flex items-center gap-2">
+                {/* View Mode Toggle: Kanban vs Table List */}
+                <div className="flex bg-muted p-0.5 rounded-md border border-border mr-1.5 shrink-0">
+                  <Button 
+                    variant={taskViewLayout === "kanban" ? "secondary" : "ghost"}
+                    size="sm"
+                    type="button"
+                    className="h-7 text-[11px] px-2.5 font-medium"
+                    onClick={() => setTaskViewLayout("kanban")}
+                  >
+                    Kanban
+                  </Button>
+                  <Button 
+                    variant={taskViewLayout === "list" ? "secondary" : "ghost"}
+                    size="sm"
+                    type="button"
+                    className="h-7 text-[11px] px-2.5 font-medium"
+                    onClick={() => setTaskViewLayout("list")}
+                  >
+                    Danh sách chi tiết
+                  </Button>
+                </div>
+
                 <Select value={taskViewMode} onValueChange={(val: any) => setTaskViewMode(val)}>
-                  <SelectTrigger className="h-8.5 text-xs w-[160px] bg-background">
+                  <SelectTrigger className="h-8.5 text-xs w-[150px] bg-background">
                     <SelectValue placeholder="Chế độ xem" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-50">
@@ -676,46 +699,218 @@ export default function ProjectManagement() {
               </div>
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {columns.map(col => {
-                  const colTasks = tasksToDisplay.filter(t => {
-                    if (col.id === "pending") return t.status === "pending";
-                    if (col.id === "in_progress") return t.status === "in_progress" || t.status === "accepted";
-                    if (col.id === "done") return t.status === "done";
-                    if (col.id === "cancelled") return t.status === "cancelled";
-                    return false;
-                  });
+              {taskViewLayout === "kanban" ? (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {columns.map(col => {
+                    const colTasks = tasksToDisplay.filter(t => {
+                      if (col.id === "pending") return t.status === "pending";
+                      if (col.id === "in_progress") return t.status === "in_progress" || t.status === "accepted";
+                      if (col.id === "done") return t.status === "done";
+                      if (col.id === "cancelled") return t.status === "cancelled";
+                      return false;
+                    });
 
-                  return (
-                    <div key={col.id} className="flex flex-col space-y-3 bg-muted/20 border border-border/40 rounded-xl p-3 h-[600px] overflow-hidden">
-                      <div className="flex items-center justify-between border-b pb-2 shrink-0">
-                        <div className="flex items-center gap-2">
-                          <span className={cn("w-2 h-2 rounded-full", 
-                            col.id === 'pending' ? 'bg-slate-400' :
-                            col.id === 'in_progress' ? 'bg-sky-500' :
-                            col.id === 'done' ? 'bg-emerald-500' : 'bg-rose-500'
-                          )} />
-                          <h3 className="font-bold text-xs text-foreground uppercase tracking-wider">{col.title}</h3>
+                    return (
+                      <div key={col.id} className="flex flex-col space-y-3 bg-muted/20 border border-border/40 rounded-xl p-3 h-[600px] overflow-hidden">
+                        <div className="flex items-center justify-between border-b pb-2 shrink-0">
+                          <div className="flex items-center gap-2">
+                            <span className={cn("w-2 h-2 rounded-full", 
+                              col.id === 'pending' ? 'bg-slate-400' :
+                              col.id === 'in_progress' ? 'bg-sky-500' :
+                              col.id === 'done' ? 'bg-emerald-500' : 'bg-rose-500'
+                            )} />
+                            <h3 className="font-bold text-xs text-foreground uppercase tracking-wider">{col.title}</h3>
+                          </div>
+                          <Badge variant="secondary" className="h-4.5 px-1.5 py-0 text-[10px] rounded-full shrink-0 font-mono">
+                            {colTasks.length}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="h-4.5 px-1.5 py-0 text-[10px] rounded-full shrink-0 font-mono">
-                          {colTasks.length}
-                        </Badge>
+
+                        <ScrollArea className="flex-1 pr-1 overflow-y-auto">
+                          <div className="space-y-2.5 pb-4">
+                            {colTasks.map(renderKanbanCard)}
+                            {colTasks.length === 0 && (
+                              <div className="text-center py-10 text-muted-foreground text-[10px] border border-dashed border-border/40 rounded-lg">
+                                Trống
+                              </div>
+                            )}
+                          </div>
+                        </ScrollArea>
                       </div>
-
-                      <ScrollArea className="flex-1 pr-1 overflow-y-auto">
-                        <div className="space-y-2.5 pb-4">
-                          {colTasks.map(renderKanbanCard)}
-                          {colTasks.length === 0 && (
-                            <div className="text-center py-10 text-muted-foreground text-[10px] border border-dashed border-border/40 rounded-lg">
-                              Trống
-                            </div>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="overflow-x-auto border rounded-xl bg-background/50">
+                  <Table className="min-w-[1200px]">
+                    <TableHeader className="bg-muted/30">
+                      <TableRow>
+                        <TableHead className="w-16 pl-4">Mã việc</TableHead>
+                        <TableHead className="min-w-[180px]">Tiêu đề</TableHead>
+                        <TableHead>Dự án</TableHead>
+                        <TableHead>Phụ trách</TableHead>
+                        <TableHead>Người giao</TableHead>
+                        <TableHead className="w-20">Ưu tiên</TableHead>
+                        <TableHead className="w-24">Trạng thái</TableHead>
+                        <TableHead className="w-24">Tiến độ</TableHead>
+                        <TableHead className="w-24">Bắt đầu</TableHead>
+                        <TableHead className="w-24">Hạn nộp</TableHead>
+                        <TableHead className="w-24">Hoàn thành</TableHead>
+                        <TableHead className="w-20">Điểm QC</TableHead>
+                        <TableHead className="max-w-[200px]">Ghi chú bàn giao</TableHead>
+                        <TableHead className="w-24 text-right pr-4">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tasksToDisplay.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={14} className="text-center py-8 text-muted-foreground text-xs">
+                            Không có công việc nào
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        tasksToDisplay.map((task) => {
+                          const isOverdue = task.status !== "done" && task.status !== "cancelled" && task.due_date && new Date(task.due_date) < new Date();
+                          return (
+                            <TableRow key={task.id} className="text-xs hover:bg-muted/20 transition-all">
+                              <TableCell className="font-mono text-[10px] text-muted-foreground pl-4">{task.id}</TableCell>
+                              <TableCell className="font-semibold text-foreground">
+                                <div>{task.title}</div>
+                                {task.description && (
+                                  <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 font-normal">{task.description}</div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {task.project_id && projects ? (
+                                  <Badge variant="outline" className="text-[10px] border-primary/20 bg-primary/5 text-primary font-medium">
+                                    {projects.find(p => p.id === task.project_id)?.code || "PRJ"}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="font-medium text-foreground">
+                                {members.find(m => m.id === task.assigned_to)?.name || "Chưa giao"}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {task.assigned_by === "local-demo-user" || task.assigned_by === "system" ? "Quản lý / Admin" : task.assigned_by || "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={cn(
+                                  "text-[9px] px-1 py-0 capitalize border",
+                                  task.priority === "urgent" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                                  task.priority === "high" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                                  task.priority === "normal" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                                  "bg-slate-500/10 text-slate-500 border-slate-500/20"
+                                )}>
+                                  {priorityLabels[task.priority] || task.priority}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className={cn(
+                                  "text-[9px] px-1.5 py-0 border font-medium",
+                                  task.status === "pending" ? "bg-slate-500/10 text-slate-500 border-slate-500/20" :
+                                  task.status === "in_progress" || task.status === "accepted" ? "bg-sky-500/10 text-sky-500 border-sky-500/20" :
+                                  task.status === "done" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                                  "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                )}>
+                                  {task.status === "pending" ? "Chờ nhận" :
+                                   task.status === "accepted" ? "Đã nhận" :
+                                   task.status === "in_progress" ? "Đang làm" :
+                                   task.status === "done" ? "Hoàn thành" : "Đã hủy"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-12 bg-muted rounded-full h-1 overflow-hidden shrink-0">
+                                    <div className="bg-primary h-full rounded-full" style={{ width: `${task.progress || 0}%` }} />
+                                  </div>
+                                  <span className="font-mono text-[9px] font-semibold text-foreground">{task.progress || 0}%</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">{task.started_at ? format(new Date(task.started_at), "dd/MM/yyyy") : "—"}</TableCell>
+                              <TableCell className={cn("text-muted-foreground", isOverdue && "text-red-500 font-semibold animate-pulse")}>
+                                {task.due_date ? format(new Date(task.due_date), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">{task.completed_at ? format(new Date(task.completed_at), "dd/MM/yyyy") : "—"}</TableCell>
+                              <TableCell className="font-mono font-bold text-center text-foreground">
+                                {task.quality_score ? `${task.quality_score}/100` : "—"}
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate text-muted-foreground" title={task.completion_notes || undefined}>
+                                {task.completion_notes || <span className="text-muted-foreground/50">—</span>}
+                              </TableCell>
+                              <TableCell className="text-right pr-4">
+                                <div className="flex gap-1 justify-end">
+                                  {task.status === "pending" && (
+                                    <>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        type="button" 
+                                        onClick={() => acceptTask.mutate(task.id)}
+                                        title="Nhận việc"
+                                        className="h-7 w-7 text-primary hover:bg-primary/10"
+                                      >
+                                        <CheckSquare className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        type="button" 
+                                        onClick={() => startTask.mutate(task.id)}
+                                        title="Bắt đầu"
+                                        className="h-7 w-7 text-sky-500 hover:bg-sky-500/10"
+                                      >
+                                        <Play className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                  {task.status === "accepted" && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      type="button" 
+                                      onClick={() => startTask.mutate(task.id)}
+                                      title="Bắt đầu"
+                                      className="h-7 w-7 text-sky-500 hover:bg-sky-500/10"
+                                    >
+                                      <Play className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  {task.status === "in_progress" && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      type="button" 
+                                      onClick={() => handleOpenCompleteDialog(task.id)}
+                                      title="Hoàn thành"
+                                      className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10"
+                                    >
+                                      <CheckSquare className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  {(task.status === "in_progress" || task.status === "accepted" || task.status === "pending") && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      type="button" 
+                                      onClick={() => updateTask.mutate({ id: task.id, status: "cancelled" })}
+                                      title="Hủy"
+                                      className="h-7 w-7 text-red-500 hover:bg-red-500/10"
+                                    >
+                                      <Trash className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
