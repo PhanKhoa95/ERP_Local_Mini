@@ -99,3 +99,13 @@ Xác thực cuối cùng để đóng gói sản phẩm:
 cmd /c npm run build
 ```
 Đảm bảo toàn bộ asset chunks được tạo lập thành công trong thư mục `dist/`.
+
+---
+
+## 3. Nguyên tắc vận hành dòng chảy M.A.T.R.I.X (Flow Execution Principles)
+
+1.  **Quét toàn diện & Báo cáo đầy đủ**: Mỗi khi người dùng yêu cầu quét, nâng cấp, kiểm tra bất cứ thành phần nào trong hệ thống, tác nhân (agent) bắt buộc phải thực hiện quét toàn diện mã nguồn, tìm kiếm tận gốc lỗi và viết báo cáo đầy đủ (Full Coverage Report) trong các tài liệu Artifact. Tuyệt đối không trả lời qua loa hoặc bỏ sót lỗi.
+2.  **Sửa lỗi triệt để**: Không chỉ đề xuất cách sửa, tác nhân phải trực tiếp cập nhật các file code bị ảnh hưởng và chạy kiểm thử tự động để xác nhận lỗi đã được xử lý triệt để.
+3.  **Bản dựng sạch (Green Builds Only)**: Sau mỗi lần thay đổi code, bắt buộc chạy lại `run_automation.js` để kiểm tra build và kiểm thử, đảm bảo nhánh `develop` luôn có trạng thái xanh (Clean Build/All Tests Green).
+4.  **Bảo toàn dữ liệu & Cấu trúc**: Giữ nguyên vẹn comment và các tài liệu docstring không liên quan để tránh phá vỡ kiến trúc mã nguồn hiện tại.
+
