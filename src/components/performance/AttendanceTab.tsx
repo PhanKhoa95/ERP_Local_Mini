@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useCompanyMembers } from "@/hooks/useCompanyMembers";
+import { useEmployeeRecords } from "@/hooks/useEmployeeRecords";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,10 @@ export function AttendanceTab({ isManager = false }: Props) {
   } = useAttendance();
 
   const { members = [] } = useCompanyMembers();
+  const { employees = [], isLoading: employeesLoading } = useEmployeeRecords();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [subTab, setSubTab] = useState<"matrix" | "logs">("matrix");
   const [checkInMethod, setCheckInMethod] = useState<"wifi" | "gps" | "face" | "qr">("wifi");
   const [faceDialogOpen, setFaceDialogOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -132,46 +135,194 @@ export function AttendanceTab({ isManager = false }: Props) {
 
   // If in manager mode, render the team logs view
   if (isManager) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <Card className="border-border/50 shadow-md">
           <CardHeader>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-lg flex items-center gap-2 text-foreground font-bold">
                   <Clock className="h-5 w-5 text-primary" />
-                  Lịch sử chấm công của Team (Pancake Work)
+                  Bảng công & Chấm công của Team (Pancake Work)
                 </CardTitle>
-                <CardDescription>Theo dõi giờ giấc check-in/check-out của các thành viên trong Workspace</CardDescription>
+                <CardDescription>Theo dõi và đối soát ngày công, giờ giấc của các nhân viên</CardDescription>
               </div>
-              
-              <div className="flex items-center gap-2 max-w-xs">
-                <div className="relative w-full">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm nhân viên hoặc ngày..."
-                    className="w-full bg-background border rounded-md pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-1 p-0.5 bg-muted border rounded-lg">
+                  <Button 
+                    variant={subTab === "matrix" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs font-semibold px-3"
+                    onClick={() => setSubTab("matrix")}
+                  >
+                    Bảng công tháng
+                  </Button>
+                  <Button 
+                    variant={subTab === "logs" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 text-xs font-semibold px-3"
+                    onClick={() => setSubTab("logs")}
+                  >
+                    Nhật ký chi tiết
+                  </Button>
                 </div>
+                
+                {subTab === "logs" && (
+                  <div className="relative w-48">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm..."
+                      className="w-full bg-background border rounded-md pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {teamLoading ? (
+            {teamLoading || employeesLoading ? (
               <div className="space-y-3">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
               </div>
-            ) : filteredRecords.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Coffee className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                <p className="text-xs">Không tìm thấy bản ghi chấm công nào</p>
+            ) : subTab === "matrix" ? (
+              <div className="border border-border/60 rounded-xl overflow-hidden shadow-xs">
+                {/* Scrollable Container */}
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[1200px] table-fixed">
+                    <TableHeader className="bg-muted/40 text-[11px] font-bold">
+                      <TableRow>
+                        <TableHead className="sticky left-0 bg-background z-20 border-r w-[150px] font-bold text-foreground shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                          Nhân viên
+                        </TableHead>
+                        {daysArray.map((day) => {
+                          const d = new Date(year, month, day);
+                          const dayOfWeek = d.getDay();
+                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                          return (
+                            <TableHead 
+                              key={day} 
+                              className={cn(
+                                "text-center w-8 p-1 font-mono text-[10px] border-r border-border/40",
+                                isWeekend && "bg-muted/30 text-muted-foreground font-semibold"
+                              )}
+                            >
+                              {day}
+                            </TableHead>
+                          );
+                        })}
+                        <TableHead className="text-center w-12 font-bold text-emerald-500 bg-emerald-500/5">Công</TableHead>
+                        <TableHead className="text-center w-12 font-bold text-rose-500 bg-rose-500/5">Muộn</TableHead>
+                        <TableHead className="text-center w-12 font-bold text-amber-500 bg-amber-500/5 border-l">OT</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="text-xs">
+                      {employees.map((emp) => {
+                        let workCount = 0;
+                        let lateCount = 0;
+                        let otSum = 0;
+
+                        return (
+                          <TableRow key={emp.id} className="hover:bg-muted/20 transition-all">
+                            {/* Sticky Left Column: Employee details */}
+                            <TableCell className="sticky left-0 bg-background font-semibold border-r z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                              <div className="font-semibold text-foreground truncate max-w-[130px]">{emp.full_name || "Nhân sự"}</div>
+                              <div className="text-[9px] text-muted-foreground font-normal truncate max-w-[130px]">{emp.position_name || "Nhân viên"}</div>
+                            </TableCell>
+
+                            {/* Daily calendar cells */}
+                            {daysArray.map((day) => {
+                              const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                              const r = teamRecords.find((rec: any) => rec.employee_id === emp.id && rec.date === dateStr);
+                              
+                              const d = new Date(year, month, day);
+                              const dayOfWeek = d.getDay();
+                              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+                              if (r) {
+                                workCount++;
+                                otSum += r.overtime_hours || 0;
+                                // Simple check late (after 08:05)
+                                let isLate = false;
+                                if (r.check_in) {
+                                  const cIn = new Date(r.check_in);
+                                  isLate = cIn.getHours() > 8 || (cIn.getHours() === 8 && cIn.getMinutes() > 5);
+                                }
+                                if (isLate) lateCount++;
+
+                                return (
+                                  <TableCell key={day} className="p-1 text-center border-r border-border/40">
+                                    <span 
+                                      className={cn(
+                                        "h-6 w-6 rounded-md font-bold text-[10px] flex items-center justify-center mx-auto",
+                                        isLate ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+                                        !r.check_out ? "bg-orange-500/15 text-orange-600 dark:text-orange-400" :
+                                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                      )}
+                                      title={r.check_in ? `Vào: ${format(new Date(r.check_in), "HH:mm")} | Ra: ${r.check_out ? format(new Date(r.check_out), "HH:mm") : "Chưa ra"}` : undefined}
+                                    >
+                                      {isLate ? "M" : !r.check_out ? "!" : "✔"}
+                                    </span>
+                                  </TableCell>
+                                );
+                              }
+
+                              // No record cell
+                              if (isWeekend) {
+                                return (
+                                  <TableCell key={day} className="p-1 text-center bg-muted/20 border-r border-border/40 text-[9px] text-muted-foreground/70 font-mono">
+                                    —
+                                  </TableCell>
+                                );
+                              }
+
+                              const isPast = d < new Date();
+                              return (
+                                <TableCell key={day} className="p-1 text-center border-r border-border/40">
+                                  {isPast ? (
+                                    <span className="h-6 w-6 rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold text-[10px] flex items-center justify-center mx-auto">
+                                      V
+                                    </span>
+                                  ) : (
+                                    <span className="h-6 w-6 block" />
+                                  )}
+                                </TableCell>
+                              );
+                            })}
+
+                            {/* Summary Columns */}
+                            <TableCell className="text-center font-bold text-emerald-600 bg-emerald-500/5 border-l border-r">{workCount}</TableCell>
+                            <TableCell className="text-center font-bold text-rose-500 bg-rose-500/5 border-r">{lateCount}</TableCell>
+                            <TableCell className="text-center font-bold text-amber-500 bg-amber-500/5">{otSum > 0 ? `+${otSum}h` : "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Caption / Legend */}
+                <div className="bg-muted/10 border-t p-3 flex flex-wrap gap-4 text-[10px] text-muted-foreground font-semibold">
+                  <div className="flex items-center gap-1.5"><span className="h-4.5 w-4.5 bg-emerald-500/15 text-emerald-600 font-bold rounded flex items-center justify-center text-[9px]">✔</span> Đúng giờ</div>
+                  <div className="flex items-center gap-1.5"><span className="h-4.5 w-4.5 bg-amber-500/15 text-amber-600 font-bold rounded flex items-center justify-center text-[9px]">M</span> Đi muộn (sau 08:05)</div>
+                  <div className="flex items-center gap-1.5"><span className="h-4.5 w-4.5 bg-orange-500/15 text-orange-600 font-bold rounded flex items-center justify-center text-[9px]">!</span> Thiếu checkout</div>
+                  <div className="flex items-center gap-1.5"><span className="h-4.5 w-4.5 bg-rose-500/15 text-rose-600 font-bold rounded flex items-center justify-center text-[9px]">V</span> Vắng mặt (Nghỉ không phép)</div>
+                  <div className="flex items-center gap-1.5"><span className="text-muted-foreground/60 font-mono">—</span> Cuối tuần / Ngày nghỉ</div>
+                </div>
               </div>
             ) : (
+              /* Flat searchable logs view */
               <div className="border border-border/60 rounded-xl overflow-hidden shadow-xs">
                 <Table>
                   <TableHeader className="bg-muted/40 text-[11px] font-bold">
