@@ -706,7 +706,7 @@ export function FintabIntegration() {
             <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <Label className="font-semibold">Mã đối tác</Label>
-                <Input readOnly className="h-8 text-xs bg-muted/40" value={selectedInvoice?.direction === "in" ? selectedInvoice.supplier_name : selectedInvoice.buyer_name} />
+                <Input readOnly className="h-8 text-xs bg-muted/40" value={selectedInvoice ? (selectedInvoice.direction === "in" ? selectedInvoice.supplier_name : selectedInvoice.buyer_name) : ""} />
               </div>
               <div>
                 <Label className="font-semibold">Tổng tiền thanh toán</Label>
@@ -773,7 +773,7 @@ export function FintabIntegration() {
               </div>
               <div>
                 <Label className="font-semibold">Mã tham chiếu (Ref)</Label>
-                <Input readOnly className="h-8 text-xs bg-muted/40 font-mono" value={selectedTx?.reference_code} />
+                <Input readOnly className="h-8 text-xs bg-muted/40 font-mono" value={selectedTx ? selectedTx.reference_code : ""} />
               </div>
             </div>
 
