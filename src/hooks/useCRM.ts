@@ -114,6 +114,44 @@ export interface CRMApiKey {
   created_at: string;
 }
 
+// Integration & Automation Types
+export interface CRMPosChatSettings {
+  company_id: string;
+  is_pos_sync_enabled: boolean;
+  is_chat_sync_enabled: boolean;
+  auto_create_lead_on: 'first_msg' | 'has_phone' | 'both';
+  phone_update_rule: 'keep_first' | 'keep_latest';
+  sync_tags_enabled: boolean;
+  sync_agents_enabled: boolean;
+}
+
+export interface CRMLeadForm {
+  id: string;
+  company_id: string;
+  form_name: string;
+  platform: 'facebook' | 'tiktok';
+  is_active: boolean;
+  field_mappings: Record<string, string>; // Maps external key -> crm lead field
+  created_at: string;
+}
+
+export interface CRMAutomationRule {
+  id: string;
+  company_id: string;
+  rule_name: string;
+  trigger_event: 'on_create' | 'on_update';
+  conditions: Record<string, any>;
+  actions: {
+    type: 'create_task' | 'assign_agent' | 'send_notification';
+    title?: string;
+    due_in_hours?: number;
+    agent_id?: string;
+    message?: string;
+  };
+  is_active: boolean;
+  created_at: string;
+}
+
 // LocalStorage Keys
 const LEADS_KEY = "erp-mini-local-demo-crm-leads";
 const DEALS_KEY = "erp-mini-local-demo-crm-deals";
@@ -127,6 +165,11 @@ const CONTACTS_KEY = "erp-mini-local-demo-crm-contacts";
 const CUSTOM_FIELDS_KEY = "erp-mini-local-demo-crm-custom-fields";
 const CUSTOM_FIELD_VALUES_KEY = "erp-mini-local-demo-crm-custom-field-values";
 const API_KEYS_KEY = "erp-mini-local-demo-crm-api-keys";
+
+// Integration & Automation Keys
+const POS_CHAT_SETTINGS_KEY = "erp-mini-local-demo-crm-pos-chat-settings";
+const LEAD_FORMS_KEY = "erp-mini-local-demo-crm-lead-forms";
+const AUTOMATION_RULES_KEY = "erp-mini-local-demo-crm-automation-rules";
 
 // Helper: Get local data
 function getLocal<T>(key: string, defaultData: T[]): T[] {
@@ -198,12 +241,78 @@ const seedApiKeys = (companyId: string): CRMApiKey[] => [
   { id: "key-1", company_id: companyId, key_name: "Ladipage Integration Key", api_key: "crm_api_live_sample12345", created_at: new Date().toISOString() }
 ];
 
+// Integration Seed Data
+const seedPosChatSettings = (companyId: string): CRMPosChatSettings => ({
+  company_id: companyId,
+  is_pos_sync_enabled: false,
+  is_chat_sync_enabled: true,
+  auto_create_lead_on: "has_phone",
+  phone_update_rule: "keep_latest",
+  sync_tags_enabled: true,
+  sync_agents_enabled: true
+});
+
+const seedLeadForms = (companyId: string): CRMLeadForm[] => [
+  { id: "form-1", company_id: companyId, form_name: "Quảng cáo Sticker Tết 2026 - Meta Ads", platform: "facebook", is_active: true, field_mappings: { "full_name": "name", "phone_number": "phone", "email": "email", "notes": "notes" }, created_at: new Date().toISOString() },
+  { id: "form-2", company_id: companyId, form_name: "Sỉ Quần áo Thể thao - TikTok Ads", platform: "tiktok", is_active: true, field_mappings: { "name": "name", "phone": "phone", "need": "notes" }, created_at: new Date().toISOString() }
+];
+
+const seedAutomationRules = (companyId: string): CRMAutomationRule[] => [
+  { id: "rule-1", company_id: companyId, rule_name: "Tự động tạo nhiệm vụ tư vấn khi có Lead mới", trigger_event: "on_create", conditions: {}, actions: { type: "create_task", title: "Gọi điện tư vấn chi tiết chính sách giá sỉ", due_in_hours: 24 }, is_active: true, created_at: new Date().toISOString() }
+];
+
 export function useCRM() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { companyId } = useCompanyContext();
 
   const isDemo = isLocalDemoAuthEnabled();
+
+  // Helper: Trigger Automation Rules Engine
+  const runAutomationEngine = async (event: 'on_create' | 'on_update', entity: CRMLead) => {
+    if (!companyId) return;
+    
+    // Fetch rules
+    const rules = isDemo 
+      ? getLocal<CRMAutomationRule>(AUTOMATION_RULES_KEY, seedAutomationRules(companyId))
+      : (await queryClient.fetchQuery<CRMAutomationRule[]>({ queryKey: ["crm_automation_rules", companyId] })) || [];
+    
+    const activeRules = rules.filter(r => r.is_active && r.trigger_event === event);
+
+    for (const rule of activeRules) {
+      if (rule.actions.type === "create_task" && rule.actions.title) {
+        // Compute due date
+        const dueHours = rule.actions.due_in_hours || 24;
+        const dueDate = new Date(Date.now() + 3600000 * dueHours).toISOString();
+
+        if (isDemo) {
+          const localTasks = getLocal<CRMTask>(TASKS_KEY, seedTasks(companyId));
+          const newTask: CRMTask = {
+            id: `tsk-auto-${Date.now()}`,
+            company_id: companyId,
+            title: `${rule.actions.title} (Khách: ${entity.name})`,
+            due_date: dueDate,
+            status: "pending",
+            notes: `Nhiệm vụ tự động tạo bởi quy tắc: "${rule.rule_name}"`,
+            created_at: new Date().toISOString()
+          };
+          saveLocal(TASKS_KEY, [...localTasks, newTask]);
+        } else {
+          await supabase
+            .from("crm_tasks" as any)
+            .insert({
+              company_id: companyId,
+              title: `${rule.actions.title} (Khách: ${entity.name})`,
+              due_date: dueDate,
+              status: "pending",
+              notes: `Nhiệm vụ tự động tạo bởi quy tắc: "${rule.rule_name}"`
+            });
+        }
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["crm_tasks"] });
+  };
 
   // ==========================================
   // 1. LEADS QUERIES & MUTATIONS
@@ -227,24 +336,30 @@ export function useCRM() {
   const createLead = useMutation({
     mutationFn: async (lead: Omit<CRMLead, "id" | "company_id" | "created_at">) => {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      let created: CRMLead;
+
       if (isDemo) {
         const local = getLocal(LEADS_KEY, seedLeads(companyId));
-        const newLead: CRMLead = {
+        created = {
           ...lead,
           id: `lead-${Date.now()}`,
           company_id: companyId,
           created_at: new Date().toISOString()
         };
-        saveLocal(LEADS_KEY, [newLead, ...local]);
-        return newLead;
+        saveLocal(LEADS_KEY, [created, ...local]);
+      } else {
+        const { data, error } = await supabase
+          .from("crm_leads" as any)
+          .insert({ ...lead, company_id: companyId })
+          .select()
+          .single();
+        if (error) throw error;
+        created = data as CRMLead;
       }
-      const { data, error } = await supabase
-        .from("crm_leads" as any)
-        .insert({ ...lead, company_id: companyId })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+
+      // Kích hoạt Automation Engine
+      await runAutomationEngine("on_create", created);
+      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm_leads"] });
@@ -829,10 +944,8 @@ export function useCRM() {
       if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
       if (isDemo) {
         const local = getLocal(CUSTOM_FIELD_VALUES_KEY, seedCustomFieldValues(companyId));
-        // Remove existing for this entity
         const filtered = local.filter(v => !(v.entity_id === entityId && v.entity_type === "lead"));
         
-        // Add new values
         Object.entries(values).forEach(([fieldId, val]) => {
           if (val) {
             filtered.push({
@@ -849,7 +962,6 @@ export function useCRM() {
         saveLocal(CUSTOM_FIELD_VALUES_KEY, filtered);
         return filtered;
       } else {
-        // Perform batch inserts/updates in Supabase
         for (const [fieldId, val] of Object.entries(values)) {
           if (val) {
             await supabase
@@ -957,22 +1069,23 @@ export function useCRM() {
         throw new Error("Mã API Key không hợp lệ hoặc đã bị vô hiệu hóa!");
       }
 
+      let createdLead: CRMLead;
+
       // Add to Leads list
       if (isDemo) {
         const localLeads = getLocal(LEADS_KEY, seedLeads(companyId));
-        const newLead: CRMLead = {
+        createdLead = {
           id: `lead-web-${Date.now()}`,
           company_id: companyId,
           name: payload.name,
           phone: payload.phone,
           email: payload.email || null,
-          source: "website", // Mocked as Landing Page sync source
+          source: "website",
           status: "new",
           notes: payload.notes || "Bắn tự động từ Ladipage Form Integration",
           created_at: new Date().toISOString()
         };
-        saveLocal(LEADS_KEY, [newLead, ...localLeads]);
-        return newLead;
+        saveLocal(LEADS_KEY, [createdLead, ...localLeads]);
       } else {
         const { data, error } = await supabase
           .from("crm_leads" as any)
@@ -988,12 +1101,215 @@ export function useCRM() {
           .select()
           .single();
         if (error) throw error;
-        return data;
+        createdLead = data as CRMLead;
       }
+
+      // Kích hoạt Automation Rules Engine
+      await runAutomationEngine("on_create", createdLead);
+      return createdLead;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm_leads"] });
       toast({ title: "Bắn dữ liệu mô phỏng thành công! Vui lòng kiểm tra danh sách Leads." });
+    }
+  });
+
+  // ==========================================
+  // 12. POS/CHAT SETTINGS QUERIES & MUTATIONS (Ecosystem Upgrade)
+  // ==========================================
+  const posChatSettingsQuery = useQuery({
+    queryKey: ["crm_pos_chat_settings", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      if (isDemo) {
+        const raw = localStorage.getItem(POS_CHAT_SETTINGS_KEY);
+        if (!raw) {
+          const defaultVal = seedPosChatSettings(companyId);
+          localStorage.setItem(POS_CHAT_SETTINGS_KEY, JSON.stringify(defaultVal));
+          return defaultVal;
+        }
+        return JSON.parse(raw) as CRMPosChatSettings;
+      }
+      const { data, error } = await supabase
+        .from("crm_pos_chat_settings" as any)
+        .select("*")
+        .eq("company_id", companyId)
+        .single();
+      if (error && error.code !== "PGRST116") throw error; // Handle empty row
+      return data as CRMPosChatSettings | null;
+    },
+    enabled: !!companyId
+  });
+
+  const updatePosChatSettings = useMutation({
+    mutationFn: async (settings: Partial<CRMPosChatSettings>) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isDemo) {
+        const raw = localStorage.getItem(POS_CHAT_SETTINGS_KEY);
+        const current = raw ? JSON.parse(raw) : seedPosChatSettings(companyId);
+        const updated = { ...current, ...settings };
+        localStorage.setItem(POS_CHAT_SETTINGS_KEY, JSON.stringify(updated));
+        return updated;
+      }
+      const { data, error } = await supabase
+        .from("crm_pos_chat_settings" as any)
+        .upsert({ ...settings, company_id: companyId } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_pos_chat_settings"] });
+      toast({ title: "Đã lưu thiết lập đồng bộ" });
+    }
+  });
+
+  // ==========================================
+  // 13. LEAD FORMS QUERIES & MUTATIONS (Ecosystem Upgrade)
+  // ==========================================
+  const leadFormsQuery = useQuery({
+    queryKey: ["crm_lead_forms", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      if (isDemo) return getLocal(LEAD_FORMS_KEY, seedLeadForms(companyId));
+      const { data, error } = await supabase
+        .from("crm_lead_forms" as any)
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as CRMLeadForm[];
+    },
+    enabled: !!companyId
+  });
+
+  const createLeadForm = useMutation({
+    mutationFn: async (form: Omit<CRMLeadForm, "id" | "company_id" | "created_at">) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isDemo) {
+        const local = getLocal(LEAD_FORMS_KEY, seedLeadForms(companyId));
+        const newForm: CRMLeadForm = {
+          ...form,
+          id: `form-${Date.now()}`,
+          company_id: companyId,
+          created_at: new Date().toISOString()
+        };
+        saveLocal(LEAD_FORMS_KEY, [newForm, ...local]);
+        return newForm;
+      }
+      const { data, error } = await supabase
+        .from("crm_lead_forms" as any)
+        .insert({ ...form, company_id: companyId })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_lead_forms"] });
+      toast({ title: "Tạo biểu mẫu quảng cáo thành công" });
+    }
+  });
+
+  const updateLeadFormMappings = useMutation({
+    mutationFn: async ({ id, mappings }: { id: string; mappings: Record<string, string> }) => {
+      if (isDemo) {
+        const local = getLocal(LEAD_FORMS_KEY, seedLeadForms(companyId || ""));
+        const idx = local.findIndex(f => f.id === id);
+        if (idx > -1) {
+          local[idx].field_mappings = mappings;
+          saveLocal(LEAD_FORMS_KEY, local);
+          return local[idx];
+        }
+        throw new Error("Không tìm thấy form");
+      }
+      const { data, error } = await supabase
+        .from("crm_lead_forms" as any)
+        .update({ field_mappings: mappings } as any)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_lead_forms"] });
+      toast({ title: "Đã cập nhật ánh xạ trường" });
+    }
+  });
+
+  // ==========================================
+  // 14. AUTOMATION RULES QUERIES & MUTATIONS (Ecosystem Upgrade)
+  // ==========================================
+  const automationRulesQuery = useQuery({
+    queryKey: ["crm_automation_rules", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      if (isDemo) return getLocal(AUTOMATION_RULES_KEY, seedAutomationRules(companyId));
+      const { data, error } = await supabase
+        .from("crm_automation_rules" as any)
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as CRMAutomationRule[];
+    },
+    enabled: !!companyId
+  });
+
+  const createAutomationRule = useMutation({
+    mutationFn: async (rule: Omit<CRMAutomationRule, "id" | "company_id" | "created_at">) => {
+      if (!companyId) throw new Error("Chưa chọn doanh nghiệp");
+      if (isDemo) {
+        const local = getLocal(AUTOMATION_RULES_KEY, seedAutomationRules(companyId));
+        const newRule: CRMAutomationRule = {
+          ...rule,
+          id: `rule-${Date.now()}`,
+          company_id: companyId,
+          created_at: new Date().toISOString()
+        };
+        saveLocal(AUTOMATION_RULES_KEY, [newRule, ...local]);
+        return newRule;
+      }
+      const { data, error } = await supabase
+        .from("crm_automation_rules" as any)
+        .insert({ ...rule, company_id: companyId })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_automation_rules"] });
+      toast({ title: "Tạo quy tắc tự động hóa thành công" });
+    }
+  });
+
+  const toggleAutomationRule = useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      if (isDemo) {
+        const local = getLocal(AUTOMATION_RULES_KEY, seedAutomationRules(companyId || ""));
+        const idx = local.findIndex(r => r.id === id);
+        if (idx > -1) {
+          local[idx].is_active = is_active;
+          saveLocal(AUTOMATION_RULES_KEY, local);
+          return local[idx];
+        }
+        throw new Error("Không tìm thấy quy tắc");
+      }
+      const { data, error } = await supabase
+        .from("crm_automation_rules" as any)
+        .update({ is_active } as any)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["crm_automation_rules"] });
+      toast({ title: "Đã cập nhật trạng thái quy tắc" });
     }
   });
 
@@ -1056,6 +1372,20 @@ export function useCRM() {
     deleteApiKey,
 
     // Webhook simulation
-    simulateWebhookIngest
+    simulateWebhookIngest,
+
+    // POS & Chat Settings (Ecosystem Upgrade)
+    posChatSettings: posChatSettingsQuery.data || seedPosChatSettings(companyId || ""),
+    updatePosChatSettings,
+
+    // Lead Forms (Ecosystem Upgrade)
+    leadForms: leadFormsQuery.data || [],
+    createLeadForm,
+    updateLeadFormMappings,
+
+    // Automation Rules (Ecosystem Upgrade)
+    automationRules: automationRulesQuery.data || [],
+    createAutomationRule,
+    toggleAutomationRule
   };
 }

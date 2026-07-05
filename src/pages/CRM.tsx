@@ -10,7 +10,7 @@ import { AppointmentsTab } from "@/components/crm/AppointmentsTab";
 import { TicketsTab } from "@/components/crm/TicketsTab";
 import { TasksTab } from "@/components/crm/TasksTab";
 import { ContactsCompaniesTab } from "@/components/crm/ContactsCompaniesTab";
-import { WebhookApiTab } from "@/components/crm/WebhookApiTab";
+import { IntegrationsTab } from "@/components/crm/IntegrationsTab";
 
 export default function CRM() {
   const {
@@ -47,7 +47,17 @@ export default function CRM() {
     apiKeys,
     createApiKey,
     deleteApiKey,
-    simulateWebhookIngest
+    simulateWebhookIngest,
+
+    // Integration settings
+    posChatSettings,
+    updatePosChatSettings,
+    leadForms,
+    createLeadForm,
+    updateLeadFormMappings,
+    automationRules,
+    createAutomationRule,
+    toggleAutomationRule
   } = useCRM();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -128,7 +138,7 @@ export default function CRM() {
               className="data-[state=active]:border-primary border-b-2 border-transparent rounded-none px-1 pb-2 text-xs font-bold text-muted-foreground data-[state=active]:text-foreground bg-transparent gap-2"
             >
               <Link2 className="h-4 w-4 text-emerald-500" />
-              Webhook - API
+              Tích hợp & Tự động hóa
             </TabsTrigger>
           </TabsList>
         </div>
@@ -210,11 +220,20 @@ export default function CRM() {
         </TabsContent>
 
         <TabsContent value="webhook_api">
-          <WebhookApiTab
+          <IntegrationsTab
             apiKeys={apiKeys}
             createApiKey={createApiKey}
             deleteApiKey={deleteApiKey}
             simulateWebhookIngest={simulateWebhookIngest}
+            posChatSettings={posChatSettings}
+            updatePosChatSettings={updatePosChatSettings}
+            leadForms={leadForms}
+            createLeadForm={createLeadForm}
+            updateLeadFormMappings={updateLeadFormMappings}
+            automationRules={automationRules}
+            createAutomationRule={createAutomationRule}
+            toggleAutomationRule={toggleAutomationRule}
+            createLead={createLead}
           />
         </TabsContent>
       </Tabs>
