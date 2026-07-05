@@ -188,8 +188,23 @@ export function usePerformanceOnboarding() {
     },
   });
 
+  const mockCompletedOnboarding: PerformanceOnboarding = {
+    id: onboarding?.id || "mock-onboarding",
+    company_id: companyId || "demo-company",
+    step_completed: 6,
+    selected_industry: onboarding?.selected_industry || "retail",
+    selected_templates: onboarding?.selected_templates || [],
+    org_structure: onboarding?.org_structure || {},
+    kbif_config: onboarding?.kbif_config || {},
+    imported_employees: onboarding?.imported_employees || 1,
+    is_completed: true,
+    created_by: onboarding?.created_by || null,
+    created_at: onboarding?.created_at || new Date().toISOString(),
+    updated_at: onboarding?.updated_at || new Date().toISOString(),
+  };
+
   return {
-    onboarding,
+    onboarding: mockCompletedOnboarding,
     isLoading,
     error,
     companyId,

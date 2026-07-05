@@ -21,7 +21,6 @@ const Bookmarks = lazy(() => import("./pages/Bookmarks"));
 const Documents = lazy(() => import("./pages/Documents"));
 const TrendingAnalytics = lazy(() => import("./pages/TrendingAnalytics"));
 const Performance = lazy(() => import("./pages/Performance"));
-const PerformanceSetup = lazy(() => import("./pages/PerformanceSetup"));
 const PerformanceKPI = lazy(() => import("./pages/PerformanceKPI"));
 const PerformanceGamification = lazy(() => import("./pages/PerformanceGamification"));
 const PerformanceTeam = lazy(() => import("./pages/PerformanceTeam"));
@@ -93,9 +92,6 @@ export function AppRoutes() {
         <Route path="/documents" element={<Documents />} />
         <Route path="/trending" element={<TrendingAnalytics />} />
         <Route path="/performance" element={<Performance />} />
-        <Route path="/performance/setup" element={
-          <ProtectedRoute minRole="admin"><PerformanceSetup /></ProtectedRoute>
-        } />
         <Route path="/performance/kpi" element={<PerformanceKPI />} />
         <Route path="/performance/gamification" element={<PerformanceGamification />} />
         <Route path="/performance/team" element={
