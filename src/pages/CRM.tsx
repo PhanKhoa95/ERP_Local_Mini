@@ -40,6 +40,7 @@ export default function CRM() {
     createCompany,
     contacts,
     createContact,
+    mergeContacts,
     customFields,
     createCustomField,
     customFieldValues,
