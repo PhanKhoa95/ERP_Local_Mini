@@ -46,6 +46,7 @@ const ProductReviews = lazy(() => import("./pages/ProductReviews"));
 const ProductBoost = lazy(() => import("./pages/ProductBoost"));
 const FeaturedProducts = lazy(() => import("./pages/FeaturedProducts"));
 const PrepareOrders = lazy(() => import("./pages/PrepareOrders"));
+const Botcake = lazy(() => import("./pages/Botcake"));
 
 function PageLoader() {
   return (
@@ -136,6 +137,7 @@ export function AppRoutes() {
         <Route path="/featured-products" element={<FeaturedProducts />} />
         <Route path="/prepare-orders" element={<PrepareOrders />} />
         <Route path="/crm" element={<CRM />} />
+        <Route path="/botcake" element={<Botcake />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

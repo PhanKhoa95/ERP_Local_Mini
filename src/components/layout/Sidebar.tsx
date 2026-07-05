@@ -28,7 +28,8 @@ const pathToModuleMap: Record<string, string> = {
   "/finance": "finance",
   "/reports": "reports",
   "/strategic-report": "reports",
-  "/settings": "settings"
+  "/settings": "settings",
+  "/botcake": "partners"
 };
 
 interface MenuItem {
@@ -104,6 +105,7 @@ const menuSections: MenuSection[] = [
           { title: "Thống kê", icon: BarChart2, path: "/partners?tab=insights" },
           { title: "CSKH Đa Kênh", icon: MessageSquare, path: "/partners?tab=cskh-inbox" },
           { title: "Pancake CRM", icon: ShieldCheck, path: "/crm" },
+          { title: "Botcake Chatbot", icon: Bot, path: "/botcake" },
           { title: "Thẻ thành viên", icon: CreditCard, path: "/memberships" },
           { title: "Tích điểm & Hạng thẻ", icon: Award, path: "/settings?tab=loyalty" },
         ]
