@@ -48,6 +48,14 @@ Quy trình M.A.T.R.I.X yêu cầu quét và xác thực 6 nhóm tính năng cố
 
 Khi chạy nâng cấp hoặc quét hệ thống, thực hiện tuần tự các bước sau:
 
+### Bước 0: Quét tài liệu 5 cấp độ và đối soát hình ảnh (Documentation Deep Crawl)
+Trước khi nâng cấp phân hệ, chạy kịch bản quét tự động 5 cấp độ để thu thập cấu trúc sơ đồ liên kết tài liệu và chi tiết danh sách ảnh (alt text, link ảnh):
+```bash
+# Quét tài liệu Fintab sâu 5 cấp độ
+node .agents/scratch/crawler_5_levels.js https://docs.pancake.biz/fintab 5
+```
+Kết quả được xuất ra tệp tin JSON `.agents/scratch/crawled_report.json` phục vụ đối soát chi tiết.
+
 ### Bước 1: Kiểm tra Biên dịch và Kiểu (Typecheck & Lint)
 Đảm bảo mã nguồn không bị lỗi kiểu và tuân thủ chuẩn code:
 ```bash
