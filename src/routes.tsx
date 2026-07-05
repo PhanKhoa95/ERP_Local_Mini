@@ -41,6 +41,7 @@ const DataHub = lazy(() => import("./pages/DataHub"));
 const Promotions = lazy(() => import("./pages/Promotions"));
 
 const ProductionMaterials = lazy(() => import("./pages/ProductionMaterials"));
+const CRM = lazy(() => import("./pages/CRM"));
 const ProductReviews = lazy(() => import("./pages/ProductReviews"));
 const ProductBoost = lazy(() => import("./pages/ProductBoost"));
 const FeaturedProducts = lazy(() => import("./pages/FeaturedProducts"));
@@ -134,6 +135,7 @@ export function AppRoutes() {
         <Route path="/product-boost" element={<ProductBoost />} />
         <Route path="/featured-products" element={<FeaturedProducts />} />
         <Route path="/prepare-orders" element={<PrepareOrders />} />
+        <Route path="/crm" element={<CRM />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
