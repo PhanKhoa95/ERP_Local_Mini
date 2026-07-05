@@ -158,7 +158,7 @@ export function useWarehousePermissions() {
         query = query.eq("role_id", roleId);
       }
 
-      const { data: existing, error: selectErr } = await query.maybeSingle();
+      const { data: existing, error: selectErr } = (await query.maybeSingle()) as any;
       if (selectErr) throw selectErr;
 
       if (existing) {

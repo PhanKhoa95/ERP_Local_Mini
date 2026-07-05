@@ -197,7 +197,7 @@ export default function ProductBoost() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-semibold text-xs text-foreground">
-                            {Number(prod.price || 0).toLocaleString("vi-VN")}đ
+                            {Number(prod.selling_price || 0).toLocaleString("vi-VN")}đ
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-1">

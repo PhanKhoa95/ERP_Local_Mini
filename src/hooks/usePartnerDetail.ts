@@ -218,12 +218,12 @@ export function usePartnerDetail(partnerId: string | null) {
       if (isLocalDemoAuthEnabled()) {
         const raw = localStorage.getItem("erp-mini-local-demo-partners");
         const list = raw ? JSON.parse(raw) : [];
-        return list.filter((p: any) => p.referrer_id === partnerId && p.company_id === companyId);
+        return list.filter((p: any) => p.referred_by_id === partnerId && p.company_id === companyId);
       }
       const { data, error } = await supabase
         .from("partners")
         .select("id, name, code, phone, email, total_spent, created_at, loyalty_points")
-        .eq("referrer_id", partnerId!)
+        .eq("referred_by_id", partnerId!)
         .eq("company_id", companyId!);
       if (error) throw error;
       return data || [];

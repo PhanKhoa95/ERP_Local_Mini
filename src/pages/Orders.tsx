@@ -61,6 +61,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Order = HookOrder & {
@@ -339,7 +340,7 @@ const Orders = () => {
       // Tag filter
       let matchesTag = true;
       if (tagFilter !== "all") {
-        const tagsList = order.tags ? (typeof order.tags === "string" ? order.tags.split(",").map(t => t.trim().toLowerCase()) : (Array.isArray(order.tags) ? order.tags.map(t => String(t).trim().toLowerCase()) : [])) : [];
+        const tagsList = order.tags ? order.tags.split(",").map(t => t.trim().toLowerCase()) : [];
         if (!tagsList.includes(tagFilter.toLowerCase())) matchesTag = false;
       }
 
@@ -682,11 +683,11 @@ const Orders = () => {
                     
                     await supabase
                       .from("order_items")
-                      .update({ quantity: newQty, total_price: newPrice })
+                      .update({ quantity: newQty, total: newPrice })
                       .eq("id", existingItem.id);
                       
                     existingItem.quantity = newQty;
-                    existingItem.total_price = newPrice;
+                    existingItem.total = newPrice;
                   } else {
                     const { data: insertedItem } = await supabase
                       .from("order_items")
@@ -695,7 +696,7 @@ const Orders = () => {
                         product_id: subItem.product_id,
                         quantity: subItem.quantity,
                         unit_price: subItem.unit_price,
-                        total_price: subItem.total_price
+                        total: subItem.total
                       })
                       .select()
                       .single();
@@ -1387,7 +1388,7 @@ const Orders = () => {
                                 )}
                               </div>
                               <div className="flex gap-1 flex-wrap items-center">
-                                {order.tags && (typeof order.tags === "string" ? order.tags.split(",") : (Array.isArray(order.tags) ? order.tags : [])).map((t: any) => String(t).trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
+                                {(order.tags ? order.tags.split(",") : []).map((t: any) => String(t).trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
                                   <Badge key={idx} variant="outline" className={cn("text-[8px] px-1 py-0", getTagColorClass(tag))}>
                                     {tag}
                                   </Badge>
@@ -1410,7 +1411,7 @@ const Orders = () => {
                                           {group.name}
                                         </DropdownMenuLabel>
                                         {group.tags.map((tag) => {
-                                          const currentTags = order.tags ? (typeof order.tags === "string" ? order.tags.split(",").map((t: string) => t.trim()) : (Array.isArray(order.tags) ? order.tags.map((t: any) => String(t).trim()) : [])) : [];
+                                          const currentTags = order.tags ? order.tags.split(",").map((t: string) => t.trim()) : [];
                                           const hasTag = currentTags.includes(tag.name);
                                           return (
                                             <DropdownMenuCheckboxItem

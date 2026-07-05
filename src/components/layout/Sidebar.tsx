@@ -187,6 +187,7 @@ const menuSections: MenuSection[] = [
           { title: "Quản lý Team", icon: UsersRound, path: "/performance/team", minRole: "manager" },
           { title: "Báo cáo nhanh", icon: Mic, path: "/work-report" },
           { title: "BC Chiến lược", icon: ClipboardList, path: "/strategic-report", minRole: "manager" },
+          { title: "Thiết lập", icon: Settings, path: "/performance/setup", minRole: "admin" },
         ]
       }
     ],

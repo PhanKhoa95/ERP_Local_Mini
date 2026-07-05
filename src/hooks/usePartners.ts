@@ -24,6 +24,8 @@ export interface Partner {
   group_id: string | null;
   loyalty_points: number | null;
   total_spent: number | null;
+  referral_code?: string | null;
+  referred_by_id?: string | null;
   // Extended fields stored inside notes column
   branch_id?: string;
   warehouse_id?: string;

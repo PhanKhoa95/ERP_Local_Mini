@@ -338,7 +338,7 @@ export function AttendanceTab({ isManager = false }: Props) {
                   </TableHeader>
                   <TableBody className="text-xs">
                     {filteredRecords.map((r: any) => {
-                      const empName = r.employee_name || r.perf_employees?.full_name || members.find(m => m.id === r.employee_id)?.name || "Nhân viên";
+                      const empName = r.employee_name || r.perf_employees?.full_name || members.find(m => m.id === r.employee_id)?.profile?.full_name || members.find(m => m.id === r.employee_id)?.email || "Nhân viên";
                       return (
                         <TableRow key={r.id} className="hover:bg-muted/30 transition-colors">
                           <TableCell className="font-semibold text-foreground">{empName}</TableCell>

@@ -61,6 +61,7 @@ const SEED_REVIEWS: ProductReview[] = [
     product_image: "https://images.unsplash.com/photo-1542744094-3a31f103e35f?w=120&auto=format&fit=crop&q=60",
     order_number: "HIST-003",
     created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 24).toISOString(),
   },
   {
     id: "rev-4",
@@ -74,6 +75,7 @@ const SEED_REVIEWS: ProductReview[] = [
     product_image: "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=120&auto=format&fit=crop&q=60",
     order_number: "HIST-008",
     created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 4).toISOString(),
   },
   {
     id: "rev-5",
@@ -88,6 +90,7 @@ const SEED_REVIEWS: ProductReview[] = [
     product_image: "https://images.unsplash.com/photo-1572375995501-4b0894dbe0d1?w=120&auto=format&fit=crop&q=60",
     order_number: "HIST-009",
     created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
+    updated_at: new Date(Date.now() - 3600000 * 8).toISOString(),
   }
 ];
 

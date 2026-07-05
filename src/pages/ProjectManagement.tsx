@@ -349,7 +349,7 @@ export default function ProjectManagement() {
       // Seed default checklist/comments for demo
       let defaultChecklist: any[] = [];
       let defaultComments: any[] = [];
-      let defaultActivities = [
+      const defaultActivities = [
         { id: `act-1`, text: "Công việc đã được khởi tạo bởi hệ thống", createdAt: new Date().toISOString() }
       ];
 
@@ -510,7 +510,7 @@ export default function ProjectManagement() {
         <div className="flex flex-wrap gap-2 items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-1">
             <Users2 className="h-3 w-3" />
-            <span>{members.find(m => m.id === task.assigned_to)?.name || "Chưa giao"}</span>
+            <span>{members.find(m => m.id === task.assigned_to)?.profile?.full_name || "Chưa giao"}</span>
           </div>
           {task.due_date && (
             <div className={cn("flex items-center gap-1 font-medium", isOverdue && "text-red-500 animate-pulse")}>
@@ -983,7 +983,7 @@ export default function ProjectManagement() {
                                 )}
                               </TableCell>
                               <TableCell className="font-medium text-foreground">
-                                {members.find(m => m.id === task.assigned_to)?.name || "Chưa giao"}
+                                {members.find(m => m.id === task.assigned_to)?.profile?.full_name || "Chưa giao"}
                               </TableCell>
                               <TableCell className="text-muted-foreground">
                                 {task.assigned_by === "local-demo-user" || task.assigned_by === "system" ? "Quản lý / Admin" : task.assigned_by || "—"}
@@ -1371,7 +1371,7 @@ export default function ProjectManagement() {
                   <SelectItem value="none">Chưa giao (Để trống)</SelectItem>
                   {members?.map((member) => (
                     <SelectItem key={member.id} value={member.id}>
-                      <span className="text-xs">{member.name} ({member.email})</span>
+                      <span className="text-xs">{member.profile?.full_name || "Nhân viên"} ({member.email})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1584,7 +1584,7 @@ export default function ProjectManagement() {
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground block font-medium">Người thực hiện</span>
                     <span className="font-semibold text-foreground text-xs">
-                      {members.find(m => m.id === activeDetailTask.assigned_to)?.name || "Chưa giao"}
+                      {members.find(m => m.id === activeDetailTask.assigned_to)?.profile?.full_name || "Chưa giao"}
                     </span>
                   </div>
 

@@ -204,10 +204,14 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
 
       // Save wholesale prices for this variant
       if (savedVar && savedVar.id) {
-        await saveWholesalePrices.mutateAsync({
-          variantId: savedVar.id,
-          tiers: wholesaleTiers
-        });
+        await saveWholesalePrices.mutateAsync(
+          wholesaleTiers.map(tier => ({
+            product_id: product.id,
+            variant_id: savedVar.id,
+            min_quantity: tier.min_quantity,
+            wholesale_price: tier.wholesale_price
+          }))
+        );
       }
 
       resetForm();
@@ -406,7 +410,9 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
                     <div className="flex justify-between items-center">
                       <Label className="text-xs font-semibold flex items-center gap-1">
                         Giá bán sỉ bậc thang
-                        <HelpCircle className="h-3 w-3 text-muted-foreground" title="Bật giá bán sỉ cho riêng biến thể này" />
+                        <span title="Bật giá bán sỉ cho riêng biến thể này">
+                          <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                        </span>
                       </Label>
                       <Button type="button" variant="outline" size="sm" onClick={handleAddWholesaleTier} className="h-6 text-[10px] px-2">
                         + Thêm bậc giá
@@ -478,8 +484,7 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
       <VariantComponentsDialog
         open={componentsDialogOpen}
         onOpenChange={setComponentsDialogOpen}
-        variant={selectedVariantForComponents}
-        onSaved={refetchComposites}
+        parentVariant={selectedVariantForComponents}
       />
     )}
   </>

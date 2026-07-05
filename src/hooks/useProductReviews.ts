@@ -19,7 +19,7 @@ export interface ProductReview {
   order_number: string;
   images?: string[] | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 const LOCAL_REVIEWS_KEY = "erp-mini-local-demo-reviews";

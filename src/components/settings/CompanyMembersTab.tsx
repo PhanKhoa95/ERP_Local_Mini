@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { useWarehouses } from "@/hooks/useWarehouses";
 import { useWarehousePermissions } from "@/hooks/useWarehousePermissions";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const DAYS_OF_WEEK = [
   { key: "mon", label: "Thứ Hai" },
@@ -97,6 +98,18 @@ interface Department {
   name: string;
   description: string;
   member_ids: string[]; // List of company_member IDs
+  is_default?: boolean;
+  worktime?: Record<string, { isRest: boolean; start: string; end: string }>;
+  warehouse_ids?: string[];
+  warehouse_permissions?: Record<string, Record<string, boolean>>;
+  hide_phone?: boolean;
+  hide_customer_info?: boolean;
+  allowed_statuses?: string;
+  allowed_categories?: string;
+  allowed_channels?: string;
+  allowed_carriers?: string;
+  allowed_suppliers?: string;
+  allowed_tags?: string;
 }
 
 interface SalesGroup {
@@ -104,6 +117,8 @@ interface SalesGroup {
   name: string;
   leader_id: string; // company_member ID of the leader
   member_ids: string[]; // List of company_member IDs
+  only_own_orders?: boolean;
+  only_own_cashflow?: boolean;
 }
 
 export function CompanyMembersTab() {

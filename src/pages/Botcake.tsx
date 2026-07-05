@@ -110,7 +110,8 @@ export default function Botcake() {
     if (!newBcName || !newBcContent) return;
     await createBroadcast.mutateAsync({
       name: newBcName,
-      message_content: newBcContent
+      message_content: newBcContent,
+      scheduled_at: null
     });
     setNewBcName("");
     setNewBcContent("");

@@ -230,7 +230,7 @@ export function PartnerDetailDialog({ open, onOpenChange, partner }: Props) {
                    className="text-[9px] bg-pink-50 dark:bg-pink-950 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded font-mono font-bold flex items-center gap-0.5 cursor-pointer hover:bg-pink-100 dark:hover:bg-pink-900/50 transition-colors border border-pink-200/50" 
                    onClick={() => {
                      navigator.clipboard.writeText(partner.code || partner.phone || "");
-                     toast.success("Đã sao chép mã giới thiệu!");
+                     toast({ title: "Đã sao chép", description: "Đã sao chép mã giới thiệu!" });
                    }}
                  >
                    Mã giới thiệu: {partner.code} 📋

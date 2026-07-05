@@ -39,6 +39,7 @@ import { usePriceLists } from "@/hooks/usePriceLists";
 import { applyWholesalePricing, calculateCompositeVariantStock } from "@/lib/wholesaleControl";
 import { POSVariantSelectDialog } from "@/components/pos/POSVariantSelectDialog";
 import { useReferralSettings } from "@/hooks/useLoyalty";
+import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
 
 type Product = Tables<"products">;
 
@@ -581,7 +582,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
 
     if (!referrer) {
       setReferrerError("Mã giới thiệu không tồn tại trong hệ thống");
-      setReferrerDiscount(0);
+      setReferralDiscount(0);
       setAppliedReferrer(null);
       setIsValidatingReferrer(false);
       return;
@@ -589,7 +590,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
 
     if (referrer.id === formData.partner_id) {
       setReferrerError("Không thể tự áp dụng mã giới thiệu của chính mình");
-      setReferrerDiscount(0);
+      setReferralDiscount(0);
       setAppliedReferrer(null);
       setIsValidatingReferrer(false);
       return;
@@ -600,7 +601,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
     
     if (ltv > 0) {
       setReferrerError("Mã giới thiệu chỉ áp dụng cho đơn hàng đầu tiên của khách mới");
-      setReferrerDiscount(0);
+      setReferralDiscount(0);
       setAppliedReferrer(null);
       setIsValidatingReferrer(false);
       return;
@@ -609,14 +610,14 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
     const discountVal = referralSettings ? referralSettings.referee_discount_amount : 50000;
 
     setAppliedReferrer(referrer);
-    setReferrerDiscount(discountVal);
+    setReferralDiscount(discountVal);
     setReferrerError("");
     setIsValidatingReferrer(false);
   };
 
   const removeReferrer = () => {
     setAppliedReferrer(null);
-    setReferrerDiscount(0);
+    setReferralDiscount(0);
     setReferrerCode("");
     setReferrerError("");
   };
@@ -828,7 +829,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
                               <Scale className="h-4 w-4 text-blue-500" />
                               CÂN ĐIỆN TỬ GIẢ LẬP
                             </span>
-                            <Badge variant={scaleConnected ? "success" : "secondary"} className="text-[9px] px-1 py-0 font-extrabold uppercase">
+                            <Badge variant={scaleConnected ? "default" : "secondary"} className={cn("text-[9px] px-1 py-0 font-extrabold uppercase", scaleConnected && "bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-none")}>
                               {scaleConnected ? "COM3 (9600)" : "OFFLINE"}
                             </Badge>
                           </div>

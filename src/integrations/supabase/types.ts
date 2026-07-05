@@ -312,6 +312,8 @@ export type Database = {
           transaction_type: string
           notes: string | null
           created_at: string
+          reference_id: string | null
+          reference_type: string | null
         }
         Insert: {
           id?: string
@@ -321,6 +323,8 @@ export type Database = {
           transaction_type: string
           notes?: string | null
           created_at?: string
+          reference_id?: string | null
+          reference_type?: string | null
         }
         Update: {
           id?: string
@@ -330,6 +334,8 @@ export type Database = {
           transaction_type?: string
           notes?: string | null
           created_at?: string
+          reference_id?: string | null
+          reference_type?: string | null
         }
         Relationships: [
           {
@@ -3227,47 +3233,6 @@ export type Database = {
           },
         ]
       }
-      loyalty_transactions: {
-        Row: {
-          created_at: string
-          id: string
-          notes: string | null
-          partner_id: string
-          points: number
-          reference_id: string | null
-          reference_type: string | null
-          transaction_type: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          partner_id: string
-          points: number
-          reference_id?: string | null
-          reference_type?: string | null
-          transaction_type: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          partner_id?: string
-          points?: number
-          reference_id?: string | null
-          reference_type?: string | null
-          transaction_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "loyalty_transactions_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "partners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       onboarding_checklists: {
         Row: {
           company_id: string
@@ -3486,7 +3451,6 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number | null
           total: number | null
-          tags: string[] | null
           updated_at: string
           voucher_discount: number | null
           voucher_id: string | null
@@ -3545,8 +3509,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number | null
           total?: number | null
-          tags?: string[] | null
-          tags?: string[] | null
           updated_at?: string
           voucher_discount?: number | null
           voucher_id?: string | null
@@ -3605,8 +3567,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number | null
           total?: number | null
-          tags?: string[] | null
-          tags?: string[] | null
           updated_at?: string
           voucher_discount?: number | null
           voucher_id?: string | null
@@ -3709,7 +3669,6 @@ export type Database = {
           tax_id?: string | null
           total_spent?: number | null
           tags?: string[] | null
-          tags?: string[] | null
           updated_at?: string
           referral_code?: string | null
           referred_by_id?: string | null
@@ -3731,7 +3690,6 @@ export type Database = {
           phone?: string | null
           tax_id?: string | null
           total_spent?: number | null
-          tags?: string[] | null
           tags?: string[] | null
           updated_at?: string
           referral_code?: string | null
@@ -5419,7 +5377,6 @@ export type Database = {
           subtotal?: number | null
           total?: number | null
           tags?: string[] | null
-          tags?: string[] | null
           updated_at?: string
           valid_until?: string | null
         }
@@ -5436,7 +5393,6 @@ export type Database = {
           status?: string
           subtotal?: number | null
           total?: number | null
-          tags?: string[] | null
           tags?: string[] | null
           updated_at?: string
           valid_until?: string | null

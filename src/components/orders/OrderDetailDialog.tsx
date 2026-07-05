@@ -40,6 +40,7 @@ import {
   Trash2,
   Sparkles,
   PhoneCall,
+  AlertTriangle,
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import type { Tables } from "@/integrations/supabase/types";
@@ -72,6 +73,11 @@ type Order = Tables<"orders"> & {
   warehouses?: { id: string; name: string } | null;
   shipping_zones?: { id: string; name: string } | null;
   order_items?: (Tables<"order_items"> & { products?: Tables<"products"> | null; product_variants?: any | null })[];
+  cskh_agent_name?: string | null;
+  marketer_name?: string | null;
+  expected_delivery_date?: string | null;
+  call_back_time?: string | null;
+  call_back_note?: string | null;
 };
 
 const pancakeStatuses = [
@@ -441,7 +447,7 @@ export function OrderDetailDialog({
           subtotal: subtotalVal,
           total: totalCalculated,
           payment_status: paymentStatus,
-        })
+        } as any)
         .eq("id", order.id);
 
       addTimelineEvent("Lưu đơn", "Đã lưu cập nhật thông tin đơn hàng");
@@ -716,7 +722,7 @@ export function OrderDetailDialog({
             </div>
           </DialogHeader>
 
-          {order.status === "pending_approval" && (
+          {(order.status as string) === "pending_approval" && (
             <div className="mx-6 mt-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/50 p-3 rounded-lg flex items-center justify-between gap-3 flex-wrap animate-fade-in">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-600 animate-pulse shrink-0" />
@@ -903,7 +909,7 @@ export function OrderDetailDialog({
                             >
                               <span className="font-medium text-foreground truncate max-w-[110px]">{p.name}</span>
                               <span className="font-bold text-orange-600 dark:text-orange-400 shrink-0">
-                                {Number(p.selling_price || p.retail_price || 0).toLocaleString("vi-VN")}đ
+                                {Number(p.selling_price || 0).toLocaleString("vi-VN")}đ
                               </span>
                               <span className="w-3.5 h-3.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-600 flex items-center justify-center font-bold text-[9px] group-hover:bg-orange-600 group-hover:text-white transition-colors">
                                 +
@@ -1595,7 +1601,7 @@ export function OrderDetailDialog({
                 Đã in: 1 lần
               </Badge>
 
-              {(order.status === "delivered" || order.status === "received_exchange" || order.status === "paid_completed") && (
+              {((order.status as string) === "delivered" || (order.status as string) === "received_exchange" || (order.status as string) === "paid_completed") && (
                 <Button 
                   variant="outline" 
                   onClick={() => setReturnDialogOpen(true)}

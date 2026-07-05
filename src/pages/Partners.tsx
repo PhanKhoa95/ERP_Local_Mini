@@ -215,13 +215,15 @@ const Partners = () => {
     setIsBulkUpdating(true);
     try {
       const voucher = vouchers.find(v => v.code === selectedVoucherCode);
+      const { data: { user } } = await supabase.auth.getUser();
       const noteInserts = selectedPartnerIds.map(partnerId => ({
         partner_id: partnerId,
         note_type: "customer_care",
         content: `[CHIẾN DỊCH CSKH] Gửi tặng mã giảm giá ${selectedVoucherCode} (${voucher?.discount_type === 'percentage' ? `${voucher.discount_value}%` : `${voucher?.discount_value?.toLocaleString('vi-VN')}đ`}). Tin nhắn: "${campaignMessage || 'Chúc mừng quý khách đã nhận được quà tặng từ cửa hàng!'}"`,
+        user_id: user?.id || "00000000-0000-0000-0000-000000000000",
       }));
 
-      const { error } = await supabase.from("partner_notes").insert(noteInserts);
+      const { error } = await supabase.from("customer_notes").insert(noteInserts);
       if (error) throw error;
 
       toast({

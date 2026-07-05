@@ -23,6 +23,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Search,
   Plus,
   Minus,
@@ -384,6 +390,13 @@ const POS = () => {
   const isManualDiscount = activeTab.isManualDiscount;
   const customSelectedCardId = activeTab.customSelectedCardId;
   const tenderedAmount = activeTab.tenderedAmount;
+
+  // Calculate totals
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.quantity * item.unit_price - item.discount,
+    0
+  );
+  const total = subtotal - discount + shippingFee;
 
   // Tab State Setters
   const updateActiveTab = (updates: Partial<POSTab>) => {
@@ -858,13 +871,6 @@ const POS = () => {
     setShippingFee(0);
     setNotes("");
   };
-
-  // Calculate totals
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.quantity * item.unit_price - item.discount,
-    0
-  );
-  const total = subtotal - discount + shippingFee;
 
   const customerMemberships = useMemo(() => {
     if (!selectedCustomer || selectedCustomer === "walk-in") return [];

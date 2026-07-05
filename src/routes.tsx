@@ -24,6 +24,7 @@ const Performance = lazy(() => import("./pages/Performance"));
 const PerformanceKPI = lazy(() => import("./pages/PerformanceKPI"));
 const PerformanceGamification = lazy(() => import("./pages/PerformanceGamification"));
 const PerformanceTeam = lazy(() => import("./pages/PerformanceTeam"));
+const PerformanceSetup = lazy(() => import("./pages/PerformanceSetup"));
 const WorkReport = lazy(() => import("./pages/WorkReport"));
 const StrategicReport = lazy(() => import("./pages/StrategicReport"));
 const ProjectManagement = lazy(() => import("./pages/ProjectManagement"));
@@ -96,6 +97,9 @@ export function AppRoutes() {
         <Route path="/performance/gamification" element={<PerformanceGamification />} />
         <Route path="/performance/team" element={
           <ProtectedRoute minRole="manager"><PerformanceTeam /></ProtectedRoute>
+        } />
+        <Route path="/performance/setup" element={
+          <ProtectedRoute minRole="admin"><PerformanceSetup /></ProtectedRoute>
         } />
         <Route path="/work-report" element={<WorkReport />} />
         <Route path="/strategic-report" element={

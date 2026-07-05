@@ -93,7 +93,9 @@ export function WholesaleSettingsTab() {
                 <div className="space-y-1">
                   <Label htmlFor="apply_by_order_qty" className="text-xs font-semibold flex items-center gap-1 cursor-pointer">
                     Áp dụng theo tổng số lượng đơn hàng
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" title="Áp giá sỉ khi tổng số lượng của tất cả sản phẩm trong đơn >= ngưỡng" />
+                    <span title="Áp giá sỉ khi tổng số lượng của tất cả sản phẩm trong đơn >= ngưỡng">
+                      <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    </span>
                   </Label>
                   <p className="text-[10px] text-muted-foreground">
                     Kích hoạt khi tổng tất cả các items trong giỏ đạt ngưỡng.
@@ -124,7 +126,9 @@ export function WholesaleSettingsTab() {
                 <div className="space-y-1">
                   <Label htmlFor="apply_by_product_qty" className="text-xs font-semibold flex items-center gap-1 cursor-pointer">
                     Áp dụng khi mua nhiều mẫu mã của cùng sản phẩm
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" title="Áp giá sỉ khi tổng số lượng của các mẫu mã thuộc cùng 1 sản phẩm >= ngưỡng" />
+                    <span title="Áp giá sỉ khi tổng số lượng của các mẫu mã thuộc cùng 1 sản phẩm >= ngưỡng">
+                      <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    </span>
                   </Label>
                   <p className="text-[10px] text-muted-foreground">
                     Ví dụ: Mua 3 áo thun đỏ + 2 áo thun xanh (cùng sản phẩm Áo thun) = 5 cái (đạt sỉ).
@@ -155,7 +159,9 @@ export function WholesaleSettingsTab() {
                 <div className="space-y-1">
                   <Label htmlFor="apply_by_variant_qty" className="text-xs font-semibold flex items-center gap-1 cursor-pointer">
                     Áp dụng theo từng mẫu mã cụ thể (Mặc định)
-                    <HelpCircle className="h-3 w-3 text-muted-foreground" title="Áp dụng giá sỉ tương ứng với số lượng của riêng mẫu mã (variant) đó trong đơn" />
+                    <span title="Áp dụng giá sỉ tương ứng với số lượng của riêng mẫu mã (variant) đó trong đơn">
+                      <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                    </span>
                   </Label>
                   <p className="text-[10px] text-muted-foreground">
                     {"Ví dụ: Mua >= 5 áo thun đỏ thì áo thun đỏ được giá sỉ. Các mẫu mã khác dưới 5 cái không sỉ."}

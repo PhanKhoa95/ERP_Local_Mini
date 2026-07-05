@@ -328,7 +328,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMLead[];
+      return data as unknown as CRMLead[];
     },
     enabled: !!companyId
   });
@@ -354,7 +354,7 @@ export function useCRM() {
           .select()
           .single();
         if (error) throw error;
-        created = data as CRMLead;
+        created = data as unknown as CRMLead;
       }
 
       // Kích hoạt Automation Engine
@@ -424,7 +424,7 @@ export function useCRM() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as unknown as CRMLead;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm_leads"] });
@@ -500,7 +500,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMDeal[];
+      return data as unknown as CRMDeal[];
     },
     enabled: !!companyId
   });
@@ -573,7 +573,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("appointment_time", { ascending: true });
       if (error) throw error;
-      return data as CRMAppointment[];
+      return data as unknown as CRMAppointment[];
     },
     enabled: !!companyId
   });
@@ -647,7 +647,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMTicket[];
+      return data as unknown as CRMTicket[];
     },
     enabled: !!companyId
   });
@@ -721,7 +721,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("due_date", { ascending: true });
       if (error) throw error;
-      return data as CRMTask[];
+      return data as unknown as CRMTask[];
     },
     enabled: !!companyId
   });
@@ -794,7 +794,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMCompany[];
+      return data as unknown as CRMCompany[];
     },
     enabled: !!companyId
   });
@@ -841,7 +841,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMContact[];
+      return data as unknown as CRMContact[];
     },
     enabled: !!companyId
   });
@@ -926,7 +926,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as CRMCustomField[];
+      return data as unknown as CRMCustomField[];
     },
     enabled: !!companyId
   });
@@ -972,7 +972,7 @@ export function useCRM() {
         .select("*")
         .eq("company_id", companyId);
       if (error) throw error;
-      return data as CRMCustomFieldValue[];
+      return data as unknown as CRMCustomFieldValue[];
     },
     enabled: !!companyId
   });
@@ -1033,7 +1033,7 @@ export function useCRM() {
         .select("*")
         .eq("company_id", companyId);
       if (error) throw error;
-      return data as CRMApiKey[];
+      return data as unknown as CRMApiKey[];
     },
     enabled: !!companyId
   });
@@ -1061,7 +1061,7 @@ export function useCRM() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as unknown as CRMApiKey;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["crm_api_keys"] });
@@ -1139,7 +1139,7 @@ export function useCRM() {
           .select()
           .single();
         if (error) throw error;
-        createdLead = data as CRMLead;
+        createdLead = data as unknown as CRMLead;
       }
 
       // Kích hoạt Automation Rules Engine
@@ -1174,7 +1174,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .single();
       if (error && error.code !== "PGRST116") throw error; // Handle empty row
-      return data as CRMPosChatSettings | null;
+      return data as unknown as CRMPosChatSettings | null;
     },
     enabled: !!companyId
   });
@@ -1217,7 +1217,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMLeadForm[];
+      return data as unknown as CRMLeadForm[];
     },
     enabled: !!companyId
   });
@@ -1291,7 +1291,7 @@ export function useCRM() {
         .eq("company_id", companyId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as CRMAutomationRule[];
+      return data as unknown as CRMAutomationRule[];
     },
     enabled: !!companyId
   });

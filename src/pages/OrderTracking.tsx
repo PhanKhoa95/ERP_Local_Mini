@@ -216,7 +216,7 @@ export default function OrderTracking() {
 
         <Card className="border border-slate-800 bg-slate-900/50 backdrop-blur-md shadow-xl overflow-hidden">
           <CardHeader className="text-center p-6 pb-2">
-            <CardTitle className="text-lg font-extrabold text-white">Tra cứu nhanh trạng thái đơn hàng</CardTitle>
+            <CardTitle className="text-lg font-extrabold text-white">Tra cứu đơn hàng</CardTitle>
             <CardDescription className="text-xs text-slate-400">
               Nhập mã đơn hàng và số điện thoại đặt hàng để cập nhật lộ trình giao hàng trực tiếp.
             </CardDescription>

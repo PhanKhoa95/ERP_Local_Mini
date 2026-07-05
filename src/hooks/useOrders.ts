@@ -338,10 +338,12 @@ async function rewardReferrer(companyId: string, referrerId: string | null, refe
           await supabase.from("partners").update({ referred_by_id: referrerId }).eq("id", refereeId);
         }
 
-        await supabase.from("partner_notes").insert({
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("customer_notes").insert({
           partner_id: referrerId,
           note_type: "general",
           content: `[GIỚI THIỆU KHÁCH MỚI] Giới thiệu thành công khách hàng mới ${refereeName} mua đơn hàng đầu tiên. Hệ thống tự động thưởng +${rewardPoints} điểm tích lũy!`,
+          user_id: user?.id || "00000000-0000-0000-0000-000000000000",
         });
       }
     } catch (err) {
@@ -354,6 +356,7 @@ export interface OrderItem {
   id: string;
   order_id: string;
   product_id: string | null;
+  variant_id?: string | null;
   quantity: number;
   unit_price: number;
   total_price?: number;
@@ -371,7 +374,7 @@ export interface Order {
   id: string;
   company_id?: string | null;
   order_number: string;
-  status: "pending" | "confirmed" | "processing" | "shipping" | "delivered" | "cancelled" | "returned" | "duplicate" | "waiting_goods" | "priority_ship" | "waiting_print" | "printed" | "ordered" | "packing" | "waiting_transfer" | "deleted" | "returned_partial" | "exchanging";
+  status: "pending" | "confirmed" | "processing" | "shipping" | "delivered" | "cancelled" | "returned" | "duplicate" | "waiting_goods" | "priority_ship" | "waiting_print" | "printed" | "ordered" | "packing" | "waiting_transfer" | "deleted" | "returned_partial" | "exchanging" | "paid_completed";
   total?: number | null;
   discount?: number | null;
   shipping_fee?: number | null;
@@ -415,6 +418,7 @@ export interface Order {
   order_items?: OrderItem[];
   referrer_id?: string | null;
   referral_discount?: number | null;
+  call_back_time?: string | null;
 }
 
 const LOCAL_ORDERS_KEY = "erp-mini-local-demo-orders";
@@ -1052,9 +1056,8 @@ function deductLocalStock(items: any[], orderNumber: string) {
             
             createLocalInventoryTransaction({
               product_id: variants[childVarIdx].product_id,
-              variant_id: comp.child_variant_id,
               transaction_type: "out",
-              quantity: -qtyToSubtract,
+              quantity: qtyToSubtract,
               notes: `Tieu hao thanh phan Combo - Don ${orderNumber}`,
             });
           }
@@ -1071,9 +1074,8 @@ function deductLocalStock(items: any[], orderNumber: string) {
 
         createLocalInventoryTransaction({
           product_id: item.product_id,
-          variant_id: item.variant_id,
           transaction_type: "out",
-          quantity: -(item.quantity || 1),
+          quantity: item.quantity || 1,
           notes: `Tr tn kho bien the - Don ${orderNumber}`,
         });
       }
@@ -1086,7 +1088,7 @@ function deductLocalStock(items: any[], orderNumber: string) {
       createLocalInventoryTransaction({
         product_id: item.product_id,
         transaction_type: "out",
-        quantity: -(item.quantity || 1),
+        quantity: item.quantity || 1,
         notes: `Tr tn kho - Don ${orderNumber}`,
       });
     }
@@ -1125,7 +1127,6 @@ function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: stri
 
             createLocalInventoryTransaction({
               product_id: variants[childVarIdx].product_id,
-              variant_id: comp.child_variant_id,
               transaction_type: "in",
               quantity: qtyToAdd,
               notes: `Hoan tra thanh phan Combo (${reason}) - Don ${orderNumber}`,
@@ -1144,7 +1145,6 @@ function restoreLocalStock(items: OrderItem[], orderNumber: string, reason: stri
 
         createLocalInventoryTransaction({
           product_id: item.product_id,
-          variant_id: item.variant_id,
           transaction_type: "in",
           quantity: item.quantity || 1,
           notes: `Hoan tra bien the (${reason}) - Don ${orderNumber}`,
@@ -1203,7 +1203,6 @@ async function deductSupabaseStock(items: any[], orderNumber: string) {
             const { data: { user } } = await supabase.auth.getUser();
             await supabase.from("inventory_transactions").insert({
               product_id: childProductId,
-              variant_id: comp.child_variant_id,
               transaction_type: "out",
               quantity: -qtyToDeduct,
               reference_type: "composite_consumption",
@@ -1225,7 +1224,6 @@ async function deductSupabaseStock(items: any[], orderNumber: string) {
           const { data: { user } } = await supabase.auth.getUser();
           await supabase.from("inventory_transactions").insert({
             product_id: item.product_id,
-            variant_id: item.variant_id,
             transaction_type: "out",
             quantity: -(item.quantity || 1),
             reference_type: "order",
@@ -1290,7 +1288,6 @@ async function restoreSupabaseStock(items: OrderItem[], orderNumber: string, rea
             const { data: { user } } = await supabase.auth.getUser();
             await supabase.from("inventory_transactions").insert({
               product_id: childProductId,
-              variant_id: comp.child_variant_id,
               transaction_type: "in",
               quantity: qtyToAdd,
               reference_type: `order-${reason}`,
@@ -1312,7 +1309,6 @@ async function restoreSupabaseStock(items: OrderItem[], orderNumber: string, rea
           const { data: { user } } = await supabase.auth.getUser();
           await supabase.from("inventory_transactions").insert({
             product_id: item.product_id,
-            variant_id: item.variant_id,
             transaction_type: "in",
             quantity: item.quantity || 1,
             reference_type: `order-${reason}`,
@@ -1729,7 +1725,7 @@ export function useOrders() {
       }
 
       // Auto create payment transaction in Supabase if paid_completed
-      if (status === "paid_completed" && prevStatus !== "paid_completed") {
+      if ((status as string) === "paid_completed" && (prevStatus as string) !== "paid_completed") {
         await supabase
           .from("orders")
           .update({
