@@ -49,12 +49,18 @@ Quy trình M.A.T.R.I.X yêu cầu quét và xác thực 6 nhóm tính năng cố
 Khi chạy nâng cấp hoặc quét hệ thống, thực hiện tuần tự các bước sau:
 
 ### Bước 0: Quét tài liệu 5 cấp độ và đối soát hình ảnh (Documentation Deep Crawl)
-Trước khi nâng cấp phân hệ, chạy kịch bản quét tự động 5 cấp độ để thu thập cấu trúc sơ đồ liên kết tài liệu và chi tiết danh sách ảnh (alt text, link ảnh):
-```bash
-# Quét tài liệu Fintab sâu 5 cấp độ
-node .agents/scratch/crawler_5_levels.js https://docs.pancake.biz/fintab 5
-```
-Kết quả được xuất ra tệp tin JSON `.agents/scratch/crawled_report.json` phục vụ đối soát chi tiết.
+Trước khi nâng cấp phân hệ, chạy kịch bản quét tự động để thu thập cấu trúc sơ đồ liên kết hoặc trích xuất văn bản nghiệp vụ chi tiết:
+1.  **Quét cấu trúc liên kết và danh sách ảnh (5 cấp độ)**:
+    ```bash
+    node .agents/scratch/crawler_5_levels.js https://docs.pancake.biz/fintab 5
+    ```
+    Kết quả được xuất ra tệp tin JSON `.agents/scratch/crawled_report.json`.
+2.  **Quét sâu và trích xuất toàn bộ văn bản nội dung nghiệp vụ (Next.js RSC Decryption)**:
+    Sử dụng script giải mã byte buffer RSC để dịch ngược luồng dữ liệu của docs.pancake.biz thành tài liệu markdown chi tiết:
+    ```bash
+    node .agents/skills/matrix-pancake-pos-workflow/scripts/crawler_deep_rsc.js https://docs.pancake.biz/pancakework/ .agents/scratch/pancakework_deep_report.md
+    ```
+    Thay thế `https://docs.pancake.biz/pancakework/` bằng phân hệ tương ứng cần đối soát (ví dụ: `/fintab/` hoặc `/crm/`).
 
 ### Bước 1: Kiểm tra Biên dịch và Kiểu (Typecheck & Lint)
 Đảm bảo mã nguồn không bị lỗi kiểu và tuân thủ chuẩn code:

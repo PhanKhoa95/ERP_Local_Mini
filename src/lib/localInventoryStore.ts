@@ -887,6 +887,7 @@ export function createLocalInventoryTransaction(input: {
     notes: normalizeText(input.notes),
     reference_id: null,
     reference_type: "local-demo",
+    location_id: null,
     created_by: LOCAL_DEMO_USER_ID,
     created_at: timestamp,
   };
@@ -1129,6 +1130,7 @@ export function applyLocalProductionCompletion(input: {
       quantity: move.signedQuantity,
       reference_id: input.productionOrderId,
       reference_type: "production_bom",
+      location_id: null,
       notes: move.notes,
       created_by: LOCAL_DEMO_USER_ID,
       created_at: timestamp,
@@ -1140,6 +1142,7 @@ export function applyLocalProductionCompletion(input: {
       quantity: plan.finishedGoodMove.signedQuantity,
       reference_id: input.productionOrderId,
       reference_type: "production_finished_good",
+      location_id: null,
       notes: plan.finishedGoodMove.notes,
       created_by: LOCAL_DEMO_USER_ID,
       created_at: timestamp,

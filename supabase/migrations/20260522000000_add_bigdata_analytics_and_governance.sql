@@ -53,6 +53,7 @@ order_months AS (
   SELECT
     o.company_id,
     o.customer_phone,
+    cfp.first_purchase_month,
     DATE_TRUNC('month', o.order_date) AS order_month,
     o.total,
     (EXTRACT(YEAR FROM o.order_date) - EXTRACT(YEAR FROM cfp.first_purchase_month)) * 12 +

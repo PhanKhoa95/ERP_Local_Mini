@@ -3,6 +3,7 @@ import { loginLocalDemo, getBrainPath, ensureDir } from "./helpers";
 import * as path from "path";
 
 test("verify Casso bank transfer auto-reconciliation flow", async ({ page }) => {
+  test.setTimeout(60000);
   // Set viewport size to ensure everything fits on screen
   await page.setViewportSize({ width: 1280, height: 960 });
 

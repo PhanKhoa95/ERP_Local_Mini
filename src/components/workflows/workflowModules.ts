@@ -5,7 +5,7 @@ import {
   UserPlus, CalendarDays, GraduationCap, BarChart3, BookOpen, Users, Star,
   FileText, FileCheck, AlertTriangle, Receipt, Wallet,
   Cloud, History, ShieldCheck, Coins, PieChart, Milestone, Scale,
-  FileSignature, Building2, Gift, Calendar, Shield, Fingerprint,
+  FileSignature, Building2, Gift, Calendar, Shield, Fingerprint, Send,
 } from "lucide-react";
 
 export interface ModuleDefinition {
@@ -235,6 +235,15 @@ export const ACTION_MODULES: ModuleDefinition[] = [
     type: "action", subtype: "webhook", label: "Webhook", icon: Globe,
     color: "hsl(217 91% 60%)", description: "Gọi API bên ngoài",
     configFields: [{ key: "url", label: "URL", type: "text" }, { key: "method", label: "Method", type: "select", options: [{ label: "POST", value: "POST" }, { label: "GET", value: "GET" }] }],
+  },
+  {
+    type: "action", subtype: "send_pancake_work", label: "Gửi thông báo Pancake Work", icon: Send,
+    color: "hsl(140 70% 45%)", description: "Gửi tin nhắn thông báo về kênh chat của Pancake Work",
+    configFields: [
+      { key: "workspace_name", label: "Tên Workspace", type: "text", placeholder: "Ví dụ: Pancake Work HQ" },
+      { key: "channel_name", label: "Tên Kênh", type: "text", placeholder: "Ví dụ: #thong-bao-luong" },
+      { key: "message_template", label: "Mẫu nội dung", type: "text", placeholder: "Ví dụ: Nhân viên {{employee_name}} nhận lương {{net_salary}}đ" },
+    ],
   },
   {
     type: "action", subtype: "update_field", label: "Cập nhật trường", icon: Edit3,

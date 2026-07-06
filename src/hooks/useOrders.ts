@@ -403,7 +403,7 @@ export interface Order {
   voucher_id?: string | null;
   created_at: string;
   updated_at: string;
-  tags?: string | null;
+  tags?: string[] | string | null;
   assigned_to_name?: string | null;
   fulfillment_type?: string | null;
   sales_channels?: {

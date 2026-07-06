@@ -11,7 +11,7 @@ import { useProjects } from "@/hooks/useProjects";
 import {
   BookOpen, FileText, PieChart, TrendingUp, RefreshCw, Plus,
   ArrowUpRight, ArrowDownRight, Wallet, Coins, BarChart3, Search, ExternalLink,
-  Pencil, Trash2, Filter,
+  Pencil, Trash2, Filter, Wrench,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { useGlobalDateFilter } from "@/contexts/GlobalDateFilterContext";
 import { CashVoucherTab } from "@/components/finance/CashVoucherTab";
 import { FintabIntegration } from "@/components/finance/FintabIntegration";
+import { CcdcTab } from "@/components/finance/CcdcTab";
 
 const TYPE_LABELS: Record<string, string> = {
   asset: "Tài sản", liability: "Nợ phải trả", equity: "Vốn chủ sở hữu",
@@ -467,6 +468,7 @@ export default function Accounting() {
             <TabsTrigger value="balance"><PieChart className="h-4 w-4 mr-1" />Bảng CĐKT</TabsTrigger>
             <TabsTrigger value="pnl"><TrendingUp className="h-4 w-4 mr-1" />P&L</TabsTrigger>
             <TabsTrigger value="fintab"><RefreshCw className="h-4 w-4 mr-1" />Pancake Fintab</TabsTrigger>
+            <TabsTrigger value="ccdc"><Wrench className="h-4 w-4 mr-1" />Công cụ dụng cụ</TabsTrigger>
           </TabsList>
 
           <TabsContent value="ledger">
@@ -702,6 +704,9 @@ export default function Accounting() {
           </TabsContent>
           <TabsContent value="fintab">
             <FintabIntegration />
+          </TabsContent>
+          <TabsContent value="ccdc">
+            <CcdcTab />
           </TabsContent>
         </Tabs>
       </div>

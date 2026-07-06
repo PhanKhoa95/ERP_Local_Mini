@@ -148,7 +148,9 @@ export default function Workflows() {
               ? "Đã gửi thông báo đẩy đến Telegram/Email của bộ phận liên quan"
               : node.action_type === "create_task"
                 ? "Đã tạo task công việc mới trong Project Management"
-                : "Thực thi hành động nghiệp vụ thành công";
+                : node.action_type === "send_pancake_work"
+                  ? `Đã gửi thông báo về Kênh ${node.config?.channel_name || "#thong-bao-luong"} của Workspace ${node.config?.workspace_name || "Pancake Work HQ"} thành công`
+                  : "Thực thi hành động nghiệp vụ thành công";
         }
         
         traces.push({

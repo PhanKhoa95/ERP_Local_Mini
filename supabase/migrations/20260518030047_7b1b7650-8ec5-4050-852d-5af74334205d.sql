@@ -43,6 +43,17 @@ CREATE POLICY "Public can read shop_settings public keys"
   USING (key IN ('bank_info', 'shop_info'));
 
 -- ============ embedding_cache: restrict reads to authenticated ============
+CREATE TABLE IF NOT EXISTS public.embedding_cache (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  embedding text NOT NULL,
+  last_used_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  text_hash text NOT NULL UNIQUE,
+  use_count integer DEFAULT 1
+);
+
+ALTER TABLE public.embedding_cache ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Allow read access to embedding cache" ON public.embedding_cache;
 CREATE POLICY "Authenticated users can read embedding_cache"
   ON public.embedding_cache FOR SELECT TO authenticated USING (true);

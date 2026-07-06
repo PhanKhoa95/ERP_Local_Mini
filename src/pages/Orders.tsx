@@ -340,7 +340,11 @@ const Orders = () => {
       // Tag filter
       let matchesTag = true;
       if (tagFilter !== "all") {
-        const tagsList = order.tags ? order.tags.split(",").map(t => t.trim().toLowerCase()) : [];
+        const tagsList = Array.isArray(order.tags)
+          ? order.tags.map(t => String(t).trim().toLowerCase())
+          : typeof order.tags === "string"
+          ? (order.tags as string).split(",").map(t => t.trim().toLowerCase())
+          : [];
         if (!tagsList.includes(tagFilter.toLowerCase())) matchesTag = false;
       }
 
@@ -773,8 +777,12 @@ const Orders = () => {
     return "bg-slate-500/10 text-slate-600 border-slate-500/20";
   };
 
-  const handleUpdateOrderTags = async (orderId: string, currentTagsStr: string, tagName: string, action: "add" | "remove") => {
-    let currentTags = currentTagsStr ? currentTagsStr.split(",").map(t => t.trim()).filter(Boolean) : [];
+  const handleUpdateOrderTags = async (orderId: string, currentTagsVal: string | string[] | null, tagName: string, action: "add" | "remove") => {
+    let currentTags = Array.isArray(currentTagsVal)
+      ? [...currentTagsVal]
+      : typeof currentTagsVal === "string"
+      ? currentTagsVal.split(",").map(t => t.trim()).filter(Boolean)
+      : [];
     
     if (action === "add") {
       const priorityGroup = TAG_GROUPS[0];
@@ -807,7 +815,7 @@ const Orders = () => {
       } else {
         await supabase
           .from("orders")
-          .update({ tags: newTagsStr, updated_at: new Date().toISOString() })
+          .update({ tags: currentTags, updated_at: new Date().toISOString() })
           .eq("id", orderId);
       }
       
@@ -1388,7 +1396,7 @@ const Orders = () => {
                                 )}
                               </div>
                               <div className="flex gap-1 flex-wrap items-center">
-                                {(order.tags ? order.tags.split(",") : []).map((t: any) => String(t).trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
+                                {(Array.isArray(order.tags) ? order.tags : (typeof order.tags === "string" ? order.tags.split(",") : [])).map((t: any) => String(t).trim()).filter(Boolean).slice(0, 3).map((tag: string, idx: number) => (
                                   <Badge key={idx} variant="outline" className={cn("text-[8px] px-1 py-0", getTagColorClass(tag))}>
                                     {tag}
                                   </Badge>
@@ -1411,7 +1419,7 @@ const Orders = () => {
                                           {group.name}
                                         </DropdownMenuLabel>
                                         {group.tags.map((tag) => {
-                                          const currentTags = order.tags ? order.tags.split(",").map((t: string) => t.trim()) : [];
+                                          const currentTags = Array.isArray(order.tags) ? order.tags.map(String).map(t => t.trim()) : (typeof order.tags === "string" ? order.tags.split(",").map((t: string) => t.trim()) : []);
                                           const hasTag = currentTags.includes(tag.name);
                                           return (
                                             <DropdownMenuCheckboxItem
@@ -1420,7 +1428,7 @@ const Orders = () => {
                                               onCheckedChange={(checked) => {
                                                 handleUpdateOrderTags(
                                                   order.id,
-                                                  order.tags || "",
+                                                  order.tags,
                                                   tag.name,
                                                   checked ? "add" : "remove"
                                                 );

@@ -91,6 +91,6 @@ CREATE POLICY "public_vouchers_read"
   TO anon
   USING (
     is_active = true
-    AND (expires_at IS NULL OR expires_at > now())
-    AND current_usage < max_usage
+    AND (end_date IS NULL OR end_date > now())
+    AND (usage_limit IS NULL OR used_count < usage_limit)
   );

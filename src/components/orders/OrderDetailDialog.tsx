@@ -78,6 +78,7 @@ type Order = Tables<"orders"> & {
   expected_delivery_date?: string | null;
   call_back_time?: string | null;
   call_back_note?: string | null;
+  assigned_to_name?: string | null;
 };
 
 const pancakeStatuses = [
@@ -301,8 +302,10 @@ export function OrderDetailDialog({
       setCallBackTime(order.call_back_time || "");
       setCallBackNote(order.call_back_note || "");
       
-      const loadedTags = order.tags 
-        ? order.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+      const loadedTags = Array.isArray(order.tags)
+        ? (order.tags as string[])
+        : typeof order.tags === "string"
+        ? (order.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean)
         : (isMock072 ? ["Sữa uống", "Dielac"] : []);
       setOrderTags(loadedTags);
       
