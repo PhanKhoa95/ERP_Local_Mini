@@ -1,7 +1,7 @@
-# BRIEFING — 2026-07-01T07:25:00Z
+# BRIEFING — 2026-07-17T02:53:07Z
 
 ## Mission
-Perform static verification (typecheck and lint) on ERP_Local_Mini, and resolve any compilation or lint errors.
+Perform full diagnostic verification (typecheck, lint, unit tests, E2E tests, and production build) on ERP_Local_Mini.
 
 ## 🔒 My Identity
 - Archetype: worker_static_verification
@@ -11,23 +11,24 @@ Perform static verification (typecheck and lint) on ERP_Local_Mini, and resolve 
 - Milestone: Static Verification and Error Resolution
 
 ## 🔒 Key Constraints
-- Run `npm run typecheck` and `npm run lint`.
+- Run `npm run typecheck`, `npm run lint`, `npm run test` (or `npx vitest run`), `npx playwright test`, and `npm run build`.
 - Do not modify source code or tests unless resolving compilation/lint errors.
-- Both typecheck and lint must run without errors and exit with 0.
-- Document command runs, errors/warnings, and fixes in `handoff.md`.
+- Document command runs, errors/warnings, stdout/stderr, and pass/fail status in `handoff.md`.
+- DO NOT CHEAT. All implementations must be genuine.
 
 ## Current Parent
-- Conversation ID: 28490154-c906-42e2-86ff-c189b615577c
-- Updated: 2026-07-01T07:25:00Z
+- Conversation ID: 92135634-1727-4895-98f3-66ae6b1a7686
+- Updated: 2026-07-17T02:53:07Z
 
 ## Task Summary
-- **What to build**: Resolve any TypeScript compile errors and lint errors in the project.
-- **Success criteria**: `npm run typecheck` and `npm run lint` return 0 with no errors.
+- **What to build**: Full diagnostic verification report
+- **Success criteria**: Verification of all 5 stages (typecheck, lint, tests, E2E, build)
 - **Interface contracts**: N/A
 - **Code layout**: Root of ERP_Local_Mini
 
 ## Key Decisions Made
-- Only fix linting errors that cause exit code 1 to keep changes minimal and prevent regressions.
+- Genuinely run all requested commands on the user's system and check outputs.
+- Record both stdout and stderr in handoff.md.
 
 ## Artifact Index
 - `y:\ERP_Local_Mini\.agents\worker_static_verification\handoff.md` — Handoff report for verification outcomes.

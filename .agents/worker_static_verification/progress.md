@@ -1,11 +1,12 @@
 # Progress - worker_static_verification
 
-Last visited: 2026-07-01T14:26:00+07:00
+Last visited: 2026-07-17T09:53:07+07:00
 
-- [x] Run initial typecheck and lint checks to identify errors
-- [x] List any files needing modification
-- [x] Fix typescript compilation errors (none found)
-- [x] Fix linting errors
-- [x] Run typecheck and lint checks to verify success
-- [x] Generate handoff.md and report to parent
-
+- [/] Run full diagnostic verification
+  - [ ] Run `npm run typecheck`
+  - [ ] Run `npm run lint`
+  - [ ] Run `npm run test` (or `npx vitest run`)
+  - [ ] Run `npx playwright test`
+  - [ ] Run `npm run build`
+- [ ] Document exact command lines, outputs, and status in handoff.md
+- [ ] Report results to parent

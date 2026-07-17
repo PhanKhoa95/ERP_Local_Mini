@@ -45,17 +45,18 @@ Complete and refine Memberships & Wallet Balance, and satisfy the Zero-Error Ver
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
+| Tester 1 | teamwork_preview_worker | Run diagnostic test suite | pending | c7474e1d-d892-4933-9e40-7c22a2d9f705 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
-- Pending subagents: none
+- Spawn count: 1 / 16
+- Pending subagents: c7474e1d-d892-4933-9e40-7c22a2d9f705
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
 - Heartbeat cron: task-19
-- Safety timer: none
+- Safety timer: task-55
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing
 
