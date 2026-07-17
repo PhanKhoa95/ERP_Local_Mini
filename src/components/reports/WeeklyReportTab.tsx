@@ -2103,36 +2103,60 @@ export function WeeklyReportTab() {
                 </span>
 
                 {activeMetricDetail.list.some(item => item.activities) ? (
-                  <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+                  <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
                     {activeMetricDetail.list.map((item, idx) => (
-                      <div key={idx} className="border rounded-lg p-3 bg-muted/5 hover:bg-muted/10 transition-colors space-y-2">
+                      <div key={idx} className="border rounded-xl p-4 bg-muted/5 hover:bg-muted/10 transition-colors space-y-3">
                         <div className="flex items-center justify-between text-xs font-bold">
                           <div className="flex items-center gap-2">
-                            <span className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[10px]">{item.code}</span>
-                            <span className="text-foreground">{item.name}</span>
+                            <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded text-[10px]">{item.code}</span>
+                            <span className="text-foreground text-sm">{item.name}</span>
                           </div>
-                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                          <Badge variant="secondary" className="px-2 py-0.5 text-[10px] bg-secondary/80">
                             {item.value}
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>Vai trò: <span className="font-medium text-foreground">{item.date}</span></span>
-                          <span>{item.details}</span>
+                        
+                        {/* Advanced Staffing Metadata grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-muted/20 p-2.5 rounded-lg text-[10px] border border-muted-foreground/10">
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Hôm nay:</span>
+                            <Badge className={cn(
+                              "text-[8px] font-black px-1.5 py-0 mt-0.5",
+                              item.attendanceToday?.includes("Vắng") ? "bg-rose-500 text-white" : "bg-emerald-500 text-white"
+                            )}>
+                              {item.attendanceToday || "N/A"}
+                            </Badge>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Giờ tuần này:</span>
+                            <span className="font-bold text-foreground font-mono block mt-0.5">{item.totalHours || 0} giờ</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block font-medium">KPI Tuần:</span>
+                            <span className="font-bold text-primary font-mono block mt-0.5">{item.kpiRating || "N/A"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Vai trò / Chứng chỉ:</span>
+                            <span className="font-semibold text-foreground truncate block mt-0.5" title={item.certifications}>{item.certifications || "Basic"}</span>
+                          </div>
                         </div>
 
-                        {/* Sub-activities reported by this employee */}
+                        {/* Sub-activities reported by this employee with duration */}
                         {item.activities && item.activities.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-muted/50 space-y-2">
-                            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider block">Công việc đã báo cáo:</span>
+                          <div className="pt-2 border-t border-muted-foreground/10 space-y-2">
+                            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider block">Các việc báo cáo tuần này:</span>
                             <div className="space-y-2">
                               {item.activities.map((act, actIdx) => (
-                                <div key={actIdx} className="p-2 bg-background border rounded-lg space-y-1.5 shadow-sm">
+                                <div key={actIdx} className="p-2.5 bg-background border rounded-lg space-y-2 shadow-sm">
                                   <div className="flex items-center justify-between text-xs font-semibold">
-                                    <span className="text-foreground/90">{act.task}</span>
+                                    <span className="text-foreground/90">
+                                      {act.task} 
+                                      <span className="text-[10px] text-muted-foreground font-normal ml-1.5 font-mono">({act.duration})</span>
+                                    </span>
                                     <Badge 
                                       variant="outline" 
                                       className={cn(
-                                        "text-[9px] px-1 py-0 font-bold",
+                                        "text-[9px] px-1.5 py-0 font-bold",
                                         act.status === "Đã xong" 
                                           ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
                                           : "bg-amber-500/10 text-amber-600 border-amber-500/20"
@@ -2153,13 +2177,17 @@ export function WeeklyReportTab() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto border rounded-lg">
-                    <table className="w-full text-xs text-left">
+                    <table className="w-full text-xs text-left min-w-[750px]">
                       <thead>
                         <tr className="bg-muted border-b font-semibold text-muted-foreground">
-                          <th className="p-2.5">Mã số / Đối tượng</th>
-                          <th className="p-2.5">Nội dung đối soát</th>
-                          <th className="p-2.5 text-center">Giá trị / Trạng thái</th>
-                          <th className="p-2.5 text-center">Thời gian</th>
+                          <th className="p-2.5">Mã đối soát</th>
+                          <th className="p-2.5">Nội dung đối soát nguồn</th>
+                          <th className="p-2.5 text-center">Phương thức</th>
+                          <th className="p-2.5 text-center">TK đối ứng</th>
+                          <th className="p-2.5 text-center">Đối soát viên</th>
+                          <th className="p-2.5 text-center">Giá trị thực tế</th>
+                          <th className="p-2.5 text-center">Ngày ghi nhận</th>
+                          <th className="p-2.5 text-center">Tài liệu gốc</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2170,10 +2198,30 @@ export function WeeklyReportTab() {
                               <div className="font-medium text-foreground">{item.name}</div>
                               <div className="text-[10px] text-muted-foreground">{item.details}</div>
                             </td>
+                            <td className="p-2.5 text-center font-medium text-foreground/80">{item.paymentMethod || "N/A"}</td>
+                            <td className="p-2.5 text-center font-mono text-foreground/75 bg-muted/30 text-[10px]">{item.accountOffset || "N/A"}</td>
+                            <td className="p-2.5 text-center font-semibold text-muted-foreground">{item.reconciler || "Hệ thống ERP"}</td>
                             <td className="p-2.5 text-center font-bold text-foreground">
                               {typeof item.value === "number" ? `${item.value} ${activeMetricDetail.unit}` : item.value}
                             </td>
                             <td className="p-2.5 text-center text-muted-foreground font-mono">{item.date}</td>
+                            <td className="p-2.5 text-center">
+                              {item.invoiceFile ? (
+                                <a 
+                                  href={`/assets/docs/${item.invoiceFile}`}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    alert(`Đang truy xuất tệp chứng từ gốc: ${item.invoiceFile}`);
+                                  }}
+                                  className="inline-flex items-center gap-1 text-primary hover:underline font-bold text-[10px] bg-primary/5 px-2 py-0.5 rounded border border-primary/10"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  PDF
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground/45">-</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
