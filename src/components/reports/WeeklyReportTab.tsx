@@ -702,8 +702,28 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
           { name: "Doanh thu dịch vụ khác", value: Math.round(report.businessResults.revenue * 0.05), percentage: 5 }
         ],
         list: [
-          { code: "REV-202607-001", name: "Doanh số bán lẻ quầy", value: Math.round(report.businessResults.revenue * 0.6), date: "Hàng tuần", details: "Doanh số POS đối soát thực tế" },
-          { code: "REV-202607-002", name: "Đơn đặt hàng trực tuyến", value: Math.round(report.businessResults.revenue * 0.35), date: "Hàng tuần", details: "Thanh toán qua cổng QR động" }
+          { 
+            code: "REV-202607-001", 
+            name: "Doanh số bán lẻ quầy (POS Aroma)", 
+            value: Math.round(report.businessResults.revenue * 0.6), 
+            date: "17/07/2026", 
+            details: "Doanh số POS đối soát thực tế",
+            paymentMethod: "Tiền mặt & Cà thẻ",
+            accountOffset: "Nợ 111 / Có 511",
+            reconciler: "Lê Thu Trang (Kế toán)",
+            invoiceFile: "INV-POS-0982.pdf"
+          },
+          { 
+            code: "REV-202607-002", 
+            name: "Đơn đặt hàng trực tuyến (App/Web)", 
+            value: Math.round(report.businessResults.revenue * 0.35), 
+            date: "17/07/2026", 
+            details: "Thanh toán qua cổng QR động",
+            paymentMethod: "VietQR Cổng Casso",
+            accountOffset: "Nợ 112 / Có 511",
+            reconciler: "Nguyễn Hoàng Long (Thu ngân)",
+            invoiceFile: "INV-QR-8871.pdf"
+          }
         ]
       };
     case "cost":
@@ -717,8 +737,28 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
           { name: "Chi phí mặt bằng & Khác", value: Math.round(report.businessResults.cost * 0.2), percentage: 20 }
         ],
         list: [
-          { code: "COST-202607-001", name: "Mua nguyên vật liệu pha chế", value: Math.round(report.businessResults.cost * 0.55), date: "15/07/2026", details: "Thanh toán nhà cung cấp" },
-          { code: "COST-202607-002", name: "Chi phí nhân sự vận hành", value: Math.round(report.businessResults.cost * 0.25), date: "15/07/2026", details: "Lương tuần nhân sự" }
+          { 
+            code: "COST-202607-001", 
+            name: "Mua hạt cà phê Robusta & Arabica", 
+            value: Math.round(report.businessResults.cost * 0.55), 
+            date: "15/07/2026", 
+            details: "Nhập kho nguyên liệu đợt 1",
+            paymentMethod: "Chuyển khoản Vietcombank",
+            accountOffset: "Nợ 152 / Có 331",
+            reconciler: "Lê Thu Trang (Kế toán)",
+            invoiceFile: "PNK-CF-0012.pdf"
+          },
+          { 
+            code: "COST-202607-002", 
+            name: "Chi phí lương tuần nhân viên", 
+            value: Math.round(report.businessResults.cost * 0.25), 
+            date: "15/07/2026", 
+            details: "Lương tuần ca mẫu & part-time",
+            paymentMethod: "Chuyển khoản ngân hàng",
+            accountOffset: "Nợ 642 / Có 334",
+            reconciler: "Lê Minh Anh (Trưởng nhóm)",
+            invoiceFile: "PAYROLL-W3.pdf"
+          }
         ]
       };
     case "profit":
@@ -728,10 +768,20 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
         totalValue: report.businessResults.profit,
         breakdown: [
           { name: "Biên lợi nhuận gộp", value: Math.round(report.businessResults.revenue - report.businessResults.cost), percentage: 100 },
-          { name: "Lợi nhuận ròng", value: report.businessResults.profit, percentage: 100 }
+          { name: "Lợi nhuận ròng thực tế", value: report.businessResults.profit, percentage: 100 }
         ],
         list: [
-          { code: "PRF-202607-001", name: "Biên lợi nhuận gộp trung bình", value: `${Math.round((report.businessResults.profit / (report.businessResults.revenue || 1)) * 100)}%`, date: "Hàng tuần", details: "Tính toán dựa trên doanh thu/chi phí" }
+          { 
+            code: "PRF-202607-001", 
+            name: "Biên lợi nhuận gộp tạm tính", 
+            value: `${Math.round((report.businessResults.profit / (report.businessResults.revenue || 1)) * 100)}%`, 
+            date: "17/07/2026", 
+            details: "Tính toán dựa trên doanh thu trừ chi phí thực tế",
+            paymentMethod: "Đối soát tự động",
+            accountOffset: "Tài khoản 911",
+            reconciler: "Hệ thống ERP AI",
+            invoiceFile: "PROFIT-REPORT.pdf"
+          }
         ]
       };
     case "receivable":
@@ -744,7 +794,17 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
           { name: "Nợ quá hạn", value: Math.round(report.businessResults.receivable * 0.2), percentage: 20 }
         ],
         list: [
-          { code: "REC-202607-001", name: "Khách hàng sỉ Aroma", value: Math.round(report.businessResults.receivable * 0.8), date: "16/07/2026", details: "Nợ chưa thanh toán hóa đơn" }
+          { 
+            code: "REC-202607-001", 
+            name: "Nợ mua sỉ hạt cafe Aroma", 
+            value: Math.round(report.businessResults.receivable * 0.8), 
+            date: "16/07/2026", 
+            details: "Hóa đơn mua sỉ đại lý Hà Nội",
+            paymentMethod: "Chờ thanh toán (30 ngày)",
+            accountOffset: "Nợ 131 / Có 511",
+            reconciler: "Lê Thu Trang (Kế toán)",
+            invoiceFile: "REC-AROMA-001.pdf"
+          }
         ]
       };
     case "payable":
@@ -753,11 +813,21 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
         unit: "Tr",
         totalValue: report.businessResults.payable,
         breakdown: [
-          { name: "Nợ nhà cung cấp hạt cafe", value: Math.round(report.businessResults.payable * 0.7), percentage: 70 },
-          { name: "Nợ nhà cung cấp bao bì", value: Math.round(report.businessResults.payable * 0.3), percentage: 30 }
+          { name: "Nợ nhà cung cấp thiết bị quầy bar", value: Math.round(report.businessResults.payable * 0.7), percentage: 70 },
+          { name: "Nợ nhà cung cấp bao bì, ly cốc", value: Math.round(report.businessResults.payable * 0.3), percentage: 30 }
         ],
         list: [
-          { code: "PAY-202607-001", name: "Nhà cung cấp Robusta Tiến Phát", value: Math.round(report.businessResults.payable * 0.7), date: "12/07/2026", details: "Lô hạt cà phê nguyên liệu" }
+          { 
+            code: "PAY-202607-001", 
+            name: "Nhà cung cấp thiết bị bar Tiến Phát", 
+            value: Math.round(report.businessResults.payable * 0.7), 
+            date: "12/07/2026", 
+            details: "Lô máy pha Espresso 2 group",
+            paymentMethod: "Chờ thanh toán (Gối đầu)",
+            accountOffset: "Nợ 211 / Có 331",
+            reconciler: "Lê Thu Trang (Kế toán)",
+            invoiceFile: "PAY-TIENPHAT.pdf"
+          }
         ]
       };
     case "cashflow":
@@ -770,8 +840,28 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
           { name: "Dòng tiền ra", value: -Math.round(report.businessResults.cost * 0.9), percentage: 90 }
         ],
         list: [
-          { code: "CASH-IN-01", name: "Tổng thu tiền mặt & chuyển khoản", value: Math.round(report.businessResults.revenue * 0.95), date: "Hàng tuần", details: "Thu tiền từ doanh số quầy" },
-          { code: "CASH-OUT-01", name: "Tổng chi thanh toán vận hành", value: -Math.round(report.businessResults.cost * 0.9), date: "Hàng tuần", details: "Chi phí mua hàng & hoạt động" }
+          { 
+            code: "CASH-IN-01", 
+            name: "Tổng dòng tiền mặt & QR chuyển khoản", 
+            value: Math.round(report.businessResults.revenue * 0.95), 
+            date: "17/07/2026", 
+            details: "Đối soát dòng tiền thu từ quầy lẻ",
+            paymentMethod: "VietQR & Tiền mặt",
+            accountOffset: "Nợ 112 / Có 111",
+            reconciler: "Nguyễn Hoàng Long (Thu ngân)",
+            invoiceFile: "CASHFLOW-IN.pdf"
+          },
+          { 
+            code: "CASH-OUT-01", 
+            name: "Tổng chi thanh toán mua sắm vận hành", 
+            value: -Math.round(report.businessResults.cost * 0.9), 
+            date: "17/07/2026", 
+            details: "Chi tiền nhập hàng và chi phí hành chính",
+            paymentMethod: "Chuyển khoản Vietcombank",
+            accountOffset: "Nợ 331 / Có 112",
+            reconciler: "Lê Thu Trang (Kế toán)",
+            invoiceFile: "CASHFLOW-OUT.pdf"
+          }
         ]
       };
     case "staffing":
@@ -787,97 +877,134 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
         list: [
           {
             code: "NS-001",
-            name: "Nguyễn Minh Khoa (PM Vận hành)",
+            name: "Nguyễn Minh Khoa",
             value: "Quản lý",
-            date: "Quản lý",
+            date: "PM Vận hành",
             details: "3 việc tuần này",
+            totalHours: 44,
+            attendanceToday: "Có mặt (07:55)",
+            kpiRating: "4.9/5.0 (Xuất sắc)",
+            certifications: "PMP Certified, Quản lý Vận hành F&B Cao cấp",
             activities: [
-              { task: "Lập kế hoạch & phối hợp NCC thiết bị", progress: 100, status: "Đã xong", log: "Đã chốt danh sách máy Bar và lịch lắp đặt" },
-              { task: "Nghiệm thu mặt bằng phần thô", progress: 100, status: "Đã xong", log: "Ký nghiệm thu bàn giao với tổng thầu Nam Thiên" }
+              { task: "Lập kế hoạch & phối hợp NCC thiết bị", progress: 100, status: "Đã xong", log: "Đã chốt danh sách máy Bar và lịch lắp đặt", duration: "16 giờ" },
+              { task: "Nghiệm thu mặt bằng phần thô", progress: 100, status: "Đã xong", log: "Ký nghiệm thu bàn giao với tổng thầu Nam Thiên", duration: "12 giờ" },
+              { task: "Giám sát chi phí mua sắm ban đầu", progress: 80, status: "Đang làm", log: "Đang rà soát chi phí phát sinh đường ống nước", duration: "16 giờ" }
             ]
           },
           {
             code: "NS-002",
-            name: "Trần Quốc Huy (Barista chính)",
+            name: "Trần Quốc Huy",
             value: "Pha chế",
-            date: "Pha chế",
+            date: "Barista chính",
             details: "2 việc tuần này",
+            totalHours: 40,
+            attendanceToday: "Có mặt (08:00)",
+            kpiRating: "4.8/5.0 (Xuất sắc)",
+            certifications: "Barista Pro Level 2, Food Safety Cert",
             activities: [
-              { task: "Chuẩn hóa menu đồ uống & giá bán lẻ", progress: 90, status: "Đang làm", log: "Đang chốt giá vốn combo sỉ" },
-              { task: "Đào tạo kỹ năng pha chế cho barista mới", progress: 50, status: "Đang làm", log: "Đã xong buổi test lý thuyết công thức" }
+              { task: "Chuẩn hóa menu đồ uống & giá bán lẻ", progress: 90, status: "Đang làm", log: "Đang chốt giá vốn combo sỉ", duration: "20 giờ" },
+              { task: "Đào tạo kỹ năng pha chế cho barista mới", progress: 50, status: "Đang làm", log: "Đã xong buổi test lý thuyết công thức", duration: "20 giờ" }
             ]
           },
           {
             code: "NS-003",
-            name: "Nguyễn Văn Hùng (Barista ca chiều)",
+            name: "Nguyễn Văn Hùng",
             value: "Pha chế",
-            date: "Pha chế",
+            date: "Barista ca chiều",
             details: "2 việc tuần này",
+            totalHours: 38,
+            attendanceToday: "Vắng mặt (Có phép)",
+            kpiRating: "4.2/5.0 (Tốt)",
+            certifications: "Barista Basic Certificate",
             activities: [
-              { task: "Setup điện nước quầy bar", progress: 100, status: "Đã xong", log: "Đã test thử áp lực đường nước xả và cấp" },
-              { task: "Vệ sinh thiết bị máy pha cà phê", progress: 80, status: "Đang làm", log: "Đang lắp ráp cối xay hạt tự động" }
+              { task: "Setup điện nước quầy bar", progress: 100, status: "Đã xong", log: "Đã test thử áp lực đường nước xả và cấp", duration: "18 giờ" },
+              { task: "Vệ sinh thiết bị máy pha cà phê", progress: 80, status: "Đang làm", log: "Đang lắp ráp cối xay hạt tự động", duration: "20 giờ" }
             ]
           },
           {
             code: "NS-004",
-            name: "Nguyễn Thu Thảo (Pha chế ca sáng)",
+            name: "Nguyễn Thu Thảo",
             value: "Pha chế",
-            date: "Pha chế",
+            date: "Pha chế ca sáng",
             details: "1 việc tuần này",
+            totalHours: 40,
+            attendanceToday: "Có mặt (07:50)",
+            kpiRating: "4.6/5.0 (Tốt)",
+            certifications: "An toàn Vệ sinh Thực phẩm Bộ Y Tế",
             activities: [
-              { task: "Tính định lượng nguyên vật liệu (BOM)", progress: 100, status: "Đã xong", log: "Đã xuất bảng định lượng nguyên vật liệu mẫu cho 15 món nước uống" }
+              { task: "Tính định lượng nguyên vật liệu (BOM)", progress: 100, status: "Đã xong", log: "Đã xuất bảng định lượng nguyên vật liệu mẫu cho 15 món nước uống", duration: "40 giờ" }
             ]
           },
           {
             code: "NS-005",
-            name: "Lê Minh Anh (Trưởng nhóm phục vụ)",
+            name: "Lê Minh Anh",
             value: "Phục vụ",
-            date: "Phục vụ",
+            date: "Trưởng nhóm phục vụ",
             details: "2 việc tuần này",
+            totalHours: 42,
+            attendanceToday: "Có mặt (08:05 - Muộn 5p)",
+            kpiRating: "4.5/5.0 (Tốt)",
+            certifications: "Quản trị Khách sạn & Dịch vụ",
             activities: [
-              { task: "Tuyển dụng nhân sự phục vụ", progress: 75, status: "Đang làm", log: "Đã nhận 4 hồ sơ phỏng vấn đạt yêu cầu" },
-              { task: "Soạn nội quy và quy chuẩn phục vụ", progress: 100, status: "Đã xong", log: "Đã in và dán bảng quy trình phục vụ tại phòng nghỉ nhân viên" }
+              { task: "Tuyển dụng nhân sự phục vụ", progress: 75, status: "Đang làm", log: "Đã nhận 4 hồ sơ phỏng vấn đạt yêu cầu", duration: "22 giờ" },
+              { task: "Soạn nội quy và quy chuẩn phục vụ", progress: 100, status: "Đã xong", log: "Đã in và dán bảng quy trình phục vụ tại phòng nghỉ nhân viên", duration: "20 giờ" }
             ]
           },
           {
             code: "NS-006",
-            name: "Phạm Thanh Hải (Phục vụ ca chiều)",
+            name: "Phạm Thanh Hải",
             value: "Phục vụ",
-            date: "Phục vụ",
+            date: "Phục vụ ca chiều",
             details: "1 việc tuần này",
+            totalHours: 20,
+            attendanceToday: "Có mặt (13:00)",
+            kpiRating: "4.0/5.0 (Khá)",
+            certifications: "Giao tiếp cơ bản",
             activities: [
-              { task: "Lắp ráp bàn ghế khu vực ngoài trời", progress: 100, status: "Đã xong", log: "Đã bày biện đủ 8 bộ bàn ghế theo sơ đồ 3D" }
+              { task: "Lắp ráp bàn ghế khu vực ngoài trời", progress: 100, status: "Đã xong", log: "Đã bày biện đủ 8 bộ bàn ghế theo sơ đồ 3D", duration: "20 giờ" }
             ]
           },
           {
             code: "NS-007",
-            name: "Bùi Thị Xuân (Phục vụ ca sáng)",
+            name: "Bùi Thị Xuân",
             value: "Phục vụ",
-            date: "Phục vụ",
+            date: "Phục vụ ca sáng",
             details: "1 việc tuần này",
+            totalHours: 24,
+            attendanceToday: "Có mặt (07:58)",
+            kpiRating: "4.3/5.0 (Tốt)",
+            certifications: "Kỹ năng CSKH thực tế",
             activities: [
-              { task: "Vệ sinh công nghiệp khu vực đón khách", progress: 100, status: "Đã xong", log: "Đã quét dọn bụi bẩn thi công tầng 1" }
+              { task: "Vệ sinh công nghiệp khu vực đón khách", progress: 100, status: "Đã xong", log: "Đã quét dọn bụi bẩn thi công tầng 1", duration: "24 giờ" }
             ]
           },
           {
             code: "NS-008",
-            name: "Hoàng Văn Cường (Phục vụ part-time)",
+            name: "Hoàng Văn Cường",
             value: "Phục vụ",
-            date: "Phục vụ",
+            date: "Phục vụ part-time",
             details: "1 việc tuần này",
+            totalHours: 16,
+            attendanceToday: "Có mặt (08:00)",
+            kpiRating: "4.1/5.0 (Khá)",
+            certifications: "N/A",
             activities: [
-              { task: "Setup khay trà, ly cốc và menu bàn", progress: 90, status: "Đang làm", log: "Đã bày khay trà lên 12 bàn, đang dán mã QR số bàn" }
+              { task: "Setup khay trà, ly cốc và menu bàn", progress: 90, status: "Đang làm", log: "Đã bày khay trà lên 12 bàn, đang dán mã QR số bàn", duration: "16 giờ" }
             ]
           },
           {
             code: "NS-009",
-            name: "Nguyễn Hoàng Long (Thu ngân & Kho)",
+            name: "Nguyễn Hoàng Long",
             value: "Thu ngân / Kho",
-            date: "Thu ngân / Kho",
+            date: "Thu ngân & Kho",
             details: "2 việc tuần này",
+            totalHours: 40,
+            attendanceToday: "Có mặt (07:45)",
+            kpiRating: "4.7/5.0 (Tốt)",
+            certifications: "Chứng chỉ Kế toán Sơ cấp",
             activities: [
-              { task: "Lắp đặt máy in hóa đơn và máy POS", progress: 85, status: "Đang làm", log: "Chờ test in thử hóa đơn trên hệ thống ERP Mini" },
-              { task: "Nhập kho nguyên liệu đợt 1", progress: 100, status: "Đã xong", log: "Đã kiểm đếm và xếp kho 50kg cafe Robusta" }
+              { task: "Lắp đặt máy in hóa đơn và máy POS", progress: 85, status: "Đang làm", log: "Chờ test in thử hóa đơn trên hệ thống ERP Mini", duration: "20 giờ" },
+              { task: "Nhập kho nguyên liệu đợt 1", progress: 100, status: "Đã xong", log: "Đã kiểm đếm và xếp kho 50kg cafe Robusta", duration: "20 giờ" }
             ]
           }
         ]
