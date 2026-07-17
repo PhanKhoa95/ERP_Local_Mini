@@ -664,6 +664,7 @@ interface MetricListItem {
   value: number | string;
   date: string;
   details: string;
+  activities?: Array<{ task: string; progress: number; status: string; log: string }>;
 }
 
 interface MetricDetail {
@@ -761,7 +762,7 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
       };
     case "staffing":
       return {
-        title: "Chi tiết Bố trí Nhân sự",
+        title: "Chi tiết Nhân sự & Công việc đang báo cáo",
         unit: "Người",
         totalValue: report.staffing.current,
         breakdown: report.staffing.departments.map(d => ({
@@ -769,13 +770,103 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
           value: d.current,
           percentage: Math.round((d.current / (report.staffing.current || 1)) * 100)
         })),
-        list: report.staffing.departments.map((d, i) => ({
-          code: `DEPT-STAFF-${i+1}`,
-          name: `Bộ phận ${d.name}`,
-          value: d.current,
-          date: `Yêu cầu: ${d.required} người`,
-          details: d.diff < 0 ? `Thiếu ${Math.abs(d.diff)} người` : d.diff > 0 ? `Thừa ${d.diff} người` : "Đầy đủ chỉ tiêu"
-        }))
+        list: [
+          {
+            code: "NS-001",
+            name: "Nguyễn Minh Khoa (PM Vận hành)",
+            value: "Quản lý",
+            date: "Quản lý",
+            details: "3 việc tuần này",
+            activities: [
+              { task: "Lập kế hoạch & phối hợp NCC thiết bị", progress: 100, status: "Đã xong", log: "Đã chốt danh sách máy Bar và lịch lắp đặt" },
+              { task: "Nghiệm thu mặt bằng phần thô", progress: 100, status: "Đã xong", log: "Ký nghiệm thu bàn giao với tổng thầu Nam Thiên" }
+            ]
+          },
+          {
+            code: "NS-002",
+            name: "Trần Quốc Huy (Barista chính)",
+            value: "Pha chế",
+            date: "Pha chế",
+            details: "2 việc tuần này",
+            activities: [
+              { task: "Chuẩn hóa menu đồ uống & giá bán lẻ", progress: 90, status: "Đang làm", log: "Đang chốt giá vốn combo sỉ" },
+              { task: "Đào tạo kỹ năng pha chế cho barista mới", progress: 50, status: "Đang làm", log: "Đã xong buổi test lý thuyết công thức" }
+            ]
+          },
+          {
+            code: "NS-003",
+            name: "Nguyễn Văn Hùng (Barista ca chiều)",
+            value: "Pha chế",
+            date: "Pha chế",
+            details: "2 việc tuần này",
+            activities: [
+              { task: "Setup điện nước quầy bar", progress: 100, status: "Đã xong", log: "Đã test thử áp lực đường nước xả và cấp" },
+              { task: "Vệ sinh thiết bị máy pha cà phê", progress: 80, status: "Đang làm", log: "Đang lắp ráp cối xay hạt tự động" }
+            ]
+          },
+          {
+            code: "NS-004",
+            name: "Nguyễn Thu Thảo (Pha chế ca sáng)",
+            value: "Pha chế",
+            date: "Pha chế",
+            details: "1 việc tuần này",
+            activities: [
+              { task: "Tính định lượng nguyên vật liệu (BOM)", progress: 100, status: "Đã xong", log: "Đã xuất bảng định lượng nguyên vật liệu mẫu cho 15 món nước uống" }
+            ]
+          },
+          {
+            code: "NS-005",
+            name: "Lê Minh Anh (Trưởng nhóm phục vụ)",
+            value: "Phục vụ",
+            date: "Phục vụ",
+            details: "2 việc tuần này",
+            activities: [
+              { task: "Tuyển dụng nhân sự phục vụ", progress: 75, status: "Đang làm", log: "Đã nhận 4 hồ sơ phỏng vấn đạt yêu cầu" },
+              { task: "Soạn nội quy và quy chuẩn phục vụ", progress: 100, status: "Đã xong", log: "Đã in và dán bảng quy trình phục vụ tại phòng nghỉ nhân viên" }
+            ]
+          },
+          {
+            code: "NS-006",
+            name: "Phạm Thanh Hải (Phục vụ ca chiều)",
+            value: "Phục vụ",
+            date: "Phục vụ",
+            details: "1 việc tuần này",
+            activities: [
+              { task: "Lắp ráp bàn ghế khu vực ngoài trời", progress: 100, status: "Đã xong", log: "Đã bày biện đủ 8 bộ bàn ghế theo sơ đồ 3D" }
+            ]
+          },
+          {
+            code: "NS-007",
+            name: "Bùi Thị Xuân (Phục vụ ca sáng)",
+            value: "Phục vụ",
+            date: "Phục vụ",
+            details: "1 việc tuần này",
+            activities: [
+              { task: "Vệ sinh công nghiệp khu vực đón khách", progress: 100, status: "Đã xong", log: "Đã quét dọn bụi bẩn thi công tầng 1" }
+            ]
+          },
+          {
+            code: "NS-008",
+            name: "Hoàng Văn Cường (Phục vụ part-time)",
+            value: "Phục vụ",
+            date: "Phục vụ",
+            details: "1 việc tuần này",
+            activities: [
+              { task: "Setup khay trà, ly cốc và menu bàn", progress: 90, status: "Đang làm", log: "Đã bày khay trà lên 12 bàn, đang dán mã QR số bàn" }
+            ]
+          },
+          {
+            code: "NS-009",
+            name: "Nguyễn Hoàng Long (Thu ngân & Kho)",
+            value: "Thu ngân / Kho",
+            date: "Thu ngân / Kho",
+            details: "2 việc tuần này",
+            activities: [
+              { task: "Lắp đặt máy in hóa đơn và máy POS", progress: 85, status: "Đang làm", log: "Chờ test in thử hóa đơn trên hệ thống ERP Mini" },
+              { task: "Nhập kho nguyên liệu đợt 1", progress: 100, status: "Đã xong", log: "Đã kiểm đếm và xếp kho 50kg cafe Robusta" }
+            ]
+          }
+        ]
       };
   }
 };
@@ -1866,34 +1957,88 @@ export function WeeklyReportTab() {
 
               {/* Bảng chi tiết chứng từ / tham chiếu nguồn */}
               <div className="space-y-2">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Danh sách chứng từ / Đối tượng gốc</span>
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="w-full text-xs text-left">
-                    <thead>
-                      <tr className="bg-muted border-b font-semibold text-muted-foreground">
-                        <th className="p-2.5">Mã số / Đối tượng</th>
-                        <th className="p-2.5">Nội dung đối soát</th>
-                        <th className="p-2.5 text-center">Giá trị / Trạng thái</th>
-                        <th className="p-2.5 text-center">Thời gian</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeMetricDetail.list.map((item, idx) => (
-                        <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
-                          <td className="p-2.5 font-mono font-bold text-primary">{item.code}</td>
-                          <td className="p-2.5">
-                            <div className="font-medium text-foreground">{item.name}</div>
-                            <div className="text-[10px] text-muted-foreground">{item.details}</div>
-                          </td>
-                          <td className="p-2.5 text-center font-bold text-foreground">
-                            {typeof item.value === "number" ? `${item.value} ${activeMetricDetail.unit}` : item.value}
-                          </td>
-                          <td className="p-2.5 text-center text-muted-foreground font-mono">{item.date}</td>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                  {activeMetricDetail.list.some(item => item.activities) ? "Danh sách nhân sự và báo cáo công việc" : "Danh sách chứng từ / Đối tượng gốc"}
+                </span>
+
+                {activeMetricDetail.list.some(item => item.activities) ? (
+                  <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1">
+                    {activeMetricDetail.list.map((item, idx) => (
+                      <div key={idx} className="border rounded-lg p-3 bg-muted/5 hover:bg-muted/10 transition-colors space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <div className="flex items-center gap-2">
+                            <span className="text-primary font-mono bg-primary/10 px-1.5 py-0.5 rounded text-[10px]">{item.code}</span>
+                            <span className="text-foreground">{item.name}</span>
+                          </div>
+                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                            {item.value}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>Vai trò: <span className="font-medium text-foreground">{item.date}</span></span>
+                          <span>{item.details}</span>
+                        </div>
+
+                        {/* Sub-activities reported by this employee */}
+                        {item.activities && item.activities.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-muted/50 space-y-2">
+                            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider block">Công việc đã báo cáo:</span>
+                            <div className="space-y-2">
+                              {item.activities.map((act, actIdx) => (
+                                <div key={actIdx} className="p-2 bg-background border rounded-lg space-y-1.5 shadow-sm">
+                                  <div className="flex items-center justify-between text-xs font-semibold">
+                                    <span className="text-foreground/90">{act.task}</span>
+                                    <Badge 
+                                      variant="outline" 
+                                      className={cn(
+                                        "text-[9px] px-1 py-0 font-bold",
+                                        act.status === "Đã xong" 
+                                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                                          : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                      )}
+                                    >
+                                      {act.status} ({act.progress}%)
+                                    </Badge>
+                                  </div>
+                                  <Progress value={act.progress} className="h-1" />
+                                  <p className="text-[10px] text-muted-foreground leading-normal italic">&ldquo;{act.log}&rdquo;</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="bg-muted border-b font-semibold text-muted-foreground">
+                          <th className="p-2.5">Mã số / Đối tượng</th>
+                          <th className="p-2.5">Nội dung đối soát</th>
+                          <th className="p-2.5 text-center">Giá trị / Trạng thái</th>
+                          <th className="p-2.5 text-center">Thời gian</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {activeMetricDetail.list.map((item, idx) => (
+                          <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
+                            <td className="p-2.5 font-mono font-bold text-primary">{item.code}</td>
+                            <td className="p-2.5">
+                              <div className="font-medium text-foreground">{item.name}</div>
+                              <div className="text-[10px] text-muted-foreground">{item.details}</div>
+                            </td>
+                            <td className="p-2.5 text-center font-bold text-foreground">
+                              {typeof item.value === "number" ? `${item.value} ${activeMetricDetail.unit}` : item.value}
+                            </td>
+                            <td className="p-2.5 text-center text-muted-foreground font-mono">{item.date}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </DialogContent>
