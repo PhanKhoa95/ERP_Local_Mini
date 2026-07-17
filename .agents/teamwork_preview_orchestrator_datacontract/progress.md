@@ -1,11 +1,11 @@
 # Progress - Data Contract Milestone
 
 ## Current Status
-Last visited: 2026-07-17T12:15:47+07:00
+Last visited: 2026-07-17T12:20:00+07:00
 
-- [ ] M10: Define Data Contract (datacontract.yaml) (in-progress)
-- [ ] M11: CI Gate Integration (datacontract-cli)
-- [ ] M12: Verification and Offline Testing (data-integrity-operator.test.ts)
+- [x] M10: Define Data Contract (datacontract.yaml)
+- [ ] M11: CI Gate Integration (datacontract-cli) (in-progress)
+- [ ] M12: Verification and Offline Testing (data-integrity-operator.test.ts) (in-progress)
 - [ ] Final Verification & Handoff
 
 ## Iteration Status
