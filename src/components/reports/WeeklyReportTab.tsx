@@ -1900,4 +1900,160 @@ export function WeeklyReportTab() {
         )}
       </Dialog>
 
-      {/* Dialog tr
+      {/* Dialog truy xuất chi tiết Vấn đề & Rủi ro */}
+      <Dialog open={!!activeRiskDetail} onOpenChange={(open) => !open && setActiveRiskDetail(null)}>
+        {activeRiskDetail && (
+          <DialogContent className="max-w-md bg-background/95 backdrop-blur-lg border shadow-2xl rounded-2xl p-6">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-lg font-black text-rose-600 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-rose-500 animate-bounce" />
+                Chi tiết Rủi ro: {activeRiskDetail.issue}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Theo dõi tình trạng rủi ro, phân tích tác động và lịch trình xử lý.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-2.5 bg-rose-500/5 border border-rose-500/10 rounded-lg">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Mức độ rủi ro</span>
+                  <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/20 font-bold mt-1">
+                    {activeRiskDetail.level}
+                  </Badge>
+                </div>
+                <div className="p-2.5 bg-muted/20 border rounded-lg">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Hạn xử lý</span>
+                  <span className="font-mono font-bold block mt-1 text-foreground">{activeRiskDetail.deadline}</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-muted/10 border rounded-lg space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Tác động dự án</span>
+                <p className="text-foreground font-medium leading-relaxed">{activeRiskDetail.impact}</p>
+              </div>
+
+              <div className="p-3 bg-primary/5 border border-primary/10 rounded-lg space-y-1">
+                <span className="text-[10px] text-primary uppercase font-bold tracking-wider block">Phương án giảm thiểu</span>
+                <p className="text-foreground font-semibold leading-relaxed">{activeRiskDetail.mitigation}</p>
+              </div>
+
+              {/* Lịch sử nhật ký cập nhật */}
+              <div className="space-y-2">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Nhật ký xử lý</span>
+                <div className="space-y-2 border-l pl-3 ml-1.5 border-muted">
+                  {activeRiskDetail.history.map((h, i) => (
+                    <div key={i} className="relative space-y-1">
+                      <div className="absolute w-2 h-2 rounded-full bg-rose-500 -left-[16.5px] top-1 border border-background" />
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="font-mono">{h.time}</span>
+                        <Badge variant="secondary" className="px-1 py-0 text-[8px]">{h.status}</Badge>
+                      </div>
+                      <p className="text-foreground leading-relaxed font-medium">{h.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Dialog truy xuất chi tiết Mốc sự kiện quan trọng */}
+      <Dialog open={!!activeMilestoneDetail} onOpenChange={(open) => !open && setActiveMilestoneDetail(null)}>
+        {activeMilestoneDetail && (
+          <DialogContent className="max-w-md bg-background/95 backdrop-blur-lg border shadow-2xl rounded-2xl p-6">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-lg font-black text-primary flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                Mốc quan trọng: {activeMilestoneDetail.event}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Mốc sự kiện kiểm soát chất lượng bàn giao.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-2.5 bg-primary/5 border border-primary/10 rounded-lg">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Trạng thái</span>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold mt-1">
+                    {activeMilestoneDetail.status}
+                  </Badge>
+                </div>
+                <div className="p-2.5 bg-muted/20 border rounded-lg">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Thời hạn sự kiện</span>
+                  <span className="font-mono font-bold block mt-1 text-foreground">{activeMilestoneDetail.time}</span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-muted/10 border rounded-lg space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Ghi chú vận hành</span>
+                <p className="text-foreground italic leading-relaxed">{activeMilestoneDetail.notes}</p>
+              </div>
+
+              {/* Tiêu chí nghiệm thu */}
+              <div className="space-y-2">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Tiêu chí nghiệm thu (Acceptance Criteria)</span>
+                <div className="space-y-2 bg-muted/5 border rounded-lg p-3">
+                  {activeMilestoneDetail.criteria.map((c, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="text-foreground leading-relaxed">{c}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+
+      {/* Dialog hiển thị Chứng thư chữ ký số (Signature Certificate) */}
+      <Dialog open={!!activeSignatureCert} onOpenChange={(open) => !open && setActiveSignatureCert(null)}>
+        {activeSignatureCert && (
+          <DialogContent className="max-w-md bg-background/95 backdrop-blur-lg border shadow-2xl rounded-2xl p-6">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-lg font-black text-primary flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 animate-pulse" />
+                Chứng thư Chữ ký số
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Thông tin xác thực danh tính phê duyệt báo cáo.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-4 text-xs">
+              <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg space-y-2 text-center">
+                <span className="text-[10px] text-emerald-600 uppercase font-black tracking-widest block">Trạng thái phê duyệt</span>
+                <span className="text-xl font-bold text-foreground">{activeSignatureCert.signee}</span>
+                <p className="text-muted-foreground text-[10px] font-mono">{activeSignatureCert.role}</p>
+              </div>
+
+              <div className="space-y-2 border rounded-lg p-3 bg-muted/10">
+                <div className="flex items-center justify-between py-1 border-b last:border-0 border-muted">
+                  <span className="text-muted-foreground">Thời gian ký:</span>
+                  <span className="font-semibold text-foreground font-mono">{activeSignatureCert.time}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b last:border-0 border-muted">
+                  <span className="text-muted-foreground">Địa chỉ IP:</span>
+                  <span className="font-semibold text-foreground font-mono">{activeSignatureCert.ip}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b last:border-0 border-muted">
+                  <span className="text-muted-foreground">Định danh chứng thư:</span>
+                  <span className="font-semibold text-emerald-600 font-mono text-[9px] truncate max-w-[180px]">{activeSignatureCert.status}</span>
+                </div>
+              </div>
+
+              {/* Cryptographic hash */}
+              <div className="p-3 bg-muted/20 border rounded-lg space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Mã Hash chứng chỉ (SHA-256)</span>
+                <p className="font-mono text-[9px] text-muted-foreground leading-normal break-all select-all">{activeSignatureCert.certificateHash}</p>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+    </div>
+  );
+}
