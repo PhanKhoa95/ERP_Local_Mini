@@ -351,7 +351,7 @@ export function CcdcTab() {
                           <div className="flex items-center justify-end gap-1.5">
                             <Button
                               variant="outline"
-                              size="xs"
+                              size="sm"
                               disabled={item.status === "liquidated"}
                               onClick={() => {
                                 setSelectedCcdc(item);
