@@ -1324,44 +1324,6 @@ export function WeeklyReportTab() {
                   </div>
                 </div>
               </div>
-            </div>ame="flex items-center justify-between">
-                    <span className="text-muted-foreground">Nhân sự cần có:</span>
-                    <span className="font-bold">{selectedReport.staffing.required}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Nhân sự hiện có:</span>
-                    <span className="font-bold text-primary">{selectedReport.staffing.current}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Thiếu / Thừa:</span>
-                    <Badge variant="outline" className={cn(
-                      "text-[9px] font-bold px-1.5",
-                      selectedReport.staffing.diff >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600 border-rose-500/20"
-                    )}>
-                      {selectedReport.staffing.diff >= 0 ? `Thừa ${selectedReport.staffing.diff}` : `Thiếu ${Math.abs(selectedReport.staffing.diff)}`}
-                    </Badge>
-                  </div>
-                  
-                  {/* Department distribution */}
-                  <div className="border-t pt-2 space-y-1 text-[11px]">
-                    <div className="grid grid-cols-3 font-semibold text-muted-foreground">
-                      <span>Bộ phận</span>
-                      <span className="text-center">Cần có</span>
-                      <span className="text-right">Hiện có</span>
-                    </div>
-                    {selectedReport.staffing.departments.map((dept, i) => (
-                      <div key={i} className="grid grid-cols-3 border-b border-muted last:border-0 py-1">
-                        <span className="font-medium text-foreground">{dept.name}</span>
-                        <span className="text-center">{dept.required}</span>
-                        <span className={cn(
-                          "text-right font-bold",
-                          dept.diff < 0 ? "text-rose-500" : "text-foreground"
-                        )}>{dept.current}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* VI & VII: WORK HIGHLIGHTS AND NEXT PLAN */}
