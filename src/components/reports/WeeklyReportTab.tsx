@@ -651,10 +651,148 @@ const getTaskDeepDetails = (taskName: string): TaskDeepDetail => {
   }
 };
 
+interface MetricBreakdownItem {
+  name: string;
+  value: number;
+  percentage: number;
+  status?: string;
+}
+
+interface MetricListItem {
+  code: string;
+  name: string;
+  value: number | string;
+  date: string;
+  details: string;
+}
+
+interface MetricDetail {
+  title: string;
+  unit: string;
+  totalValue: number;
+  breakdown: MetricBreakdownItem[];
+  list: MetricListItem[];
+}
+
+const getMetricDetails = (metricType: string, report: DetailedReport): MetricDetail => {
+  switch (metricType) {
+    case "revenue":
+      return {
+        title: "Chi tiết Doanh thu Lũy kế",
+        unit: "Tr",
+        totalValue: report.businessResults.revenue,
+        breakdown: [
+          { name: "Doanh thu lẻ quầy", value: Math.round(report.businessResults.revenue * 0.6), percentage: 60 },
+          { name: "Doanh thu trực tuyến", value: Math.round(report.businessResults.revenue * 0.35), percentage: 35 },
+          { name: "Doanh thu dịch vụ khác", value: Math.round(report.businessResults.revenue * 0.05), percentage: 5 }
+        ],
+        list: [
+          { code: "REV-202607-001", name: "Doanh số bán lẻ quầy", value: Math.round(report.businessResults.revenue * 0.6), date: "Hàng tuần", details: "Doanh số POS đối soát thực tế" },
+          { code: "REV-202607-002", name: "Đơn đặt hàng trực tuyến", value: Math.round(report.businessResults.revenue * 0.35), date: "Hàng tuần", details: "Thanh toán qua cổng QR động" }
+        ]
+      };
+    case "cost":
+      return {
+        title: "Chi tiết Chi phí Hoạt động",
+        unit: "Tr",
+        totalValue: report.businessResults.cost,
+        breakdown: [
+          { name: "Giá vốn hàng bán (BOM COGS)", value: Math.round(report.businessResults.cost * 0.55), percentage: 55 },
+          { name: "Chi phí nhân sự", value: Math.round(report.businessResults.cost * 0.25), percentage: 25 },
+          { name: "Chi phí mặt bằng & Khác", value: Math.round(report.businessResults.cost * 0.2), percentage: 20 }
+        ],
+        list: [
+          { code: "COST-202607-001", name: "Mua nguyên vật liệu pha chế", value: Math.round(report.businessResults.cost * 0.55), date: "15/07/2026", details: "Thanh toán nhà cung cấp" },
+          { code: "COST-202607-002", name: "Chi phí nhân sự vận hành", value: Math.round(report.businessResults.cost * 0.25), date: "15/07/2026", details: "Lương tuần nhân sự" }
+        ]
+      };
+    case "profit":
+      return {
+        title: "Chi tiết Lợi nhuận Ròng",
+        unit: "Tr",
+        totalValue: report.businessResults.profit,
+        breakdown: [
+          { name: "Biên lợi nhuận gộp", value: Math.round(report.businessResults.revenue - report.businessResults.cost), percentage: 100 },
+          { name: "Lợi nhuận ròng", value: report.businessResults.profit, percentage: 100 }
+        ],
+        list: [
+          { code: "PRF-202607-001", name: "Biên lợi nhuận gộp trung bình", value: `${Math.round((report.businessResults.profit / (report.businessResults.revenue || 1)) * 100)}%`, date: "Hàng tuần", details: "Tính toán dựa trên doanh thu/chi phí" }
+        ]
+      };
+    case "receivable":
+      return {
+        title: "Chi tiết Công nợ Phải thu",
+        unit: "Tr",
+        totalValue: report.businessResults.receivable,
+        breakdown: [
+          { name: "Nợ trong hạn", value: Math.round(report.businessResults.receivable * 0.8), percentage: 80 },
+          { name: "Nợ quá hạn", value: Math.round(report.businessResults.receivable * 0.2), percentage: 20 }
+        ],
+        list: [
+          { code: "REC-202607-001", name: "Khách hàng sỉ Aroma", value: Math.round(report.businessResults.receivable * 0.8), date: "16/07/2026", details: "Nợ chưa thanh toán hóa đơn" }
+        ]
+      };
+    case "payable":
+      return {
+        title: "Chi tiết Công nợ Phải trả",
+        unit: "Tr",
+        totalValue: report.businessResults.payable,
+        breakdown: [
+          { name: "Nợ nhà cung cấp hạt cafe", value: Math.round(report.businessResults.payable * 0.7), percentage: 70 },
+          { name: "Nợ nhà cung cấp bao bì", value: Math.round(report.businessResults.payable * 0.3), percentage: 30 }
+        ],
+        list: [
+          { code: "PAY-202607-001", name: "Nhà cung cấp Robusta Tiến Phát", value: Math.round(report.businessResults.payable * 0.7), date: "12/07/2026", details: "Lô hạt cà phê nguyên liệu" }
+        ]
+      };
+    case "cashflow":
+      return {
+        title: "Chi tiết Nhật ký Dòng tiền",
+        unit: "Tr",
+        totalValue: report.businessResults.cashflow,
+        breakdown: [
+          { name: "Dòng tiền vào", value: Math.round(report.businessResults.revenue * 0.95), percentage: 95 },
+          { name: "Dòng tiền ra", value: -Math.round(report.businessResults.cost * 0.9), percentage: 90 }
+        ],
+        list: [
+          { code: "CASH-IN-01", name: "Tổng thu tiền mặt & chuyển khoản", value: Math.round(report.businessResults.revenue * 0.95), date: "Hàng tuần", details: "Thu tiền từ doanh số quầy" },
+          { code: "CASH-OUT-01", name: "Tổng chi thanh toán vận hành", value: -Math.round(report.businessResults.cost * 0.9), date: "Hàng tuần", details: "Chi phí mua hàng & hoạt động" }
+        ]
+      };
+    case "staffing":
+      return {
+        title: "Chi tiết Bố trí Nhân sự",
+        unit: "Người",
+        totalValue: report.staffing.current,
+        breakdown: report.staffing.departments.map(d => ({
+          name: `Bộ phận ${d.name}`,
+          value: d.current,
+          percentage: Math.round((d.current / (report.staffing.current || 1)) * 100)
+        })),
+        list: report.staffing.departments.map((d, i) => ({
+          code: `DEPT-STAFF-${i+1}`,
+          name: `Bộ phận ${d.name}`,
+          value: d.current,
+          date: `Yêu cầu: ${d.required} người`,
+          details: d.diff < 0 ? `Thiếu ${Math.abs(d.diff)} người` : d.diff > 0 ? `Thừa ${d.diff} người` : "Đầy đủ chỉ tiêu"
+        }))
+      };
+    default:
+      return {
+        title: "Chi tiết dữ liệu đối soát",
+        unit: "",
+        totalValue: 0,
+        breakdown: [],
+        list: []
+      };
+  }
+};
+
 export function WeeklyReportTab() {
   const [viewMode, setViewMode] = useState<"strategic" | "detailed">("strategic");
   const [selectedProjectId, setSelectedProjectId] = useState<number>(6); // Default: Cà phê Aroma (ID: 6)
   const [activeDetailTask, setActiveDetailTask] = useState<TaskDeepDetail | null>(null);
+  const [activeMetricDetail, setActiveMetricDetail] = useState<MetricDetail | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
 
   // Store task details in state so users can interactively add logs/comments
@@ -1041,49 +1179,7 @@ export function WeeklyReportTab() {
                         className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-all hover:translate-x-0.5"
                       >
                         <td className="p-2.5 text-center">{idx + 1}</td>
-                        <td className="p-2.5 font-semibold text-primary flex items-center gap-1.5 hover:underline">
-                          {task.name}
-                          <ChevronRight className="w-3 h-3 opacity-60" />
-                        </td>
-                        <td className="p-2.5 text-center">{task.planned}%</td>
-                        <td className="p-2.5 text-center font-semibold">{task.actual}%</td>
-                        <td className={cn(
-                          "p-2.5 text-center font-bold",
-                          task.diff >= 0 ? "text-emerald-600" : "text-rose-600"
-                        )}>
-                          {task.diff > 0 ? `+${task.diff}%` : `${task.diff}%`}
-                        </td>
-                        <td className="p-2.5 text-center">
-                          <Badge 
-                            variant="outline"
-                            className={cn(
-                              "text-[9px] font-bold px-1.5 py-0",
-                              task.status === "Đã hoàn tất" 
-                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
-                                : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                            )}
-                          >
-                            {task.status}
-                          </Badge>
-                        </td>
-                        <td className="p-2.5 text-muted-foreground">{task.notes}</td>
-                      </tr>
-                    ))}
-                    <tr className="bg-muted/20 font-bold border-t border-border">
-                      <td className="p-2.5 text-center"></td>
-                      <td className="p-2.5 text-right">TỔNG CỘNG:</td>
-                      <td className="p-2.5 text-center">100%</td>
-                      <td className="p-2.5 text-center text-emerald-600">{selectedReport.actualProgress}%</td>
-                      <td className="p-2.5 text-center text-rose-600">{selectedReport.diff}%</td>
-                      <td className="p-2.5 text-center"></td>
-                      <td className="p-2.5"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* IV. KẾT QUẢ KINH DOANH (LŨY KẾ) */}
               <div className="md:col-span-2 space-y-2">
                 <h3 className="text-xs font-black uppercase text-primary border-b pb-1.5 flex items-center gap-1.5">
@@ -1091,27 +1187,45 @@ export function WeeklyReportTab() {
                   IV. KẾT QUẢ KINH DOANH (LŨY KẾ)
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="p-3 bg-muted/20 border rounded-lg flex flex-col justify-center">
+                  <div 
+                    className="p-3 bg-muted/20 hover:bg-muted/40 cursor-pointer border rounded-lg flex flex-col justify-center transition-all hover:border-primary/40"
+                    onClick={() => setActiveMetricDetail(getMetricDetails("revenue", selectedReport))}
+                  >
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">Doanh thu</span>
                     <span className="text-lg font-bold text-foreground">{selectedReport.businessResults.revenue} Tr</span>
                   </div>
-                  <div className="p-3 bg-muted/20 border rounded-lg flex flex-col justify-center">
+                  <div 
+                    className="p-3 bg-muted/20 hover:bg-muted/40 cursor-pointer border rounded-lg flex flex-col justify-center transition-all hover:border-primary/40"
+                    onClick={() => setActiveMetricDetail(getMetricDetails("cost", selectedReport))}
+                  >
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">Chi phí</span>
                     <span className="text-lg font-bold text-rose-600">{selectedReport.businessResults.cost} Tr</span>
                   </div>
-                  <div className="p-3 bg-muted/20 border rounded-lg flex flex-col justify-center">
+                  <div 
+                    className="p-3 bg-muted/20 hover:bg-muted/40 cursor-pointer border rounded-lg flex flex-col justify-center transition-all hover:border-primary/40"
+                    onClick={() => setActiveMetricDetail(getMetricDetails("profit", selectedReport))}
+                  >
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">Lợi nhuận</span>
                     <span className="text-lg font-bold text-emerald-600">{selectedReport.businessResults.profit} Tr</span>
                   </div>
-                  <div className="p-3 bg-muted/20 border rounded-lg flex flex-col justify-center">
+                  <div 
+                    className="p-3 bg-muted/20 hover:bg-muted/40 cursor-pointer border rounded-lg flex flex-col justify-center transition-all hover:border-primary/40"
+                    onClick={() => setActiveMetricDetail(getMetricDetails("receivable", selectedReport))}
+                  >
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">Nợ phải thu</span>
                     <span className="text-lg font-bold text-amber-600">{selectedReport.businessResults.receivable} Tr</span>
                   </div>
-                  <div className="p-3 bg-muted/20 border rounded-lg flex flex-col justify-center">
+                  <div 
+                    className="p-3 bg-muted/20 hover:bg-muted/40 cursor-pointer border rounded-lg flex flex-col justify-center transition-all hover:border-primary/40"
+                    onClick={() => setActiveMetricDetail(getMetricDetails("payable", selectedReport))}
+                  >
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">Nợ phải trả</span>
                     <span className="text-lg font-bold text-rose-600">{selectedReport.businessResults.payable} Tr</span>
                   </div>
-                  <div className="p-3 bg-muted/20 border rounded-lg flex flex-col justify-center">
+                  <div 
+                    className="p-3 bg-muted/20 hover:bg-muted/40 cursor-pointer border rounded-lg flex flex-col justify-center transition-all hover:border-primary/40"
+                    onClick={() => setActiveMetricDetail(getMetricDetails("cashflow", selectedReport))}
+                  >
                     <span className="text-[10px] text-muted-foreground uppercase font-bold">Dòng tiền</span>
                     <span className="text-lg font-bold text-emerald-600">
                       {selectedReport.businessResults.cashflow >= 0 ? `+${selectedReport.businessResults.cashflow}` : selectedReport.businessResults.cashflow} Tr
@@ -1126,8 +1240,49 @@ export function WeeklyReportTab() {
                   <Users className="w-3.5 h-3.5" />
                   V. NHÂN SỰ
                 </h3>
-                <div className="space-y-3 bg-muted/10 border rounded-lg p-3 text-xs">
+                <div 
+                  className="space-y-3 bg-muted/10 hover:bg-muted/20 cursor-pointer border rounded-lg p-3 text-xs transition-all hover:border-primary/40"
+                  onClick={() => setActiveMetricDetail(getMetricDetails("staffing", selectedReport))}
+                >
                   <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Nhân sự cần có:</span>
+                    <span className="font-bold">{selectedReport.staffing.required}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Nhân sự hiện có:</span>
+                    <span className="font-bold text-primary">{selectedReport.staffing.current}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Thiếu / Thừa:</span>
+                    <Badge variant="outline" className={cn(
+                      "text-[9px] font-bold px-1.5",
+                      selectedReport.staffing.diff >= 0 ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                    )}>
+                      {selectedReport.staffing.diff >= 0 ? `Thừa ${selectedReport.staffing.diff}` : `Thiếu ${Math.abs(selectedReport.staffing.diff)}`}
+                    </Badge>
+                  </div>
+                  
+                  {/* Department distribution */}
+                  <div className="border-t pt-2 space-y-1 text-[11px]">
+                    <div className="grid grid-cols-3 font-semibold text-muted-foreground">
+                      <span>Bộ phận</span>
+                      <span className="text-center">Cần có</span>
+                      <span className="text-right">Hiện có</span>
+                    </div>
+                    {selectedReport.staffing.departments.map((dept, i) => (
+                      <div key={i} className="grid grid-cols-3 border-b border-muted last:border-0 py-1">
+                        <span className="font-medium text-foreground">{dept.name}</span>
+                        <span className="text-center">{dept.required}</span>
+                        <span className={cn(
+                          "text-right font-bold",
+                          dept.diff < 0 ? "text-rose-500" : "text-foreground"
+                        )}>{dept.current}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>ame="flex items-center justify-between">
                     <span className="text-muted-foreground">Nhân sự cần có:</span>
                     <span className="font-bold">{selectedReport.staffing.required}</span>
                   </div>
