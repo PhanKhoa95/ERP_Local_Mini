@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MATRIX Project Wiki Entry",
+  "type": "object",
+  "required": ["id", "type", "status", "target_agent", "created_at"],
+  "properties": {
+    "id": {"type": "string", "minLength": 5},
+    "type": {"enum": ["raw", "spec", "technical"]},
+    "status": {"type": "string", "minLength": 3},
+    "target_agent": {"type": "string", "minLength": 2},
+    "created_at": {"type": "string", "format": "date"},
+    "approved_by": {"type": "string", "minLength": 2},
+    "approved_at": {"type": "string", "format": "date"},
+    "source_ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 5},
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": true
+}
