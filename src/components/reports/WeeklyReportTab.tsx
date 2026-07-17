@@ -1180,7 +1180,19 @@ export function WeeklyReportTab() {
   const [newCommentText, setNewCommentText] = useState("");
 
   // Store task details in state so users can interactively add logs/comments
-  const [tasksDetailsStore, setTasksDetailsStore] = useState<Record<string, TaskDeepDetail>>({});
+  const [tasksDetailsStore, setTasksDetailsStore] = useState<Record<string, TaskDeepDetail>>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("erp-mini-local-demo-weekly-tasks-store");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
 
   const selectedReport = getDetailedReport(selectedProjectId);
 
@@ -1188,7 +1200,9 @@ export function WeeklyReportTab() {
   const getTaskDetail = (taskName: string): TaskDeepDetail => {
     if (!tasksDetailsStore[taskName]) {
       const initialDetail = getTaskDeepDetails(taskName);
-      setTasksDetailsStore(prev => ({ ...prev, [taskName]: initialDetail }));
+      const updated = { ...tasksDetailsStore, [taskName]: initialDetail };
+      setTasksDetailsStore(updated);
+      localStorage.setItem("erp-mini-local-demo-weekly-tasks-store", JSON.stringify(updated));
       return initialDetail;
     }
     return tasksDetailsStore[taskName];
@@ -1210,10 +1224,13 @@ export function WeeklyReportTab() {
       logs: [newLog, ...activeDetailTask.logs]
     };
 
-    setTasksDetailsStore(prev => ({
-      ...prev,
+    const updatedStore = {
+      ...tasksDetailsStore,
       [activeDetailTask.name]: updatedTask
-    }));
+    };
+
+    setTasksDetailsStore(updatedStore);
+    localStorage.setItem("erp-mini-local-demo-weekly-tasks-store", JSON.stringify(updatedStore));
     setActiveDetailTask(updatedTask);
     setNewCommentText("");
   };
