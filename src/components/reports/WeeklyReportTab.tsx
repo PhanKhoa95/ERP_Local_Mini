@@ -39,7 +39,7 @@ interface ProjectSummary {
   requiredStaff: number;
   currentStaff: number;
   risk: "Thấp" | "Trung bình" | "Cao";
-  health: "Tốt" | "Cần theo dõi" | "Cảnh báo";
+  health: "Tốt" | "Ổn định" | "Cần theo dõi" | "Cảnh báo";
   priority: "Cao" | "Trung bình" | "Thấp";
   lastActionDate: string;
 }

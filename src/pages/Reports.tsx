@@ -65,6 +65,7 @@ import { Users, Building, Clock, Target, MapPin, Store, Globe, Percent, Award, F
 import { PrintShopReportTab } from "@/components/reports/PrintShopReportTab";
 import { CustomReportTab } from "@/components/reports/CustomReportTab";
 import { UpsaleReportTab } from "@/components/reports/UpsaleReportTab";
+import { WeeklyReportTab } from "@/components/reports/WeeklyReportTab";
 import { exportAllReportsToExcel } from "@/lib/exportExcel";
 import { printShopProducts, printShopMonthlyPlan } from "@/lib/printShopReportModel";
 
@@ -586,6 +587,7 @@ const Reports = () => {
             <TabsTrigger value="orders">Đơn hàng</TabsTrigger>
             <TabsTrigger value="partners">Đối tác</TabsTrigger>
             <TabsTrigger value="operations">Vận hành & Dự án</TabsTrigger>
+            <TabsTrigger value="weekly_reports">Báo cáo Tuần</TabsTrigger>
             <TabsTrigger value="printshop">Chiết tính & Dòng tiền</TabsTrigger>
             <TabsTrigger value="upsale">🔥 Bán thêm (Upsale)</TabsTrigger>
             <TabsTrigger value="custom_reports">Thống kê tuỳ chỉnh</TabsTrigger>
@@ -2306,6 +2308,11 @@ const Reports = () => {
                 )}
               </>
             )}
+          </TabsContent>
+
+          {/* Weekly Reports Tab */}
+          <TabsContent value="weekly_reports" className="space-y-6">
+            <WeeklyReportTab />
           </TabsContent>
 
           {/* Print Shop V5 Tab */}
