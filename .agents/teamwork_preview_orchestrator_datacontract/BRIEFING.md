@@ -54,16 +54,16 @@ Establish Data Contract (datacontract.yaml), integrate datacontract-cli into CI/
 |-------|------|-----------|--------|---------|
 | Explorer | teamwork_preview_explorer | Explore database schemas and datacontract-cli setup | completed | 066b67fa-1e5f-4f8c-99cb-c8edf866bc53 |
 | Worker | teamwork_preview_worker | Implement datacontract.yaml and CI integration | completed | fbf6fd13-6d82-4a5e-802a-a9a5131f8993 |
-| Reviewer 1 | teamwork_preview_reviewer | Review Data Contract & CI Integration changes | in-progress | 6a47d71f-6ae4-4e0c-b3e1-a3a452cd1ddf |
-| Reviewer 2 | teamwork_preview_reviewer | Review Data Contract & CI Integration changes | in-progress | 13358d31-e662-4e72-b803-1f8189a8d029 |
-| Challenger 1 | teamwork_preview_challenger | Empirically verify datacontract test failures | in-progress | 9fa68755-78b5-4bc2-9331-17943cbff7c9 |
-| Challenger 2 | teamwork_preview_challenger | Empirically verify datacontract test failures | in-progress | 66992c51-9673-4ee7-9e5a-1650b094d9d0 |
-| Auditor | teamwork_preview_auditor | Forensic audit on Data Contract & CI Integration | in-progress | 395ff639-174a-4049-8c03-7774feadd5ad |
+| Reviewer 1 | teamwork_preview_reviewer | Review Data Contract & CI Integration changes | completed | 6a47d71f-6ae4-4e0c-b3e1-a3a452cd1ddf |
+| Reviewer 2 | teamwork_preview_reviewer | Review Data Contract & CI Integration changes | completed | 13358d31-e662-4e72-b803-1f8189a8d029 |
+| Challenger 1 | teamwork_preview_challenger | Empirically verify datacontract test failures | completed | 9fa68755-78b5-4bc2-9331-17943cbff7c9 |
+| Challenger 2 | teamwork_preview_challenger | Empirically verify datacontract test failures | completed | 66992c51-9673-4ee7-9e5a-1650b094d9d0 |
+| Auditor | teamwork_preview_auditor | Forensic audit on Data Contract & CI Integration | completed | 395ff639-174a-4049-8c03-7774feadd5ad |
 
 ## Succession Status
 - Succession required: no
 - Spawn count: 7 / 16
-- Pending subagents: 6a47d71f-6ae4-4e0c-b3e1-a3a452cd1ddf, 13358d31-e662-4e72-b803-1f8189a8d029, 9fa68755-78b5-4bc2-9331-17943cbff7c9, 66992c51-9673-4ee7-9e5a-1650b094d9d0, 395ff639-174a-4049-8c03-7774feadd5ad
+- Pending subagents: none
 - Predecessor: none
 - Successor: not yet spawned
 
