@@ -1,0 +1,14 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: my-data-contract-id
+name: My Data Contract
+version: 1.0.0
+status: draft
+schema:
+  - name: products
+    description: Products table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
