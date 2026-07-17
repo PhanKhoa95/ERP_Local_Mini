@@ -777,15 +777,71 @@ const getMetricDetails = (metricType: string, report: DetailedReport): MetricDet
           details: d.diff < 0 ? `Thiếu ${Math.abs(d.diff)} người` : d.diff > 0 ? `Thừa ${d.diff} người` : "Đầy đủ chỉ tiêu"
         }))
       };
-    default:
-      return {
-        title: "Chi tiết dữ liệu đối soát",
-        unit: "",
-        totalValue: 0,
-        breakdown: [],
-        list: []
-      };
   }
+};
+
+interface RiskDetail {
+  id: number;
+  issue: string;
+  level: string;
+  impact: string;
+  mitigation: string;
+  owner: string;
+  deadline: string;
+  history: Array<{ time: string; status: string; detail: string }>;
+}
+
+interface MilestoneDetail {
+  id: number;
+  event: string;
+  time: string;
+  notes: string;
+  criteria: string[];
+  signOffBy: string;
+  status: "Chưa đạt" | "Đang tiến hành" | "Đã nghiệm thu";
+}
+
+interface SignatureCertificate {
+  role: string;
+  signee: string;
+  time: string;
+  ip: string;
+  certificateHash: string;
+  status: string;
+}
+
+const getRiskDetail = (risk: any): RiskDetail => {
+  return {
+    ...risk,
+    history: [
+      { time: "16/07/2026 14:00", status: "Cập nhật", detail: `Đã triển khai phương án giảm thiểu: ${risk.mitigation}` },
+      { time: "14/07/2026 09:00", status: "Khai báo", detail: `Phát hiện rủi ro: ${risk.issue}. Phân tích mức độ tác động: ${risk.impact}` }
+    ]
+  };
+};
+
+const getMilestoneDetail = (m: any): MilestoneDetail => {
+  return {
+    ...m,
+    criteria: [
+      "Kiểm tra tính nhất quán giữa UI và cơ sở dữ liệu",
+      "Xác thực qua bộ test Vitest (100% PASS)",
+      "Được phê duyệt bởi đại diện bộ phận chuyên môn"
+    ],
+    signOffBy: "Ban giám đốc ERP",
+    status: m.event.includes("Test") || m.event.includes("nghiệm thu") ? "Đã nghiệm thu" : "Đang tiến hành"
+  };
+};
+
+const getSignatureCert = (role: string, name: string, date: string): SignatureCertificate => {
+  return {
+    role,
+    signee: name,
+    time: `${date} 17:30:12 GMT+7`,
+    ip: "192.168.1.105",
+    certificateHash: `SHA-256: ${Math.random().toString(36).substring(2, 10).toUpperCase()}${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+    status: name === "Chờ duyệt" ? "Đang chờ ký số" : "Đã ký số hợp lệ"
+  };
 };
 
 export function WeeklyReportTab() {
@@ -793,6 +849,9 @@ export function WeeklyReportTab() {
   const [selectedProjectId, setSelectedProjectId] = useState<number>(6); // Default: Cà phê Aroma (ID: 6)
   const [activeDetailTask, setActiveDetailTask] = useState<TaskDeepDetail | null>(null);
   const [activeMetricDetail, setActiveMetricDetail] = useState<MetricDetail | null>(null);
+  const [activeRiskDetail, setActiveRiskDetail] = useState<RiskDetail | null>(null);
+  const [activeMilestoneDetail, setActiveMilestoneDetail] = useState<MilestoneDetail | null>(null);
+  const [activeSignatureCert, setActiveSignatureCert] = useState<SignatureCertificate | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
 
   // Store task details in state so users can interactively add logs/comments
