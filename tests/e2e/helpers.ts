@@ -8,8 +8,20 @@ export function getBrainPath(): string {
   // Try to find the local AppData directory dynamically
   const userProfile = process.env.USERPROFILE || process.env.HOME;
   if (userProfile) {
-    // Current conversation ID is e572c9fa-8149-43a3-940b-5456bbfcec6a
-    return path.join(userProfile, ".gemini", "antigravity", "brain", "e572c9fa-8149-43a3-940b-5456bbfcec6a").replace(/\\/g, "/");
+    const brainDir = path.join(userProfile, ".gemini", "antigravity", "brain");
+    if (fs.existsSync(brainDir)) {
+      try {
+        const subdirs = fs.readdirSync(brainDir)
+          .map(name => ({ name, path: path.join(brainDir, name) }))
+          .filter(item => fs.statSync(item.path).isDirectory());
+        if (subdirs.length > 0) {
+          subdirs.sort((a, b) => fs.statSync(b.path).mtimeMs - fs.statSync(a.path).mtimeMs);
+          return subdirs[0].path.replace(/\\/g, "/");
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
   }
   
   return path.resolve(__dirname, "../../artifacts").replace(/\\/g, "/");

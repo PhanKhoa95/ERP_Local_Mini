@@ -98,7 +98,33 @@ describe("M.A.T.R.I.X Data Integrity Operator", () => {
       md += `| ${issue.module} | ${issue.entityType} | ${issue.entityId} | ${issue.title} | **${issue.severity.toUpperCase()}** | ${issue.recommendation} |\n`;
     });
 
-    const artifactPath = path.join("C:", "Users", "KHOA MEDIA", ".gemini", "antigravity", "brain", "1640b070-1132-4584-95c1-41f2663699bc", "data_integrity_report.md");
+    let brainPath = process.env.BRAIN_PATH;
+    if (!brainPath) {
+      const userProfile = process.env.USERPROFILE || process.env.HOME;
+      if (userProfile) {
+        const brainDir = path.join(userProfile, ".gemini", "antigravity", "brain");
+        if (fs.existsSync(brainDir)) {
+          try {
+            const subdirs = fs.readdirSync(brainDir)
+              .map(name => ({ name, path: path.join(brainDir, name) }))
+              .filter(item => fs.statSync(item.path).isDirectory());
+            if (subdirs.length > 0) {
+              subdirs.sort((a, b) => fs.statSync(b.path).mtimeMs - fs.statSync(a.path).mtimeMs);
+              brainPath = subdirs[0].path;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+    }
+    if (!brainPath) {
+      brainPath = path.resolve(process.cwd(), "artifacts");
+    }
+    if (!fs.existsSync(brainPath)) {
+      fs.mkdirSync(brainPath, { recursive: true });
+    }
+    const artifactPath = path.join(brainPath, "data_integrity_report.md");
     fs.writeFileSync(artifactPath, md, "utf8");
     console.log(`\n[Xong] Đã xuất báo cáo kiểm toán toàn vẹn dữ liệu thành công ra tệp:\n${artifactPath}`);
   });
