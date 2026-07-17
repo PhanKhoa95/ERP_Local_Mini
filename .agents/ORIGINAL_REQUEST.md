@@ -357,6 +357,35 @@ Integrity mode: development
 - [ ] Tự động in hóa đơn bán lẻ K80 (mở printWindow) nếu bật checkbox cấu hình.
 - [ ] Không có lỗi runtime hoặc TypeScript build.
 
+## Follow-up — 2026-07-02T12:02:16+07:00
+
+Kiểm tra chéo, rà soát và hoàn thiện triệt để tính năng **Đóng hàng** (Packing Workflow) và thanh **Bulk Action Bar** trong file Orders.tsx và PackingDialog.tsx để đảm bảo hoạt động hoàn hảo, không có lỗi TypeScript hay lỗi logic trừ tồn kho.
+
+Working directory: y:\\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Rà soát lỗi biên dịch và lỗi logic trong PackingDialog.tsx
+- Kiểm tra toàn bộ mã nguồn của [PackingDialog.tsx](file:///y:/ERP_Local_Mini/src/components/orders/PackingDialog.tsx), đảm bảo các hàm callback `onPackOrder` hoạt động chính xác với cơ chế cập nhật trạng thái đơn hàng.
+- Kiểm tra việc nhập tay/quét mã đơn hàng để tải đơn hàng, đồng bộ danh sách picking list sản phẩm.
+
+### R2. Tối ưu hóa giao diện Bulk Action Bar trên Orders.tsx
+- Đảm bảo thanh Bulk Action Bar hiển thị chuẩn và đẹp trên cả phiên bản máy tính và điện thoại.
+- Các nút như In đơn, Đóng hàng, Cập nhật nhanh hoạt động mượt mà và gọi đúng hàm xử lý.
+
+## Verification Plan
+
+### Automated Tests
+- Chạy lệnh `npm run typecheck` để xác minh không có lỗi kiểu TypeScript nào.
+
+## Acceptance Criteria
+
+### Biên dịch & Hoạt động
+- [ ] Vượt qua kiểm tra kiểu tĩnh của TypeScript compile mà không có bất kỳ lỗi nào.
+- [ ] Giao diện Bulk Action Bar hiển thị hài hòa, cân đối.
+- [ ] PackingDialog tải đúng sản phẩm và xử lý chuyển trạng thái đơn hàng ổn định.
+
 ## Follow-up — 2026-07-05T13:49:20+07:00
 
 Quét mã nguồn hiện tại, tự động rà soát, phát hiện và viết thêm các kịch bản kiểm thử (cả Unit Test và Playwright E2E Test) cho các quy trình nâng cao và nâng cao độ bao phủ (test coverage).
@@ -384,3 +413,92 @@ Viết bổ sung unit test bằng Vitest để phủ các nhánh logic chưa đ�
 - [ ] Các test cases mới không được gây xung đột hoặc làm lỗi các test cases cũ đã có sẵn trong hệ thống.
 - [ ] Kết quả chạy build sản xuất (`npm run build`) vẫn phải thành công hoàn toàn sau khi thêm các tệp test mới.
 
+## Follow-up — 2026-07-05T21:30:51+07:00
+
+Hoàn thiện, tối ưu hóa và tích hợp toàn diện quy trình nghiệp vụ Pancake POS (M.A.T.R.I.X Workflow) cùng với hệ thống tự động hóa quản lý dự án (Auto Project Manager) cho ERP Mini để triển khai production thực tế và đánh giá chất lượng toàn diện.
+
+Working directory: e:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Kiểm thử và Tối ưu hóa Toàn cục (Local Verification Baseline)
+Đảm bảo mã nguồn đạt trạng thái sạch và ổn định tối đa trên môi trường cục bộ bao gồm:
+- Toàn bộ các kiểm thử đơn vị và tích hợp (Vitest) phải vượt qua 100%.
+- Toàn bộ các kiểm thử đầu-cuối (Playwright E2E) bao gồm Casso, RBAC, Core ERP Flows và Responsive phải chạy thành công trên cả Desktop và Mobile.
+- Sửa triệt để các lỗi biên dịch TypeScript (Typecheck) và các lỗi cú pháp nghiêm trọng (Lint).
+- Đóng gói (Build) production chạy thành công không có lỗi.
+
+### R2. Kiểm tra và Đồng bộ Supabase Remote Database
+Đảm bảo cơ sở dữ liệu Supabase được đồng bộ chính xác với remote:
+- Kết nối và kiểm tra danh sách migration với remote project `raomfcglvrhtfvkuyyou`.
+- Đẩy toàn bộ các migration cục bộ đang bị thiếu/chưa áp dụng lên cơ sở dữ liệu remote bằng Supabase CLI.
+- Tạo hoặc đồng bộ các kiểu dữ liệu của Supabase (`src/integrations/supabase/types.ts`) để khớp chính xác với cấu trúc cơ sở dữ liệu trên cloud.
+
+### R3. Tự động hóa Quy trình Quản lý Dự án (Autopilot Workflow)
+Tự động hóa hoàn toàn luồng quản lý và phát triển bằng Git:
+- Đảm bảo thực hiện trên nhánh `develop`.
+- Chạy toàn bộ các bước kiểm tra thông qua công cụ tự động hóa `node .agents/skills/auto-project-manager/scripts/run_automation.js --all`.
+- Xuất báo cáo chi tiết trạng thái kiểm thử tại tệp `.agents/auto_report.md`.
+- Thực hiện commit các thay đổi hợp lệ với thông điệp git rõ ràng, chuẩn hóa.
+
+### R4. Audit An toàn Bảo mật Edge Functions
+Đảm bảo không rò rỉ thông tin nhạy cảm hoặc cấu hình sai quyền vai trò:
+- Chạy script kiểm tra bảo mật Edge Functions `node scripts/audit-edge-functions.mjs`.
+- Báo cáo kết quả kiểm tra được cập nhật tại `docs/EDGE_FUNCTIONS_AUDIT.md`.
+
+## Acceptance Criteria
+
+### Tính chính xác của Nghiệp vụ & Kỹ thuật
+- [ ] Lệnh `npm run typecheck` chạy thành công không có lỗi kiểu TypeScript.
+- [ ] Lệnh `npm run lint` chạy thành công mà không phát sinh thêm bất kỳ lỗi (errors) mới nào.
+- [ ] Tất cả 22 bộ kiểm thử Vitest (chạy qua `npx vitest run`) phải đạt trạng thái PASS 100%.
+- [ ] Tất cả các kịch bản kiểm thử E2E Playwright (chạy qua `npx playwright test`) phải đạt trạng thái PASS 100%.
+- [ ] Quá trình đóng gói sản phẩm (`npm run build`) hoàn thành và xuất bản dựng sạch vào thư mục `dist/`.
+
+### Đồng bộ Database
+- [ ] Lệnh `npx supabase migration list` báo cáo không còn migration nào ở trạng thái pending đối với dự án remote.
+- [ ] Tệp `src/integrations/supabase/types.ts` được cập nhật và khớp hoàn toàn với cấu trúc cơ sở dữ liệu thực tế trên remote.
+
+### Tự động hóa & Báo cáo
+- [ ] Tạo thành công báo cáo kiểm thử tự động tại tệp `.agents/auto_report.md` sau khi chạy script `run_automation.js`.
+- [ ] Tệp `docs/EDGE_FUNCTIONS_AUDIT.md` được cập nhật thành công với kết quả audit bảo mật từ script `audit-edge-functions.mjs`.
+- [ ] Tất cả các thay đổi được commit thành công trên nhánh `develop` của Git.
+
+
+
+## Follow-up — 2026-07-17T02:52:08Z
+
+Phối hợp triển khai và hoàn thiện toàn bộ các chi tiết nhỏ nhất (tiểu tiết), đảm bảo toàn bộ các bộ kiểm thử Unit/Integration (Vitest) và E2E (Playwright) vượt qua 100%, không còn lỗi TypeScript hay Lint, và đóng gói production thành công.
+
+Working directory: Y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Hoàn thiện phân hệ Thẻ thành viên và Ví (Memberships & Wallet Balance)
+Triển khai hoàn chỉnh các tính năng còn lại của Milestone 8:
+- Quản lý nhiều thẻ thành viên cho đối tác, hỗ trợ tải lên hình ảnh thẻ vật lý (lưu trữ và hiển thị thumbnail).
+- Đồng bộ cấu hình tài khoản đối ứng ví thành viên thông qua cài đặt (`localStorage` key `erp-mini-membership-offset-account`, mặc định `"3387"`).
+- Tự động hạch toán kế toán kép chính xác khi nạp tiền (Nợ 111 / Có 3387) và khi chi tiêu thanh toán đơn hàng (Nợ 3387 / Có 511), tự động trừ số dư ví tức thời.
+- Ghi nhận đầy đủ nhật ký hệ thống vào bảng `audit_logs` khi nạp tiền, chi tiêu và đổi cấu hình.
+
+### R2. Đạt chuẩn chất lượng biên dịch và kiểm thử (Zero-Error Verification Gate)
+- Sửa triệt để mọi lỗi kiểu tĩnh (TypeScript Compiler - `npm run typecheck`) và lỗi cú pháp nghiêm trọng (ESLint - `npm run lint`).
+- Bảo đảm 100% bộ kiểm thử đơn vị và tích hợp (Vitest) và kiểm thử đầu-cuối (Playwright E2E) vượt qua, bao gồm các kịch bản liên quan đến Casso, RBAC, Core ERP Flows, Responsive, và Memberships.
+- Đóng gói (Build) production sạch thành công không phát sinh bất kỳ lỗi cảnh báo hoặc lỗi biên dịch nào.
+
+## Acceptance Criteria
+
+### Tính hoàn thiện của Phân hệ Memberships & Wallet
+- [ ] Tính năng nạp tiền ví thành viên tự động sinh bút toán kép Debits = Credits tương ứng.
+- [ ] Thanh toán đơn hàng bằng ví tự động sinh bút toán kép và trừ số dư tức thì của khách hàng.
+- [ ] Giao diện chi tiết đối tác hiển thị đầy đủ danh sách thẻ thành viên dạng Glassmorphism và ảnh thumbnail trực quan sau khi tải lên.
+- [ ] Mọi hành động liên quan đến ví và cấu hình đều được ghi nhận đầy đủ vào `audit_logs`.
+
+### Chỉ số chất lượng kỹ thuật
+- [ ] Lệnh `npm run typecheck` chạy hoàn tất và không phát sinh lỗi biên dịch TypeScript.
+- [ ] Lệnh `npm run lint` chạy hoàn tất và không có lỗi mới.
+- [ ] Tất cả các test cases Vitest chạy qua `npm run test` đều đạt trạng thái PASS 100%.
+- [ ] Tất cả các test cases Playwright chạy qua `npx playwright test` đều đạt trạng thái PASS 100%.
+- [ ] Lệnh `npm run build` đóng gói ứng dụng thành công và xuất thư mục `dist/` sạch sẽ.
