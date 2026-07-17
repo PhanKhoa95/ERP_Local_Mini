@@ -1371,10 +1371,6 @@ export function WeeklyReportTab() {
         </Card>
       )}
 
-          </CardContent>
-        </Card>
-      )}
-
       {/* Deep-level Task Details Dialog (M.A.T.R.I.X Premium Feature) */}
       <Dialog open={!!activeDetailTask} onOpenChange={(open) => !open && setActiveDetailTask(null)}>
         {activeDetailTask && (
