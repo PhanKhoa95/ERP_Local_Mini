@@ -2103,77 +2103,98 @@ export function WeeklyReportTab() {
                 </span>
 
                 {activeMetricDetail.list.some(item => item.activities) ? (
-                  <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
-                    {activeMetricDetail.list.map((item, idx) => (
-                      <div key={idx} className="border rounded-xl p-4 bg-muted/5 hover:bg-muted/10 transition-colors space-y-3">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <div className="flex items-center gap-2">
-                            <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded text-[10px]">{item.code}</span>
-                            <span className="text-foreground text-sm">{item.name}</span>
-                          </div>
-                          <Badge variant="secondary" className="px-2 py-0.5 text-[10px] bg-secondary/80">
-                            {item.value}
-                          </Badge>
-                        </div>
-                        
-                        {/* Advanced Staffing Metadata grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-muted/20 p-2.5 rounded-lg text-[10px] border border-muted-foreground/10">
-                          <div>
-                            <span className="text-muted-foreground block font-medium">Hôm nay:</span>
-                            <Badge className={cn(
-                              "text-[8px] font-black px-1.5 py-0 mt-0.5",
-                              item.attendanceToday?.includes("Vắng") ? "bg-rose-500 text-white" : "bg-emerald-500 text-white"
-                            )}>
-                              {item.attendanceToday || "N/A"}
-                            </Badge>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block font-medium">Giờ tuần này:</span>
-                            <span className="font-bold text-foreground font-mono block mt-0.5">{item.totalHours || 0} giờ</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block font-medium">KPI Tuần:</span>
-                            <span className="font-bold text-primary font-mono block mt-0.5">{item.kpiRating || "N/A"}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block font-medium">Vai trò / Chứng chỉ:</span>
-                            <span className="font-semibold text-foreground truncate block mt-0.5" title={item.certifications}>{item.certifications || "Basic"}</span>
-                          </div>
-                        </div>
-
-                        {/* Sub-activities reported by this employee with duration */}
-                        {item.activities && item.activities.length > 0 && (
-                          <div className="pt-2 border-t border-muted-foreground/10 space-y-2">
-                            <span className="text-[9px] text-muted-foreground uppercase font-black tracking-wider block">Các việc báo cáo tuần này:</span>
-                            <div className="space-y-2">
-                              {item.activities.map((act, actIdx) => (
-                                <div key={actIdx} className="p-2.5 bg-background border rounded-lg space-y-2 shadow-sm">
-                                  <div className="flex items-center justify-between text-xs font-semibold">
-                                    <span className="text-foreground/90">
-                                      {act.task} 
-                                      <span className="text-[10px] text-muted-foreground font-normal ml-1.5 font-mono">({act.duration})</span>
-                                    </span>
-                                    <Badge 
-                                      variant="outline" 
-                                      className={cn(
-                                        "text-[9px] px-1.5 py-0 font-bold",
-                                        act.status === "Đã xong" 
-                                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
-                                          : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                      )}
-                                    >
-                                      {act.status} ({act.progress}%)
+                  <div className="overflow-x-auto border rounded-xl max-h-[50vh] overflow-y-auto">
+                    <table className="w-full text-xs text-left min-w-[950px] border-collapse">
+                      <thead>
+                        <tr className="bg-muted border-b font-semibold text-muted-foreground sticky top-0 z-10 shadow-sm">
+                          <th className="p-2.5 bg-muted">Mã NV</th>
+                          <th className="p-2.5 bg-muted">Họ tên & Vai trò</th>
+                          <th className="p-2.5 bg-muted text-center">Bộ phận</th>
+                          <th className="p-2.5 bg-muted text-center">Hôm nay</th>
+                          <th className="p-2.5 bg-muted text-center">Tổng giờ</th>
+                          <th className="p-2.5 bg-muted text-center">KPI Tuần</th>
+                          <th className="p-2.5 bg-muted">Công việc đã báo cáo</th>
+                          <th className="p-2.5 bg-muted text-center">Thời lượng</th>
+                          <th className="p-2.5 bg-muted text-center">Tiến độ</th>
+                          <th className="p-2.5 bg-muted">Nhật ký chi tiết</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeMetricDetail.list.map((item) => {
+                          const hasActs = item.activities && item.activities.length > 0;
+                          const rowCount = hasActs ? item.activities.length : 1;
+                          
+                          if (!hasActs) {
+                            return (
+                              <tr key={item.code} className="border-b hover:bg-muted/5 transition-colors">
+                                <td className="p-2.5 font-mono font-bold text-primary">{item.code}</td>
+                                <td className="p-2.5 font-semibold text-foreground">
+                                  <div>{item.name}</div>
+                                  <div className="text-[10px] text-muted-foreground">{item.date}</div>
+                                </td>
+                                <td className="p-2.5 text-center font-medium text-foreground/80">{item.value}</td>
+                                <td className="p-2.5 text-center">
+                                  <Badge className={cn(
+                                    "text-[8px] font-black px-1.5 py-0",
+                                    item.attendanceToday?.includes("Vắng") ? "bg-rose-500 text-white" : "bg-emerald-500 text-white"
+                                  )}>
+                                    {item.attendanceToday || "N/A"}
+                                  </Badge>
+                                </td>
+                                <td className="p-2.5 text-center font-mono font-bold text-foreground">{item.totalHours || 0}h</td>
+                                <td className="p-2.5 text-center font-mono font-medium text-foreground/80">{item.kpiRating || "N/A"}</td>
+                                <td className="p-2.5 text-muted-foreground italic" colSpan={4}>Không có báo cáo công việc nào được ghi nhận</td>
+                              </tr>
+                            );
+                          }
+                          
+                          return item.activities.map((act, actIdx) => (
+                            <tr key={`${item.code}-${actIdx}`} className="border-b hover:bg-muted/5 transition-colors">
+                              {actIdx === 0 && (
+                                <>
+                                  <td className="p-2.5 font-mono font-bold text-primary align-middle animate-fade-in" rowSpan={rowCount}>{item.code}</td>
+                                  <td className="p-2.5 font-semibold text-foreground align-middle" rowSpan={rowCount}>
+                                    <div className="font-bold">{item.name}</div>
+                                    <div className="text-[10px] text-muted-foreground font-normal">{item.date}</div>
+                                  </td>
+                                  <td className="p-2.5 text-center font-medium text-foreground/80 align-middle" rowSpan={rowCount}>
+                                    <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-bold">
+                                      {item.value}
                                     </Badge>
-                                  </div>
-                                  <Progress value={act.progress} className="h-1" />
-                                  <p className="text-[10px] text-muted-foreground leading-normal italic">&ldquo;{act.log}&rdquo;</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                                  </td>
+                                  <td className="p-2.5 text-center align-middle" rowSpan={rowCount}>
+                                    <Badge className={cn(
+                                      "text-[8px] font-black px-1.5 py-0",
+                                      item.attendanceToday?.includes("Vắng") ? "bg-rose-500 text-white" : "bg-emerald-500 text-white"
+                                    )}>
+                                      {item.attendanceToday || "N/A"}
+                                    </Badge>
+                                  </td>
+                                  <td className="p-2.5 text-center font-mono font-bold text-foreground align-middle" rowSpan={rowCount}>{item.totalHours || 0}h</td>
+                                  <td className="p-2.5 text-center font-mono font-medium text-primary align-middle" rowSpan={rowCount}>{item.kpiRating || "N/A"}</td>
+                                </>
+                              )}
+                              <td className="p-2.5 font-medium text-foreground/90">{act.task}</td>
+                              <td className="p-2.5 text-center font-mono text-muted-foreground">{act.duration}</td>
+                              <td className="p-2.5 text-center">
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "text-[9px] px-1.5 py-0 font-bold",
+                                    act.status === "Đã xong" 
+                                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                  )}
+                                >
+                                  {act.status} ({act.progress}%)
+                                </Badge>
+                              </td>
+                              <td className="p-2.5 text-muted-foreground italic leading-normal font-medium max-w-[280px] break-words">&ldquo;{act.log}&rdquo;</td>
+                            </tr>
+                          ));
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (
                   <div className="overflow-x-auto border rounded-lg">
