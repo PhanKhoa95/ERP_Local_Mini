@@ -233,6 +233,25 @@ const PROJECTS_DATA: ProjectSummary[] = [
     health: "Cảnh báo",
     priority: "Cao",
     lastActionDate: "14/07/2026"
+  },
+  {
+    id: 10,
+    name: "Nhà In Nhỏ",
+    manager: "Anh Khoa",
+    stage: "Tối ưu Shopee & Zalo",
+    plannedProgress: 90,
+    actualProgress: 85,
+    diff: -5,
+    customersCount: 24,
+    revenue: 520,
+    partnersCount: 3,
+    debt: 0,
+    requiredStaff: 2,
+    currentStaff: 2,
+    risk: "Thấp",
+    health: "Tốt",
+    priority: "Trung bình",
+    lastActionDate: "17/07/2026"
   }
 ];
 
@@ -392,6 +411,80 @@ const getDetailedReport = (projectId: number): DetailedReport => {
         supervisor: "Lê Anh Tuấn",
         owner: "Trần Quốc Huy",
         board: "Chờ duyệt"
+      }
+    };
+  }
+
+  if (p.id === 10) {
+    return {
+      week: "29/2026",
+      dateRange: "14/07/2026 đến 20/07/2026",
+      creator: "Anh Khoa",
+      createdDate: "20/07/2026",
+      projectFullName: "Dự án Khởi nghiệp Nhà In Nhỏ (Tại nhà + Shopee/FB/Zalo)",
+      projectOwner: "Anh Khoa",
+      reportedBy: "Anh Khoa",
+      role: "Chủ Shop",
+      plannedProgress: 90,
+      actualProgress: 85,
+      diff: -5,
+      completedTasksCount: 5,
+      totalTasksCount: 5,
+      tasksList: [
+        { id: 1, name: "In logo & tem nhãn decal khách Zalo", planned: 100, actual: 100, diff: 0, status: "Đã hoàn tất", notes: "Hoàn thành đơn 1000 tem tròn" },
+        { id: 2, name: "Giao hàng Shopee / Đóng gói COD", planned: 100, actual: 100, diff: 0, status: "Đã hoàn tất", notes: "Giao thành công 15 đơn Shopee" },
+        { id: 3, name: "Setup quảng cáo kéo khách FB", planned: 90, actual: 80, diff: -10, status: "Đang chạy test", notes: "Ngân sách chạy test 150.000đ/ngày" },
+        { id: 4, name: "Cân đối chi phí biến phí sản xuất", planned: 80, actual: 80, diff: 0, status: "Đã hoàn tất", notes: "Biến phí đạt 71.369 VND/đơn" },
+        { id: 5, name: "Tối ưu hóa công suất máy Epson L8050", planned: 90, actual: 85, diff: -5, status: "Đang hiệu chỉnh", notes: "Nâng công suất lên 18 đơn/ngày" }
+      ],
+      businessResults: {
+        revenue: 520,
+        cost: 244,
+        profit: 276,
+        receivable: 0,
+        payable: 15,
+        cashflow: 185
+      },
+      staffing: {
+        required: 2,
+        current: 2,
+        diff: 0,
+        departments: [
+          { name: "Thiết kế & Bán hàng", required: 1, current: 1, diff: 0 },
+          { name: "In ấn & Đóng gói", required: 1, current: 1, diff: 0 }
+        ]
+      },
+      completedHighlights: [
+        "Đạt mốc hòa vốn bình quân 7.3 đơn/ngày tại nhà.",
+        "Thiết lập thành công gian hàng Shopee chuẩn SEO.",
+        "Tối ưu biên lãi gộp sản xuất đạt 53%."
+      ],
+      nextWeekPlan: [
+        "Mở rộng tệp khách hàng mua sỉ qua Zalo OA.",
+        "Mua thêm máy cắt bế decal khổ 60cm.",
+        "Tuyển thêm 1 nhân sự part-time khi đơn Shopee đạt 20 đơn/ngày."
+      ],
+      risksList: [
+        { id: 1, issue: "Phí sàn Shopee tăng", level: "Trung bình", impact: "Giảm biên lợi nhuận Shopee", mitigation: "Tăng giá bán Shopee thêm 15% so với bán Zalo", owner: "Anh Khoa", deadline: "20/07" },
+        { id: 2, issue: "Quá tải công suất máy in đơn lẻ", level: "Cao", impact: "Chậm đơn giao Shopee bị phạt", mitigation: "Dự phòng 1 máy Epson sơ cua", owner: "Anh Khoa", deadline: "17/07" }
+      ],
+      boardApprovals: [
+        "Phê duyệt mua máy cắt bế 9.9 Tr.",
+        "Duyệt chi phí marketing Zalo/FB 4 Tr."
+      ],
+      evaluation: {
+        status: "Đã nghiệm thu",
+        score: 5
+      },
+      milestones: [
+        { id: 1, event: "Đạt doanh số 50 Triệu đầu tiên", time: "10/07/2026", notes: "Thực tế đạt 52.8 Triệu ở tháng T8" },
+        { id: 2, event: "Hoàn vốn CAPEX máy móc ban đầu", time: "15/07/2026", notes: "Thời gian hoàn vốn thực tế 9.2 tháng" }
+      ],
+      approvals: {
+        creator: "Anh Khoa",
+        supervisor: "Anh Khoa",
+        owner: "Anh Khoa",
+        board: "Đã duyệt"
       }
     };
   }
