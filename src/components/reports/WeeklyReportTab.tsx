@@ -664,7 +664,21 @@ interface MetricListItem {
   value: number | string;
   date: string;
   details: string;
-  activities?: Array<{ task: string; progress: number; status: string; log: string }>;
+  activities?: Array<{ 
+    task: string; 
+    progress: number; 
+    status: string; 
+    log: string;
+    duration?: string;
+  }>;
+  paymentMethod?: string;
+  accountOffset?: string;
+  reconciler?: string;
+  invoiceFile?: string;
+  totalHours?: number;
+  attendanceToday?: string;
+  kpiRating?: string;
+  certifications?: string;
 }
 
 interface MetricDetail {
