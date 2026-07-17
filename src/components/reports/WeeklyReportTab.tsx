@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { 
   FolderKanban, 
   Activity, 
   Sparkles, 
@@ -19,7 +26,11 @@ import {
   Star,
   CheckSquare,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Check,
+  Clock,
+  ExternalLink,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -451,9 +462,132 @@ const getDetailedReport = (projectId: number): DetailedReport => {
   };
 };
 
+interface TaskDeepDetail {
+  name: string;
+  owner: string;
+  duration: string;
+  subtasks: Array<{ label: string; done: boolean; date?: string }>;
+  logs: Array<{ time: string; user: string; text: string }>;
+  wikiLink?: string;
+  wikiName?: string;
+}
+
+const getTaskDeepDetails = (taskName: string): TaskDeepDetail => {
+  switch (taskName) {
+    case "Hoàn thiện layout cửa hàng":
+      return {
+        name: "Hoàn thiện layout cửa hàng",
+        owner: "Trần Quốc Huy (PM Thiết kế)",
+        duration: "05/07/2026 - 15/07/2026",
+        subtasks: [
+          { label: "Khảo sát hiện trạng mặt bằng", done: true, date: "06/07" },
+          { label: "Thiết kế phối cảnh 3D nội ngoại thất", done: true, date: "09/07" },
+          { label: "Lắp đặt hệ thống điện nước quầy bar", done: true, date: "12/07" },
+          { label: "Sơn sửa tường, lắp ráp khung gỗ", done: true, date: "14/07" },
+          { label: "Nghiệm thu bàn giao phần thô & vệ sinh công nghiệp", done: true, date: "15/07" }
+        ],
+        logs: [
+          { time: "15/07/2026 16:30", user: "Trần Quốc Huy", text: "Đã duyệt biên bản nghiệm thu bàn giao mặt bằng phần thô." },
+          { time: "14/07/2026 11:00", user: "Nguyễn Minh Khoa", text: "Tải lên tài liệu thiết kế và ảnh bàn giao thực địa." }
+        ],
+        wikiLink: "/docs/wiki/03_Technical_Docs/TECH-003-dynamic-warranty.md",
+        wikiName: "TECH-003-dynamic-warranty.md"
+      };
+    case "Tuyển dụng nhân sự":
+      return {
+        name: "Tuyển dụng nhân sự",
+        owner: "Lê Minh Anh (HR Specialist)",
+        duration: "08/07/2026 - 18/07/2026",
+        subtasks: [
+          { label: "Đăng tin tuyển dụng trên các hội nhóm & fanpage", done: true, date: "09/07" },
+          { label: "Lọc hồ sơ và xếp lịch phỏng vấn sơ loại", done: true, date: "12/07" },
+          { label: "Phỏng vấn Barista vòng 2 (Đã tuyển 3/4)", done: false },
+          { label: "Phỏng vấn Phục vụ (Đã tuyển 3/5)", done: false },
+          { label: "Phỏng vấn Thu ngân / Kho (Đã tuyển 1/2)", done: false }
+        ],
+        logs: [
+          { time: "16/07/2026 14:20", user: "Lê Minh Anh", text: "Hồ sơ barista chất lượng cao hơi ít, đã mở thêm nguồn tin tuyển dụng trả phí." },
+          { time: "12/07/2026 09:00", user: "Lê Minh Anh", text: "Hoàn tất chọn lọc 15 hồ sơ ứng viên vòng 1." }
+        ],
+        wikiLink: "/docs/wiki/02_Refined_Specs/SPEC-001-memberships-wallet.md",
+        wikiName: "SPEC-001-memberships-wallet.md"
+      };
+    case "Đào tạo barista & phục vụ":
+      return {
+        name: "Đào tạo barista & phục vụ",
+        owner: "Nguyễn Minh Khoa (PM Vận hành)",
+        duration: "12/07/2026 - 20/07/2026",
+        subtasks: [
+          { label: "Soạn giáo trình đào tạo menu đồ uống", done: true, date: "12/07" },
+          { label: "Đào tạo lý thuyết nội quy & quy chuẩn phục vụ", done: true, date: "14/07" },
+          { label: "Thực hành pha chế công thức chuẩn (Đạt 80%)", done: false },
+          { label: "Chạy ca thử nghiệm mô phỏng (Soft-run)", done: false }
+        ],
+        logs: [
+          { time: "16/07/2026 10:00", user: "Nguyễn Minh Khoa", text: "Trì hoãn buổi soft-run do chưa tuyển đủ nhân sự barista đứng quầy." },
+          { time: "14/07/2026 15:30", user: "Nguyễn Minh Khoa", text: "Hoàn thành bài kiểm tra lý thuyết phục vụ khách hàng của nhóm nhân viên mới." }
+        ],
+        wikiLink: "/docs/wiki/03_Technical_Docs/TECH-001-memberships-wallet.md",
+        wikiName: "TECH-001-memberships-wallet.md"
+      };
+    case "Setup POS / QR / máy in":
+      return {
+        name: "Setup POS / QR / máy in",
+        owner: "Nguyễn Hoàng Long (IT Support)",
+        duration: "10/07/2026 - 17/07/2026",
+        subtasks: [
+          { label: "Khảo sát vị trí, đi dây mạng LAN & cấp nguồn quầy", done: true, date: "11/07" },
+          { label: "Lắp đặt phần cứng máy POS và cài đặt phần mềm ERP Mini", done: true, date: "13/07" },
+          { label: "Lắp đặt và test kết nối máy in hóa đơn/máy in tem", done: true, date: "14/07" },
+          { label: "Cấu hình cổng QR thanh toán động tích hợp Casso", done: false },
+          { label: "Kiểm tra in thử hóa đơn thực tế và chốt ca", done: false }
+        ],
+        logs: [
+          { time: "17/07/2026 08:30", user: "Nguyễn Hoàng Long", text: "Đã cài đặt xong app. Đang chờ kết nối API ví thành viên và ngân hàng." },
+          { time: "14/07/2026 16:00", user: "Nguyễn Hoàng Long", text: "Máy in tem nhiệt đã được bàn giao và hoạt động tốt." }
+        ],
+        wikiLink: "/docs/wiki/03_Technical_Docs/TECH-002-event-bus.md",
+        wikiName: "TECH-002-event-bus.md"
+      };
+    case "Chuẩn hóa menu & giá bán":
+      return {
+        name: "Chuẩn hóa menu & giá bán",
+        owner: "Trần Quốc Huy (PM Thiết kế)",
+        duration: "05/07/2026 - 16/07/2026",
+        subtasks: [
+          { label: "Xác định danh mục đồ uống và định lượng pha chế", done: true, date: "06/07" },
+          { label: "Tính toán giá vốn nguyên liệu và biên lợi nhuận gộp", done: true, date: "08/07" },
+          { label: "Dự thảo bảng giá bán lẻ đề xuất", done: true, date: "10/07" },
+          { label: "Thiết lập cơ chế combo giá sỉ & chiết khấu", done: false },
+          { label: "Trình duyệt bảng giá chính thức lên BLĐ", done: false }
+        ],
+        logs: [
+          { time: "16/07/2026 15:00", user: "Trần Quốc Huy", text: "Đã hoàn thành đề xuất combo ưu đãi kèm bảng chiết khấu." },
+          { time: "10/07/2026 09:30", user: "Trần Quốc Huy", text: "Hoàn tất lập biểu giá mẫu thử nghiệm." }
+        ],
+        wikiLink: "/docs/wiki/02_Refined_Specs/SPEC-004-packing-workflow.md",
+        wikiName: "SPEC-004-packing-workflow.md"
+      };
+    default:
+      return {
+        name: taskName,
+        owner: "Nguyễn Minh Khoa (PM)",
+        duration: "14/07/2026 - 20/07/2026",
+        subtasks: [
+          { label: "Khảo sát và lập quy hoạch ban đầu", done: true, date: "14/07" },
+          { label: "Triển khai lắp đặt chi tiết", done: false }
+        ],
+        logs: [
+          { time: "15/07/2026 09:00", user: "Nguyễn Minh Khoa", text: "Bắt đầu triển khai phân tích và tích hợp." }
+        ]
+      };
+  }
+};
+
 export function WeeklyReportTab() {
   const [viewMode, setViewMode] = useState<"strategic" | "detailed">("strategic");
   const [selectedProjectId, setSelectedProjectId] = useState<number>(6); // Default: Cà phê Aroma (ID: 6)
+  const [activeDetailTask, setActiveDetailTask] = useState<TaskDeepDetail | null>(null);
 
   const selectedReport = getDetailedReport(selectedProjectId);
 
@@ -796,9 +930,16 @@ export function WeeklyReportTab() {
                   </thead>
                   <tbody>
                     {selectedReport.tasksList.map((task, idx) => (
-                      <tr key={task.id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
+                      <tr 
+                        key={task.id} 
+                        onClick={() => setActiveDetailTask(getTaskDeepDetails(task.name))}
+                        className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-all hover:translate-x-0.5"
+                      >
                         <td className="p-2.5 text-center">{idx + 1}</td>
-                        <td className="p-2.5 font-medium">{task.name}</td>
+                        <td className="p-2.5 font-semibold text-primary flex items-center gap-1.5 hover:underline">
+                          {task.name}
+                          <ChevronRight className="w-3 h-3 opacity-60" />
+                        </td>
                         <td className="p-2.5 text-center">{task.planned}%</td>
                         <td className="p-2.5 text-center font-semibold">{task.actual}%</td>
                         <td className={cn(
@@ -1125,6 +1266,108 @@ export function WeeklyReportTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Deep-level Task Details Dialog (M.A.T.R.I.X Premium Feature) */}
+      <Dialog open={!!activeDetailTask} onOpenChange={(open) => !open && setActiveDetailTask(null)}>
+        {activeDetailTask && (
+          <DialogContent className="sm:max-w-[550px] bg-card/90 backdrop-blur-xl border border-primary/20">
+            <DialogHeader className="border-b pb-3">
+              <DialogTitle className="text-base font-black text-primary uppercase flex items-center gap-2">
+                <CheckSquare className="w-5 h-5" />
+                CHI TIẾT NHIỆM VỤ TẦNG SÂU
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Truy xuất chi tiết hạng mục, lịch trình và hoạt động kiểm tra chéo.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-4 space-y-5 text-xs">
+              {/* Task Core Info */}
+              <div className="grid grid-cols-2 gap-4 bg-muted/40 p-3 rounded-lg border">
+                <div>
+                  <p className="text-muted-foreground font-semibold">Tên công việc:</p>
+                  <p className="font-bold text-foreground text-sm mt-0.5">{activeDetailTask.name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-semibold">Người phụ trách chính:</p>
+                  <p className="font-bold text-foreground text-sm mt-0.5">{activeDetailTask.owner}</p>
+                </div>
+                <div className="col-span-2 border-t pt-2 mt-1">
+                  <p className="text-muted-foreground font-semibold">Thời gian thực hiện:</p>
+                  <p className="font-medium text-foreground mt-0.5 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-primary" /> {activeDetailTask.duration}
+                  </p>
+                </div>
+              </div>
+
+              {/* Subtasks Checklist */}
+              <div className="space-y-2">
+                <p className="font-bold text-primary uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  Danh sách việc thành phần (Sub-checklist)
+                </p>
+                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                  {activeDetailTask.subtasks.map((sub, i) => (
+                    <div key={i} className="flex items-start gap-2.5 p-2 bg-muted/10 border rounded hover:bg-muted/20 transition-all">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full flex items-center justify-center border mt-0.5",
+                        sub.done ? "bg-emerald-500 border-emerald-600 text-white" : "border-muted-foreground/30 bg-background"
+                      )}>
+                        {sub.done && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </div>
+                      <div className="flex-1 flex justify-between items-center gap-2">
+                        <span className={cn("font-medium", sub.done ? "text-muted-foreground line-through" : "text-foreground")}>
+                          {sub.label}
+                        </span>
+                        {sub.date && (
+                          <Badge variant="secondary" className="text-[9px] font-mono px-1 py-0 bg-emerald-500/10 text-emerald-600">
+                            Xong {sub.date}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Audit Activity Logs */}
+              <div className="space-y-2">
+                <p className="font-bold text-primary uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                  Nhật ký cập nhật & Kiểm toán (Audit Logs)
+                </p>
+                <div className="space-y-2 border-l-2 border-indigo-200 pl-3.5 py-1">
+                  {activeDetailTask.logs.map((log, i) => (
+                    <div key={i} className="space-y-1 relative">
+                      <span className="absolute -left-[19.5px] top-1.5 w-2 h-2 rounded-full bg-indigo-500 border border-background" />
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono">
+                        <span>{log.time}</span>
+                        <span>•</span>
+                        <span className="font-bold text-foreground">{log.user}</span>
+                      </div>
+                      <p className="text-muted-foreground leading-normal">{log.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Technical Spec & Wiki Links */}
+              {activeDetailTask.wikiLink && (
+                <div className="border-t pt-3 flex items-center justify-between">
+                  <span className="text-muted-foreground">Tài liệu kỹ thuật liên kết:</span>
+                  <a 
+                    href={activeDetailTask.wikiLink} 
+                    className="flex items-center gap-1 text-primary font-bold hover:underline"
+                  >
+                    {activeDetailTask.wikiName}
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
