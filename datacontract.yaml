@@ -1,0 +1,371 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: erp-local-mini-datacontract
+name: ERP Mini Data Contract
+version: 1.0.0
+status: draft
+schema:
+  - name: products
+    description: Products table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: sku
+        logicalType: string
+        required: true
+        unique: true
+      - name: name
+        logicalType: string
+        required: true
+      - name: description
+        logicalType: string
+      - name: category
+        logicalType: string
+      - name: unit
+        logicalType: string
+      - name: cost_price
+        logicalType: number
+      - name: selling_price
+        logicalType: number
+      - name: stock_quantity
+        logicalType: integer
+      - name: min_stock
+        logicalType: integer
+      - name: image_url
+        logicalType: string
+      - name: is_active
+        logicalType: boolean
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: updated_at
+        logicalType: timestamp
+        required: true
+      - name: has_variants
+        logicalType: boolean
+      - name: is_service
+        logicalType: boolean
+      - name: company_id
+        logicalType: string
+
+  - name: orders
+    description: Orders table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: order_number
+        logicalType: string
+        required: true
+        unique: true
+      - name: channel_id
+        logicalType: string
+      - name: partner_id
+        logicalType: string
+      - name: order_type
+        logicalType: string
+      - name: status
+        logicalType: string
+      - name: order_date
+        logicalType: timestamp
+        required: true
+      - name: subtotal
+        logicalType: number
+      - name: discount
+        logicalType: number
+      - name: shipping_fee
+        logicalType: number
+      - name: total
+        logicalType: number
+      - name: shipping_address
+        logicalType: string
+      - name: notes
+        logicalType: string
+      - name: created_by
+        logicalType: string
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: updated_at
+        logicalType: timestamp
+        required: true
+      - name: voucher_id
+        logicalType: string
+      - name: voucher_discount
+        logicalType: number
+      - name: paid_amount
+        logicalType: number
+      - name: payment_status
+        logicalType: string
+      - name: company_id
+        logicalType: string
+      - name: source_type
+        logicalType: string
+      - name: customer_name
+        logicalType: string
+      - name: customer_phone
+        logicalType: string
+      - name: customer_email
+        logicalType: string
+      - name: customer_address
+        logicalType: string
+      - name: shipping_province
+        logicalType: string
+      - name: shipping_district
+        logicalType: string
+      - name: shipping_ward
+        logicalType: string
+      - name: payment_method
+        logicalType: string
+      - name: payment_reference
+        logicalType: string
+      - name: warehouse_id
+        logicalType: string
+      - name: shipping_zone_id
+        logicalType: string
+      - name: priority
+        logicalType: string
+      - name: internal_notes
+        logicalType: string
+      - name: confirmed_at
+        logicalType: timestamp
+      - name: shipped_at
+        logicalType: timestamp
+      - name: delivered_at
+        logicalType: timestamp
+      - name: cancelled_at
+        logicalType: timestamp
+      - name: cancelled_reason
+        logicalType: string
+      - name: external_created_at
+        logicalType: timestamp
+      - name: last_synced_at
+        logicalType: timestamp
+      - name: tags
+        logicalType: array
+        items:
+          logicalType: string
+      - name: points_earned
+        logicalType: integer
+      - name: points_used
+        logicalType: integer
+      - name: referral_discount
+        logicalType: number
+
+  - name: order_items
+    description: Order items table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: order_id
+        logicalType: string
+        required: true
+      - name: product_id
+        logicalType: string
+        required: true
+      - name: quantity
+        logicalType: integer
+        required: true
+      - name: unit_price
+        logicalType: number
+        required: true
+      - name: discount
+        logicalType: number
+      - name: total
+        logicalType: number
+        required: true
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: variant_id
+        logicalType: string
+
+  - name: payment_transactions
+    description: Payment transactions table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: partner_id
+        logicalType: string
+        required: true
+      - name: order_id
+        logicalType: string
+      - name: transaction_type
+        logicalType: string
+        required: true
+      - name: amount
+        logicalType: number
+        required: true
+      - name: payment_method
+        logicalType: string
+      - name: reference_number
+        logicalType: string
+      - name: notes
+        logicalType: string
+      - name: transaction_date
+        logicalType: timestamp
+        required: true
+      - name: created_by
+        logicalType: string
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: company_id
+        logicalType: string
+
+  - name: journal_entries
+    description: Journal entries table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: company_id
+        logicalType: string
+        required: true
+      - name: entry_date
+        logicalType: date
+        required: true
+      - name: description
+        logicalType: string
+      - name: source_type
+        logicalType: string
+      - name: source_id
+        logicalType: string
+      - name: status
+        logicalType: string
+      - name: vneid_signature
+        logicalType: string
+      - name: created_by
+        logicalType: string
+      - name: posted_by
+        logicalType: string
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: updated_at
+        logicalType: timestamp
+        required: true
+
+  - name: journal_lines
+    description: Journal lines table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: entry_id
+        logicalType: string
+        required: true
+      - name: account_id
+        logicalType: string
+        required: true
+      - name: debit
+        logicalType: number
+      - name: credit
+        logicalType: number
+      - name: asset_type
+        logicalType: string
+      - name: memo
+        logicalType: string
+      - name: created_at
+        logicalType: timestamp
+        required: true
+
+  - name: product_bom
+    description: Product Bill of Materials table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: product_id
+        logicalType: string
+        required: true
+      - name: material_id
+        logicalType: string
+        required: true
+      - name: quantity
+        logicalType: number
+        required: true
+      - name: unit
+        logicalType: string
+      - name: notes
+        logicalType: string
+      - name: is_active
+        logicalType: boolean
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: updated_at
+        logicalType: timestamp
+        required: true
+
+  - name: memberships
+    description: Memberships table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: partner_id
+        logicalType: string
+        required: true
+      - name: card_number
+        logicalType: string
+        required: true
+        unique: true
+      - name: tier
+        logicalType: string
+      - name: balance
+        logicalType: number
+      - name: points
+        logicalType: integer
+      - name: status
+        logicalType: string
+      - name: issue_date
+        logicalType: timestamp
+        required: true
+      - name: expiry_date
+        logicalType: timestamp
+      - name: notes
+        logicalType: string
+      - name: card_image
+        logicalType: string
+      - name: created_at
+        logicalType: timestamp
+        required: true
+      - name: updated_at
+        logicalType: timestamp
+        required: true
+
+  - name: membership_transactions
+    description: Membership transactions table
+    properties:
+      - name: id
+        logicalType: string
+        required: true
+        primary: true
+      - name: membership_id
+        logicalType: string
+        required: true
+      - name: transaction_type
+        logicalType: string
+        required: true
+      - name: amount
+        logicalType: number
+        required: true
+      - name: points_delta
+        logicalType: integer
+      - name: description
+        logicalType: string
+      - name: created_at
+        logicalType: timestamp
+        required: true
