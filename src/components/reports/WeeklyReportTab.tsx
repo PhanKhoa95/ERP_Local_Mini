@@ -1190,7 +1190,28 @@ export function WeeklyReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 backdrop-blur border-emerald-500/20 hover:border-emerald-500/50 transition-colors">
+            <Card 
+              className="bg-card/50 backdrop-blur border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all cursor-zoom-in"
+              onClick={() => {
+                setActiveMetricDetail({
+                  title: "Tiến độ Trung bình Toàn hệ thống",
+                  unit: "%",
+                  totalValue: avgProgress,
+                  breakdown: PROJECTS_DATA.map(p => ({
+                    name: p.name,
+                    value: p.actualProgress,
+                    percentage: Math.round((p.actualProgress / (PROJECTS_DATA.reduce((s, x) => s + x.actualProgress, 0) || 1)) * 100)
+                  })),
+                  list: PROJECTS_DATA.map(p => ({
+                    code: `PROG-${p.id}`,
+                    name: p.name,
+                    value: `${p.actualProgress}%`,
+                    date: `Giai đoạn: ${p.stage}`,
+                    details: `Tiến độ KH: ${p.plannedProgress}% | Chênh lệch: ${p.diff > 0 ? `+${p.diff}%` : `${p.diff}%`}`
+                  }))
+                });
+              }}
+            >
               <CardContent className="p-4 pt-6 text-center space-y-1.5">
                 <div className="mx-auto w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                   <Activity className="w-5 h-5 text-emerald-500" />
@@ -1200,7 +1221,32 @@ export function WeeklyReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 backdrop-blur border-sky-500/20 hover:border-sky-500/50 transition-colors">
+            <Card 
+              className="bg-card/50 backdrop-blur border-sky-500/20 hover:border-sky-500/50 hover:bg-sky-500/5 transition-all cursor-zoom-in"
+              onClick={() => {
+                setActiveMetricDetail({
+                  title: "Doanh thu Toàn hệ thống (9 Dự án)",
+                  unit: "Tr",
+                  totalValue: totalRevenue / 1000,
+                  breakdown: PROJECTS_DATA.map(p => ({
+                    name: p.name,
+                    value: p.revenue / 1000,
+                    percentage: Math.round((p.revenue / totalRevenue) * 100)
+                  })),
+                  list: PROJECTS_DATA.map(p => ({
+                    code: `REV-${p.id}`,
+                    name: `Doanh số ${p.name}`,
+                    value: p.revenue / 1000,
+                    date: "Hàng tuần",
+                    details: `Chủ nhiệm: ${p.manager}`,
+                    paymentMethod: "Tổng hợp POS/App",
+                    accountOffset: "Nợ 111, 112 / Có 511",
+                    reconciler: "Hệ thống ERP",
+                    invoiceFile: "REVENUE-TOTAL.pdf"
+                  }))
+                });
+              }}
+            >
               <CardContent className="p-4 pt-6 text-center space-y-1.5">
                 <div className="mx-auto w-10 h-10 rounded-lg bg-sky-500/10 flex items-center justify-center">
                   <DollarSign className="w-5 h-5 text-sky-500" />
@@ -1210,7 +1256,32 @@ export function WeeklyReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 backdrop-blur border-indigo-500/20 hover:border-indigo-500/50 transition-colors">
+            <Card 
+              className="bg-card/50 backdrop-blur border-indigo-500/20 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all cursor-zoom-in"
+              onClick={() => {
+                setActiveMetricDetail({
+                  title: "Công nợ Toàn hệ thống (9 Dự án)",
+                  unit: "Tr",
+                  totalValue: totalDebt / 1000,
+                  breakdown: PROJECTS_DATA.map(p => ({
+                    name: p.name,
+                    value: p.debt / 1000,
+                    percentage: Math.round((p.debt / (totalDebt || 1)) * 100)
+                  })),
+                  list: PROJECTS_DATA.map(p => ({
+                    code: `DEBT-${p.id}`,
+                    name: `Công nợ ${p.name}`,
+                    value: p.debt / 1000,
+                    date: "Đang theo dõi",
+                    details: `Chủ nhiệm: ${p.manager}`,
+                    paymentMethod: "Công nợ sỉ & đối tác",
+                    accountOffset: "Nợ 131 / Có 331",
+                    reconciler: "Lê Thu Trang (Kế toán)",
+                    invoiceFile: "DEBT-TOTAL.pdf"
+                  }))
+                });
+              }}
+            >
               <CardContent className="p-4 pt-6 text-center space-y-1.5">
                 <div className="mx-auto w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                   <FileText className="w-5 h-5 text-indigo-500" />
@@ -1220,7 +1291,28 @@ export function WeeklyReportTab() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 backdrop-blur border-rose-500/20 hover:border-rose-500/50 transition-colors">
+            <Card 
+              className="bg-card/50 backdrop-blur border-rose-500/20 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all cursor-zoom-in"
+              onClick={() => {
+                setActiveMetricDetail({
+                  title: "Thiếu hụt Nhân lực Toàn hệ thống",
+                  unit: "Người",
+                  totalValue: missingStaff,
+                  breakdown: PROJECTS_DATA.map(p => ({
+                    name: p.name,
+                    value: Math.max(0, p.requiredStaff - p.currentStaff),
+                    percentage: Math.round((Math.max(0, p.requiredStaff - p.currentStaff) / (missingStaff || 1)) * 100)
+                  })),
+                  list: PROJECTS_DATA.map(p => ({
+                    code: `STAFF-${p.id}`,
+                    name: `Nhân sự ${p.name}`,
+                    value: `${p.currentStaff} / ${p.requiredStaff} người`,
+                    date: `Thiếu: ${Math.max(0, p.requiredStaff - p.currentStaff)} người`,
+                    details: `Trạng thái: ${p.currentStaff < p.requiredStaff ? "Cần tuyển bổ sung" : "Đầy đủ"}`
+                  }))
+                });
+              }}
+            >
               <CardContent className="p-4 pt-6 text-center space-y-1.5">
                 <div className="mx-auto w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center">
                   <Users className="w-5 h-5 text-rose-500" />
@@ -1317,11 +1409,40 @@ export function WeeklyReportTab() {
                           </Badge>
                         </td>
                         <td className="p-3 text-center font-medium text-muted-foreground">{p.customersCount}</td>
-                        <td className="p-3 text-right font-semibold text-foreground">{p.revenue.toLocaleString("vi-VN")}</td>
+                        <td 
+                          className="p-3 text-right font-bold text-sky-600 hover:text-sky-800 hover:underline cursor-zoom-in font-mono"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProjectId(p.id);
+                            const projReport = getDetailedReport(p.id);
+                            setActiveMetricDetail(getMetricDetails("revenue", projReport));
+                          }}
+                        >
+                          {p.revenue.toLocaleString("vi-VN")}
+                        </td>
                         <td className="p-3 text-center font-medium text-muted-foreground">{p.partnersCount}</td>
-                        <td className="p-3 text-right font-semibold text-foreground">{p.debt.toLocaleString("vi-VN")}</td>
+                        <td 
+                          className="p-3 text-right font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-zoom-in font-mono"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProjectId(p.id);
+                            const projReport = getDetailedReport(p.id);
+                            setActiveMetricDetail(getMetricDetails("payable", projReport));
+                          }}
+                        >
+                          {p.debt.toLocaleString("vi-VN")}
+                        </td>
                         <td className="p-3 text-center font-medium text-muted-foreground">{p.requiredStaff}</td>
-                        <td className="p-3 text-center font-medium text-muted-foreground">{p.currentStaff}</td>
+                        <td 
+                          className="p-3 text-center font-bold text-emerald-600 hover:text-emerald-800 hover:underline cursor-zoom-in font-mono"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProjectId(p.id);
+                            const projReport = getDetailedReport(p.id);
+                            setActiveMetricDetail(getMetricDetails("staffing", projReport));
+                          }}
+                        >
+                          {p.currentStaff}</td>
                         <td className="p-3 text-center">
                           <Badge 
                             variant="secondary"
