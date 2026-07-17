@@ -6,7 +6,7 @@ Thiết lập Data Contract cho các bảng dữ liệu cốt lõi, cài đặt 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: y:\ERP_Local_Mini\.agents\sentinel
-- Orchestrator: TBD
+- Orchestrator: 7037744b-0b05-41f6-bf59-573a3b7ba237
 - Victory Auditor: TBD
 
 ## 🔒 Key Constraints
