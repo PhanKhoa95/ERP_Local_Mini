@@ -1435,7 +1435,11 @@ export function WeeklyReportTab() {
                   </thead>
                   <tbody>
                     {selectedReport.risksList.map((risk, idx) => (
-                      <tr key={risk.id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
+                      <tr 
+                        key={risk.id} 
+                        className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-all hover:translate-x-0.5"
+                        onClick={() => setActiveRiskDetail(getRiskDetail(risk))}
+                      >
                         <td className="p-2.5 text-center">{idx + 1}</td>
                         <td className="p-2.5 font-bold text-foreground">{risk.issue}</td>
                         <td className="p-2.5 text-center">
@@ -1536,7 +1540,11 @@ export function WeeklyReportTab() {
                   </thead>
                   <tbody>
                     {selectedReport.milestones.map((m, idx) => (
-                      <tr key={m.id} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
+                      <tr 
+                        key={m.id} 
+                        className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-all hover:translate-x-0.5"
+                        onClick={() => setActiveMilestoneDetail(getMilestoneDetail(m))}
+                      >
                         <td className="p-2.5 text-center">{idx + 1}</td>
                         <td className="p-2.5 font-bold text-foreground">{m.event}</td>
                         <td className="p-2.5 text-center font-semibold text-muted-foreground font-mono">{m.time}</td>
@@ -1550,28 +1558,40 @@ export function WeeklyReportTab() {
 
             {/* Signatures block */}
             <div className="border-t pt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs">
-              <div className="space-y-12">
+              <div 
+                className="space-y-12 cursor-pointer hover:bg-primary/5 p-2 rounded-xl transition-all border border-transparent hover:border-primary/20"
+                onClick={() => setActiveSignatureCert(getSignatureCert("Người lập báo cáo", selectedReport.approvals.creator, selectedReport.createdDate))}
+              >
                 <p className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Người lập báo cáo</p>
                 <div className="space-y-0.5">
                   <p className="font-mono text-[10px] text-muted-foreground">20/07/2026</p>
                   <p className="font-bold text-foreground underline decoration-dotted">{selectedReport.approvals.creator}</p>
                 </div>
               </div>
-              <div className="space-y-12">
+              <div 
+                className="space-y-12 cursor-pointer hover:bg-primary/5 p-2 rounded-xl transition-all border border-transparent hover:border-primary/20"
+                onClick={() => setActiveSignatureCert(getSignatureCert("Quản lý trực tiếp", selectedReport.approvals.supervisor, selectedReport.createdDate))}
+              >
                 <p className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Quản lý trực tiếp</p>
                 <div className="space-y-0.5">
                   <p className="font-mono text-[10px] text-muted-foreground">20/07/2026</p>
                   <p className="font-bold text-foreground underline decoration-dotted">{selectedReport.approvals.supervisor}</p>
                 </div>
               </div>
-              <div className="space-y-12">
+              <div 
+                className="space-y-12 cursor-pointer hover:bg-primary/5 p-2 rounded-xl transition-all border border-transparent hover:border-primary/20"
+                onClick={() => setActiveSignatureCert(getSignatureCert("Chủ dự án", selectedReport.approvals.owner, selectedReport.createdDate))}
+              >
                 <p className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Chủ dự án</p>
                 <div className="space-y-0.5">
                   <p className="font-mono text-[10px] text-muted-foreground">20/07/2026</p>
                   <p className="font-bold text-foreground underline decoration-dotted">{selectedReport.approvals.owner}</p>
                 </div>
               </div>
-              <div className="space-y-12">
+              <div 
+                className="space-y-12 cursor-pointer hover:bg-primary/5 p-2 rounded-xl transition-all border border-transparent hover:border-primary/20"
+                onClick={() => setActiveSignatureCert(getSignatureCert("Ban lãnh đạo", selectedReport.approvals.board, selectedReport.createdDate))}
+              >
                 <p className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Ban lãnh đạo</p>
                 <div className="space-y-0.5">
                   <Badge 
@@ -1879,6 +1899,5 @@ export function WeeklyReportTab() {
           </DialogContent>
         )}
       </Dialog>
-    </div>
-  );
-}
+
+      {/* Dialog tr
