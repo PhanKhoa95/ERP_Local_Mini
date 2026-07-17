@@ -56,11 +56,12 @@ Complete and refine Memberships & Wallet Balance, and satisfy the Zero-Error Ver
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: task-19
-- Safety timer: task-94
+- Heartbeat cron: none
+- Safety timer: none
 - On succession: kill all timers before spawning successor
 - On context truncation: run `manage_task(Action="list")` — re-create if missing
 
 ## Artifact Index
 - y:\ERP_Local_Mini\PROJECT.md — Global project index containing architecture, milestones, interfaces, code layout.
 - y:\ERP_Local_Mini\.agents\teamwork_preview_orchestrator_memberships_wallet_1\progress.md — Internal heartbeat and checklist.
+- y:\ERP_Local_Mini\.agents\teamwork_preview_orchestrator_memberships_wallet_1\handoff.md — Orchestrator handoff report.
