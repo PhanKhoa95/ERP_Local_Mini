@@ -466,3 +466,39 @@ Tự động hóa hoàn toàn luồng quản lý và phát triển bằng Git:
 - [ ] Tất cả các thay đổi được commit thành công trên nhánh `develop` của Git.
 
 
+
+## Follow-up — 2026-07-17T02:52:08Z
+
+Phối hợp triển khai và hoàn thiện toàn bộ các chi tiết nhỏ nhất (tiểu tiết), đảm bảo toàn bộ các bộ kiểm thử Unit/Integration (Vitest) và E2E (Playwright) vượt qua 100%, không còn lỗi TypeScript hay Lint, và đóng gói production thành công.
+
+Working directory: Y:\ERP_Local_Mini
+Integrity mode: development
+
+## Requirements
+
+### R1. Hoàn thiện phân hệ Thẻ thành viên và Ví (Memberships & Wallet Balance)
+Triển khai hoàn chỉnh các tính năng còn lại của Milestone 8:
+- Quản lý nhiều thẻ thành viên cho đối tác, hỗ trợ tải lên hình ảnh thẻ vật lý (lưu trữ và hiển thị thumbnail).
+- Đồng bộ cấu hình tài khoản đối ứng ví thành viên thông qua cài đặt (`localStorage` key `erp-mini-membership-offset-account`, mặc định `"3387"`).
+- Tự động hạch toán kế toán kép chính xác khi nạp tiền (Nợ 111 / Có 3387) và khi chi tiêu thanh toán đơn hàng (Nợ 3387 / Có 511), tự động trừ số dư ví tức thời.
+- Ghi nhận đầy đủ nhật ký hệ thống vào bảng `audit_logs` khi nạp tiền, chi tiêu và đổi cấu hình.
+
+### R2. Đạt chuẩn chất lượng biên dịch và kiểm thử (Zero-Error Verification Gate)
+- Sửa triệt để mọi lỗi kiểu tĩnh (TypeScript Compiler - `npm run typecheck`) và lỗi cú pháp nghiêm trọng (ESLint - `npm run lint`).
+- Bảo đảm 100% bộ kiểm thử đơn vị và tích hợp (Vitest) và kiểm thử đầu-cuối (Playwright E2E) vượt qua, bao gồm các kịch bản liên quan đến Casso, RBAC, Core ERP Flows, Responsive, và Memberships.
+- Đóng gói (Build) production sạch thành công không phát sinh bất kỳ lỗi cảnh báo hoặc lỗi biên dịch nào.
+
+## Acceptance Criteria
+
+### Tính hoàn thiện của Phân hệ Memberships & Wallet
+- [ ] Tính năng nạp tiền ví thành viên tự động sinh bút toán kép Debits = Credits tương ứng.
+- [ ] Thanh toán đơn hàng bằng ví tự động sinh bút toán kép và trừ số dư tức thì của khách hàng.
+- [ ] Giao diện chi tiết đối tác hiển thị đầy đủ danh sách thẻ thành viên dạng Glassmorphism và ảnh thumbnail trực quan sau khi tải lên.
+- [ ] Mọi hành động liên quan đến ví và cấu hình đều được ghi nhận đầy đủ vào `audit_logs`.
+
+### Chỉ số chất lượng kỹ thuật
+- [ ] Lệnh `npm run typecheck` chạy hoàn tất và không phát sinh lỗi biên dịch TypeScript.
+- [ ] Lệnh `npm run lint` chạy hoàn tất và không có lỗi mới.
+- [ ] Tất cả các test cases Vitest chạy qua `npm run test` đều đạt trạng thái PASS 100%.
+- [ ] Tất cả các test cases Playwright chạy qua `npx playwright test` đều đạt trạng thái PASS 100%.
+- [ ] Lệnh `npm run build` đóng gói ứng dụng thành công và xuất thư mục `dist/` sạch sẽ.
