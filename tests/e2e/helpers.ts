@@ -27,6 +27,7 @@ export async function loginLocalDemo(page: Page, role = "admin") {
   await page.evaluate((localRole) => {
     localStorage.setItem("erp-mini-local-demo-auth", "true");
     localStorage.setItem("erp-mini-local-demo-role", localRole);
+    localStorage.setItem("erp-mini-local-demo-version", "v9");
   }, role);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   // Accept both "Dashboard" and "Tổng quan" headings for compatibility
