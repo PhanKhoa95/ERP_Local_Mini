@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { isLocalDemoAuthEnabled } from "@/lib/localDemoAuth";
@@ -186,24 +187,81 @@ const DEFAULT_AUDIT_LOGS: AuditLog[] = [
   }
 ];
 
+function generate1000AuditLogs(): AuditLog[] {
+  const actions = [
+    { action: "Cập nhật định mức BOM", table_name: "product_bom", getOldNew: () => ({ old: { qty: 1.2 }, new: { qty: 1.5 } }) },
+    { action: "Sửa giá bán sản phẩm", table_name: "products", getOldNew: () => ({ old: { price: 95000 }, new: { price: 99000 } }) },
+    { action: "Điều chỉnh tồn kho vật tư decal", table_name: "inventory_transactions", getOldNew: () => ({ old: { stock: 800 }, new: { stock: 1000 } }) },
+    { action: "Cấp phát thiết bị CCDC-001 (MacBook Pro M2)", table_name: "ccdc_register", getOldNew: () => ({ old: { status: "in_stock" }, new: { status: "in_use", user: "member-1" } }) },
+    { action: "Phê duyệt Đề xuất chi tiêu mua sắm thiết bị", table_name: "approval_requests", getOldNew: () => ({ old: { status: "submitted" }, new: { status: "approved" } }) },
+    { action: "Thay đổi ca chấm công - Cấu hình ca văn phòng", table_name: "attendance_shifts", getOldNew: () => ({ old: { start: "08:30" }, new: { start: "08:00" } }) },
+    { action: "Kích hoạt Quy trình tự động hóa Botcake Chatbot", table_name: "workflows", getOldNew: () => ({ old: { is_active: false }, new: { is_active: true } }) },
+    { action: "Hủy đơn hàng POS do khách đổi phương thức thanh toán", table_name: "orders", getOldNew: () => ({ old: { status: "pending" }, new: { status: "cancelled" } }) },
+    { action: "Tạo Bút toán ghi nhận Doanh thu dự án NAMTHIEN đợt 1", table_name: "accounting_entries", getOldNew: () => ({ old: null, new: { amount: 150000000 } }) },
+    { action: "Cập nhật vai trò phân quyền nhân viên", table_name: "company_members", getOldNew: () => ({ old: { role: "member" }, new: { role: "manager" } }) },
+    { action: "Cấu hình liên kết API Gateway Pancake Fintab", table_name: "integration_settings", getOldNew: () => ({ old: { sync: false }, new: { sync: true } }) },
+    { action: "Nghiệm thu và đóng dự án JUNO (Summer Collection 2026)", table_name: "projects", getOldNew: () => ({ old: { status: "active" }, new: { status: "completed" } }) },
+    { action: "Nhập excel bảng lương tháng 6 lên hệ thống CRM", table_name: "crm_salary_tables", getOldNew: () => ({ old: null, new: { total: 48, net: 428000000 } }) },
+    { action: "Thanh lý thiết bị gỗ cũ hư hỏng CCDC-012", table_name: "ccdc_register", getOldNew: () => ({ old: { status: "in_stock" }, new: { status: "liquidated" } }) },
+    { action: "Tạo phiếu Đề nghị mua sắm máy chủ Cloud Backup", table_name: "approval_requests", getOldNew: () => ({ old: null, new: { title: "Mua máy chủ sao lưu tự động", cost: 12500000 } }) },
+    { action: "Xác thực VNeID cho nhân viên mới", table_name: "vneid_verification", getOldNew: () => ({ old: null, new: { status: "verified", id: "037105001xxx" } }) },
+    { action: "Tạo liên kết chi nhánh bán sỉ POS", table_name: "partners", getOldNew: () => ({ old: null, new: { name: "Tổng đại lý miền Nam", rate: 0.12 } }) },
+    { action: "Đẩy thông báo chi tiết bảng lương về Pancake Work", table_name: "workflows_execution", getOldNew: () => ({ old: null, new: { channel: "#thong-bao-luong", status: "sent" } }) }
+  ];
+
+  const emails = [
+    "admin@erplocal.vn", "manager@erplocal.vn", "hr-manager@erplocal.vn",
+    "accountant@erplocal.vn", "staff@erplocal.vn", "cashier@erplocal.vn",
+    "it-support@erplocal.vn", "hr-staff@erplocal.vn"
+  ];
+
+  const logs: AuditLog[] = [];
+  let baseTime = Date.now();
+
+  for (let i = 1; i <= 1000; i++) {
+    const act = actions[Math.floor(Math.random() * actions.length)];
+    const email = emails[Math.floor(Math.random() * emails.length)];
+    const data = act.getOldNew();
+    baseTime -= (Math.floor(Math.random() * 15) + 5) * 60000;
+
+    logs.push({
+      id: `log-gen-${1000 - i}-${Math.random().toString(36).substr(2, 5)}`,
+      user_id: `demo-user-${Math.floor(Math.random() * 10) + 1}`,
+      action: act.action,
+      table_name: act.table_name,
+      record_id: `rec-id-${Math.floor(Math.random() * 500) + 1}`,
+      old_data: data.old,
+      new_data: data.new,
+      created_at: new Date(baseTime).toISOString(),
+      user_email: email,
+      ip_address: `192.168.1.${Math.floor(Math.random() * 254) + 1}`,
+      user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    });
+  }
+  return logs;
+}
+
 function getLocalAuditLogs(): AuditLog[] {
   if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(AUDIT_LOGS_KEY);
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length < 10) {
-        localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(DEFAULT_AUDIT_LOGS));
-        return DEFAULT_AUDIT_LOGS;
+      if (Array.isArray(parsed) && parsed.length < 1000) {
+        const fullLogs = generate1000AuditLogs();
+        localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(fullLogs));
+        return fullLogs;
       }
       return parsed;
     } catch {
-      localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(DEFAULT_AUDIT_LOGS));
-      return DEFAULT_AUDIT_LOGS;
+      const fullLogs = generate1000AuditLogs();
+      localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(fullLogs));
+      return fullLogs;
     }
   }
-  localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(DEFAULT_AUDIT_LOGS));
-  return DEFAULT_AUDIT_LOGS;
+  const fullLogs = generate1000AuditLogs();
+  localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(fullLogs));
+  return fullLogs;
 }
 
 export function useAuditLogs(limit = 100) {
@@ -260,6 +318,47 @@ export function useAuditLogs(limit = 100) {
       new_data: newData,
     });
   };
+
+  // Real-time generator simulator
+  useEffect(() => {
+    if (!isLocalDemoAuthEnabled()) return;
+
+    const interval = setInterval(() => {
+      const logs = getLocalAuditLogs();
+      const actions = [
+        { action: "Cập nhật định mức BOM", table_name: "product_bom", getOldNew: () => ({ old: { qty: 1.2 }, new: { qty: 1.5 } }) },
+        { action: "Sửa giá bán sản phẩm", table_name: "products", getOldNew: () => ({ old: { price: 95000 }, new: { price: 99000 } }) },
+        { action: "Điều chỉnh tồn kho vật tư decal", table_name: "inventory_transactions", getOldNew: () => ({ old: { stock: 800 }, new: { stock: 1000 } }) },
+        { action: "Cập nhật trạng thái CCDC", table_name: "ccdc_register", getOldNew: () => ({ old: { status: "in_stock" }, new: { status: "in_use" } }) },
+        { action: "Tạo mới đơn hàng POS", table_name: "orders", getOldNew: () => ({ old: null, new: { id: "new-pos-ord", total: 450000 } }) }
+      ];
+      const emails = ["staff@erplocal.vn", "cashier@erplocal.vn", "accountant@erplocal.vn"];
+      const act = actions[Math.floor(Math.random() * actions.length)];
+      const email = emails[Math.floor(Math.random() * emails.length)];
+      const data = act.getOldNew();
+
+      const newLog: AuditLog = {
+        id: `log-realtime-${Date.now()}`,
+        user_id: "demo-user-realtime",
+        action: act.action + " (Thời gian thực)",
+        table_name: act.table_name,
+        record_id: `rec-id-${Math.floor(Math.random() * 500) + 1}`,
+        old_data: data.old,
+        new_data: data.new,
+        created_at: new Date().toISOString(),
+        user_email: email,
+        ip_address: "127.0.0.1",
+        user_agent: "Browser Client Simulator"
+      };
+
+      logs.unshift(newLog);
+      const limitedLogs = logs.slice(0, 1100);
+      localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(limitedLogs));
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+    }, 10000); // Sinh ngẫu nhiên mỗi 10 giây
+
+    return () => clearInterval(interval);
+  }, [queryClient]);
 
   return {
     auditLogs,
