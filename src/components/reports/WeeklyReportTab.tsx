@@ -1742,6 +1742,84 @@ export function WeeklyReportTab() {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Dialog truy xuất thông tin chi tiết con số (KPI / Kết quả kinh doanh / Nhân sự) */}
+      <Dialog open={!!activeMetricDetail} onOpenChange={(open) => !open && setActiveMetricDetail(null)}>
+        {activeMetricDetail && (
+          <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-lg border shadow-2xl rounded-2xl p-6">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-lg font-black text-primary flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary animate-pulse" />
+                {activeMetricDetail.title}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Truy xuất chi tiết dữ liệu thời gian thực và các tài liệu chứng từ/tham số liên quan.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 pt-4">
+              {/* Thẻ chỉ số tổng */}
+              <div className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Tổng chỉ số lũy kế</span>
+                  <span className="text-3xl font-black text-primary">{activeMetricDetail.totalValue} <span className="text-sm font-medium text-muted-foreground">{activeMetricDetail.unit}</span></span>
+                </div>
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-bold px-2.5 py-1 text-xs">
+                  Hoạt động ổn định
+                </Badge>
+              </div>
+
+              {/* Danh sách phân bổ chi tiết (Breakdown) */}
+              <div className="space-y-3">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Phân bổ tỷ trọng / Thành phần</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {activeMetricDetail.breakdown.map((item, idx) => (
+                    <div key={idx} className="p-3 bg-muted/20 border rounded-lg space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-foreground">{item.name}</span>
+                        <span className="font-bold text-primary">{item.value >= 0 ? `${item.value} ${activeMetricDetail.unit}` : `${item.value} ${activeMetricDetail.unit}`} ({item.percentage}%)</span>
+                      </div>
+                      <Progress value={Math.abs(item.percentage)} className="h-1.5" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bảng chi tiết chứng từ / tham chiếu nguồn */}
+              <div className="space-y-2">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Danh sách chứng từ / Đối tượng gốc</span>
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="bg-muted border-b font-semibold text-muted-foreground">
+                        <th className="p-2.5">Mã số / Đối tượng</th>
+                        <th className="p-2.5">Nội dung đối soát</th>
+                        <th className="p-2.5 text-center">Giá trị / Trạng thái</th>
+                        <th className="p-2.5 text-center">Thời gian</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeMetricDetail.list.map((item, idx) => (
+                        <tr key={idx} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
+                          <td className="p-2.5 font-mono font-bold text-primary">{item.code}</td>
+                          <td className="p-2.5">
+                            <div className="font-medium text-foreground">{item.name}</div>
+                            <div className="text-[10px] text-muted-foreground">{item.details}</div>
+                          </td>
+                          <td className="p-2.5 text-center font-bold text-foreground">
+                            {typeof item.value === "number" ? `${item.value} ${activeMetricDetail.unit}` : item.value}
+                          </td>
+                          <td className="p-2.5 text-center text-muted-foreground font-mono">{item.date}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
