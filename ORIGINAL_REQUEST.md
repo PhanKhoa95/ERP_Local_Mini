@@ -502,3 +502,30 @@ Triển khai hoàn chỉnh các tính năng còn lại của Milestone 8:
 - [ ] Tất cả các test cases Vitest chạy qua `npm run test` đều đạt trạng thái PASS 100%.
 - [ ] Tất cả các test cases Playwright chạy qua `npx playwright test` đều đạt trạng thái PASS 100%.
 - [ ] Lệnh `npm run build` đóng gói ứng dụng thành công và xuất thư mục `dist/` sạch sẽ.
+
+## Follow-up — 2026-07-17T05:15:01Z
+
+Thiết lập Data Contract cho các bảng dữ liệu cốt lõi, cài đặt CI Gate tích hợp Data Contract CLI (Python-based `datacontract-cli`) vào quy trình kiểm thử tự động, và chạy thử đối soát ngoại tuyến trên Y:\ERP_Local_Mini.
+
+Working directory: Y:\ERP_Local_Mini
+Integrity mode: benchmark
+
+## Requirements
+
+### R1. Thiết lập Data Contract (`datacontract.yaml`)
+- Định nghĩa file `datacontract.yaml` chuẩn hóa schema cho các bảng dữ liệu Supabase: `products`, `orders`, `order_items`, `payment_transactions`, `journal_entries`, `journal_lines`, `product_bom`, `memberships`, `membership_transactions`.
+- Đảm bảo các thuộc tính (fields, types, required, unique) khớp chính xác với cấu trúc thực tế đang sử dụng ở Frontend và Database.
+
+### R2. Cài đặt CI Gate (Tích hợp Data Contract CLI)
+- Cấu hình quy trình tự động hóa kiểm tra dữ liệu bằng thư viện CLI Python `datacontract-cli`.
+- Tích hợp lệnh chạy kiểm tra này (`datacontract test`) vào scripts kiểm thử tự động của dự án (ví dụ `npm run test` hoặc lệnh riêng).
+
+### R3. Đối chiếu thực tế & Chạy thử ngoại tuyến
+- Chạy thử tệp đối soát `src/lib/__tests__/data-integrity-operator.test.ts` để chứng minh các quy tắc toàn vẹn hoạt động đúng với cả dữ liệu đồng bộ và dữ liệu lỗi giả lập.
+
+## Acceptance Criteria
+
+### Data Contract & CI Integration
+- [ ] File `datacontract.yaml` được tạo ở thư mục gốc của dự án với đầy đủ định nghĩa cho 9 bảng dữ liệu.
+- [ ] Tích hợp kiểm thử hợp đồng dữ liệu thành công qua script kiểm tra tự động (lệnh CLI chạy không có lỗi và trả về mã thành công).
+- [ ] Tệp kiểm toán `data-integrity-operator.test.ts` chạy thành công qua Vitest (`npx vitest run src/lib/__tests__/data-integrity-operator.test.ts` trả về trạng thái PASS 100%).
