@@ -473,7 +473,7 @@ const getDetailedReport = (projectId: number): DetailedReport => {
         "Duyệt chi phí marketing Zalo/FB 4 Tr."
       ],
       evaluation: {
-        status: "Đã nghiệm thu",
+        status: "Vượt kế hoạch",
         score: 5
       },
       milestones: [
