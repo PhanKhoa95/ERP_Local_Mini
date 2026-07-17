@@ -2057,7 +2057,10 @@ export function WeeklyReportTab() {
       {/* Dialog truy xuất thông tin chi tiết con số (KPI / Kết quả kinh doanh / Nhân sự) */}
       <Dialog open={!!activeMetricDetail} onOpenChange={(open) => !open && setActiveMetricDetail(null)}>
         {activeMetricDetail && (
-          <DialogContent className="max-w-2xl bg-background/95 backdrop-blur-lg border shadow-2xl rounded-2xl p-6">
+          <DialogContent className={cn(
+            "bg-background/95 backdrop-blur-lg border shadow-2xl rounded-2xl p-6 transition-all duration-300 w-[95vw] md:w-full",
+            activeMetricDetail.list.some(item => item.activities) ? "max-w-5xl" : "max-w-2xl"
+          )}>
             <DialogHeader className="border-b pb-4">
               <DialogTitle className="text-lg font-black text-primary flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary animate-pulse" />
@@ -2068,7 +2071,7 @@ export function WeeklyReportTab() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-6 pt-4">
+            <div className="space-y-6 pt-4 w-full overflow-hidden">
               {/* Thẻ chỉ số tổng */}
               <div className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
                 <div>
@@ -2097,13 +2100,13 @@ export function WeeklyReportTab() {
               </div>
 
               {/* Bảng chi tiết chứng từ / tham chiếu nguồn */}
-              <div className="space-y-2">
+              <div className="space-y-2 w-full overflow-hidden">
                 <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
                   {activeMetricDetail.list.some(item => item.activities) ? "Danh sách nhân sự và báo cáo công việc" : "Danh sách chứng từ / Đối tượng gốc"}
                 </span>
 
                 {activeMetricDetail.list.some(item => item.activities) ? (
-                  <div className="overflow-x-auto border rounded-xl max-h-[50vh] overflow-y-auto">
+                  <div className="overflow-x-auto border rounded-xl max-h-[50vh] overflow-y-auto w-full max-w-full block">
                     <table className="w-full text-xs text-left min-w-[950px] border-collapse">
                       <thead>
                         <tr className="bg-muted border-b font-semibold text-muted-foreground sticky top-0 z-10 shadow-sm">
@@ -2197,7 +2200,7 @@ export function WeeklyReportTab() {
                     </table>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto border rounded-lg">
+                  <div className="overflow-x-auto border rounded-lg w-full max-w-full block">
                     <table className="w-full text-xs text-left min-w-[750px]">
                       <thead>
                         <tr className="bg-muted border-b font-semibold text-muted-foreground">
