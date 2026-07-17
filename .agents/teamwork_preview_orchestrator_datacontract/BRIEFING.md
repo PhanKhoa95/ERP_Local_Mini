@@ -52,11 +52,12 @@ Establish Data Contract (datacontract.yaml), integrate datacontract-cli into CI/
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
+| Explorer | teamwork_preview_explorer | Explore database schemas and datacontract-cli setup | in-progress | 066b67fa-1e5f-4f8c-99cb-c8edf866bc53 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 0 / 16
-- Pending subagents: none
+- Spawn count: 1 / 16
+- Pending subagents: 066b67fa-1e5f-4f8c-99cb-c8edf866bc53
 - Predecessor: none
 - Successor: not yet spawned
 
