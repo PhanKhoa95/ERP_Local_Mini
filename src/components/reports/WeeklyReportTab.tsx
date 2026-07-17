@@ -1179,7 +1179,49 @@ export function WeeklyReportTab() {
                         className="border-b last:border-0 hover:bg-primary/5 cursor-pointer transition-all hover:translate-x-0.5"
                       >
                         <td className="p-2.5 text-center">{idx + 1}</td>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <td className="p-2.5 font-semibold text-primary flex items-center gap-1.5 hover:underline">
+                          {task.name}
+                          <ChevronRight className="w-3 h-3 opacity-60" />
+                        </td>
+                        <td className="p-2.5 text-center">{task.planned}%</td>
+                        <td className="p-2.5 text-center font-semibold">{task.actual}%</td>
+                        <td className={cn(
+                          "p-2.5 text-center font-bold",
+                          task.diff >= 0 ? "text-emerald-600" : "text-rose-600"
+                        )}>
+                          {task.diff > 0 ? `+${task.diff}%` : `${task.diff}%`}
+                        </td>
+                        <td className="p-2.5 text-center">
+                          <Badge 
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] font-bold px-1.5 py-0",
+                              task.status === "Đã hoàn tất" 
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                                : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                            )}
+                          >
+                            {task.status}
+                          </Badge>
+                        </td>
+                        <td className="p-2.5 text-muted-foreground">{task.notes}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-muted/20 font-bold border-t border-border">
+                      <td className="p-2.5 text-center"></td>
+                      <td className="p-2.5 text-right">TỔNG CỘNG:</td>
+                      <td className="p-2.5 text-center">100%</td>
+                      <td className="p-2.5 text-center text-emerald-600">{selectedReport.actualProgress}%</td>
+                      <td className="p-2.5 text-center text-rose-600">{selectedReport.diff}%</td>
+                      <td className="p-2.5 text-center"></td>
+                      <td className="p-2.5"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* IV. KẾT QUẢ KINH DOANH (LŨY KẾ) */}
               <div className="md:col-span-2 space-y-2">
                 <h3 className="text-xs font-black uppercase text-primary border-b pb-1.5 flex items-center gap-1.5">
