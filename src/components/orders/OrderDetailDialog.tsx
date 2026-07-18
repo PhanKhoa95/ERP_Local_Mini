@@ -42,7 +42,7 @@ import {
   PhoneCall,
   AlertTriangle,
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 import { ShipmentPanel } from "./ShipmentPanel";
 import { OrderReturnDialog } from "./OrderReturnDialog";
@@ -57,7 +57,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
 import { useCompanyMembers } from "@/hooks/useCompanyMembers";
 import { supabase } from "@/integrations/supabase/client";
-import { useCallback } from "react";
 import {
   getOrderCustomerAddress,
   getOrderCustomerName,
@@ -228,7 +227,7 @@ export function OrderDetailDialog({
       localStorage.setItem(`erp-mini-order-timeline-${order.id}`, JSON.stringify(updated));
       return updated;
     });
-  }, [order?.id]);
+  }, [order]);
 
   useEffect(() => {
     if (order) {
@@ -260,24 +259,23 @@ export function OrderDetailDialog({
         localStorage.setItem(`erp-mini-order-timeline-${order.id}`, JSON.stringify(initial));
       }
     }
-  }, [order?.id]);
+  }, [order]);
 
-  // Track status changes in timeline
-  const [prevStatus, setPrevStatus] = useState<string | null>(null);
+  // Track status changes only within the same order. Switching between orders
+  // must not create a false status-change event on the newly opened order.
+  const previousOrderStateRef = useRef<{ id: string; status: string } | null>(null);
   useEffect(() => {
-    if (order) {
-      if (prevStatus && prevStatus !== order.status) {
-        addTimelineEvent("Đổi trạng thái", `Đổi trạng thái từ "${statusLabels[prevStatus] || prevStatus}" sang "${statusLabels[order.status] || order.status}"`);
-      }
-      setPrevStatus(order.status);
+    if (!order) {
+      previousOrderStateRef.current = null;
+      return;
     }
-  }, [order?.status, prevStatus, addTimelineEvent]);
 
-  useEffect(() => {
-    if (order) {
-      setPrevStatus(order.status);
+    const previous = previousOrderStateRef.current;
+    if (previous?.id === order.id && previous.status !== order.status) {
+      addTimelineEvent("Đổi trạng thái", `Đổi trạng thái từ "${statusLabels[previous.status] || previous.status}" sang "${statusLabels[order.status] || order.status}"`);
     }
-  }, [order?.id]);
+    previousOrderStateRef.current = { id: order.id, status: order.status };
+  }, [order, addTimelineEvent]);
 
   useEffect(() => {
     if (order) {
@@ -399,6 +397,8 @@ export function OrderDetailDialog({
   };
 
   const [isSaving, setIsSaving] = useState(false);
+  const saveOrderHandlerRef = useRef<() => Promise<void>>(async () => {});
+  const printHandlerRef = useRef<() => void>(() => {});
 
   const handleSaveOrder = async () => {
     if (!order) return;
@@ -464,6 +464,8 @@ export function OrderDetailDialog({
     }
   };
 
+  saveOrderHandlerRef.current = handleSaveOrder;
+
   const handleToggleItemUpsale = (itemId: string, isUpsale: boolean) => {
     setOrderItems(prev => prev.map(item => {
       if (item.id === itemId) {
@@ -503,16 +505,16 @@ export function OrderDetailDialog({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "F2") {
         e.preventDefault();
-        handleSaveOrder();
+        void saveOrderHandlerRef.current();
       }
       if (e.key === "F4") {
         e.preventDefault();
-        handlePrint();
+        printHandlerRef.current();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, order, onOpenChange, remainingCOD, bankTransferVal, assignedStaff, marketer, onlyCollectReturnFee, expectedDeliveryDate, orderTags, editNotes, editInternalNotes, paymentStatus]);
+  }, [open, order]);
 
   const customerName = order ? maskName(getOrderCustomerName(order)) : "";
   const customerPhone = order ? maskPhone(getOrderCustomerPhone(order)) : "";
@@ -642,6 +644,8 @@ export function OrderDetailDialog({
       printWindow.close();
     }, 250);
   };
+
+  printHandlerRef.current = handlePrint;
 
   const handleCopyOrderNumber = () => {
     navigator.clipboard.writeText(order.order_number);

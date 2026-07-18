@@ -27,8 +27,12 @@ export default function FeaturedProducts() {
 
   // Initialize seed featured products
   useEffect(() => {
-    if (products.length > 0 && featuredList.length === 0) {
-      const seed: FeaturedProduct[] = [
+    if (products.length < 2) return;
+
+    setFeaturedList(current => {
+      if (current.length > 0) return current;
+
+      return [
         {
           id: products[0].id,
           name: products[0].name,
@@ -57,8 +61,7 @@ export default function FeaturedProducts() {
           platform: "shopee"
         }
       ];
-      setFeaturedList(seed);
-    }
+    });
   }, [products]);
 
   const handleAddFeatured = (prod: any) => {

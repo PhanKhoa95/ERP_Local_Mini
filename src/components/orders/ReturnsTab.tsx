@@ -146,8 +146,8 @@ export function ReturnsTab() {
         };
       });
       setLocalReturns(merged);
-      if (merged.length > 0 && !selectedReturn) {
-        setSelectedReturn(merged[0]);
+      if (merged.length > 0) {
+        setSelectedReturn((current: any) => current ?? merged[0]);
       }
     }
   }, [queryReturns]);

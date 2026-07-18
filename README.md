@@ -34,7 +34,7 @@ npm run dev
 ## ☁️ Cloud Deployment
 
 Để triển khai hệ thống chi tiết lên môi trường Cloud (bao gồm cả cơ sở dữ liệu Supabase thông qua CLI Migration, Edge Functions AI, và Hosting Frontend), vui lòng tham khảo cẩm nang hướng dẫn tại:
-👉 **[Hướng dẫn triển khai chi tiết (DEPLOY.md)](file:///c:/Users/KHOA%20MEDIA/OneDrive/Documents/multi-sale-organizer-main/multi-sale-organizer-main/DEPLOY.md)**
+👉 **[Hướng dẫn triển khai chi tiết](DEPLOY.md)**
 
 
 ## Test Account
@@ -42,8 +42,8 @@ npm run dev
 For the local Vite dev server, you can use the demo shortcut:
 
 ```txt
-username: admin
-password: admin
+username: admin_demo
+password: admin_demo
 ```
 
 This is a local-only demo session for UI testing and is only enabled in `npm run dev`.

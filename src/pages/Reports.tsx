@@ -245,14 +245,18 @@ const Reports = () => {
 
   const { projects, isLoading: projectsLoading } = useProjects();
 
-  const filteredProjects = projects ? projects.filter(p => {
-    if (!p.start_date && !p.end_date) return true;
-    const start = p.start_date ? startOfDay(new Date(p.start_date)) : null;
-    const end = p.end_date ? endOfDay(new Date(p.end_date)) : null;
-    if (start && start > dateRange.to) return false;
-    if (end && end < dateRange.from) return false;
-    return true;
-  }) : [];
+  const filteredProjects = useMemo(() => {
+    if (!projects) return [];
+
+    return projects.filter(p => {
+      if (!p.start_date && !p.end_date) return true;
+      const start = p.start_date ? startOfDay(new Date(p.start_date)) : null;
+      const end = p.end_date ? endOfDay(new Date(p.end_date)) : null;
+      if (start && start > dateRange.to) return false;
+      if (end && end < dateRange.from) return false;
+      return true;
+    });
+  }, [projects, dateRange.from, dateRange.to]);
 
   const processedProjects = useMemo(() => {
     if (!filteredProjects) return [];

@@ -665,10 +665,10 @@ export function AttendanceTab({ isManager = false }: Props) {
 
             {/* Glowing facial scanning frame overlay */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="h-28 w-28 border-2 border-dashed border-primary rounded-full animate-spin duration-[6s] relative">
+              <div className="h-28 w-28 border-2 border-dashed border-primary rounded-full animate-spin [animation-duration:6s] relative">
                 <div className="absolute inset-0 border border-primary/40 rounded-full scale-110" />
               </div>
-              <div className="absolute h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent w-[80%] top-[45%] animate-bounce duration-[2.5s]" />
+              <div className="absolute h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent w-[80%] top-[45%] animate-bounce [animation-duration:2.5s]" />
             </div>
 
             {scanning && (

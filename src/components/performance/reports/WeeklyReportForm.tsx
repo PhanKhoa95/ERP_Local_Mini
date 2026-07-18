@@ -66,7 +66,7 @@ export function WeeklyReportForm({ report }: WeeklyReportFormProps) {
       };
       loadMetrics();
     }
-  }, [report.period_start, report.period_end]);
+  }, [calculateAutoMetrics, report.period_start, report.period_end]);
 
   const handleSave = async () => {
     setIsSaving(true);

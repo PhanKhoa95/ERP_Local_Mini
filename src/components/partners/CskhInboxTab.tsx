@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   MessageSquare, 
   Send, 
@@ -234,7 +234,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
 
   const [apiFeatures, setApiFeatures] = useState<APIFeature[]>(defaultAPIFeatures);
 
-  const defaultConvs: Conversation[] = [
+  const defaultConvs = useMemo<Conversation[]>(() => [
     {
       id: "conv-1",
       customerName: "Lê Văn Cường",
@@ -282,7 +282,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         { id: "m-sys-1", sender: "bot", senderName: "Hệ thống AI", content: "[Báo động] AI phát hiện yêu cầu khiếu nại/báo lỗi ngoài phạm vi xử lý. Đã ngắt Autopilot và phát cảnh báo yêu cầu nhân viên can thiệp.", timestamp: "11:03" }
       ]
     }
-  ];
+  ], []);
 
   const [conversations, setConversations] = useState<Conversation[]>(defaultConvs);
   const [activeConvId, setActiveConvId] = useState("conv-1");
@@ -373,7 +373,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
         text: "Dạ shop ơi, em muốn hỏi mẫu ví da nam có giá sỉ là bao nhiêu vậy ạ?"
       }
     }, null, 2));
-  }, []);
+  }, [defaultConvs]);
 
   const saveConfig = (newCfg: typeof config) => {
     setConfig(newCfg);
@@ -427,7 +427,7 @@ export function CskhInboxTab({ mode = "chat" }: { mode?: "chat" | "settings" }) 
       setEditNotes(activeConv.internalNotes || "");
       setEditCskhStage((activeConv as any).cskhStage || "new");
     }
-  }, [activeConvId, conversations]);
+  }, [activeConv]);
 
   // Filter orders matching active customer phone
   const activeCustomerOrders = orders.filter(

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,13 +83,7 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
     }
   });
 
-  useEffect(() => {
-    if (open) {
-      resetForm();
-    }
-  }, [open, product]);
-
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setEditingVariant(null);
     setIsAddingNew(false);
     setSku("");
@@ -100,7 +94,13 @@ export function ProductVariantsDialog({ open, onOpenChange, product }: ProductVa
     setIsActive(true);
     setAttributes([{ key: "Màu sắc", value: "" }]);
     setWholesaleTiers([]);
-  };
+  }, [product?.cost_price, product?.selling_price]);
+
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open, product?.id, resetForm]);
 
   const handleAddAttributePair = () => {
     setAttributes([...attributes, { key: "", value: "" }]);

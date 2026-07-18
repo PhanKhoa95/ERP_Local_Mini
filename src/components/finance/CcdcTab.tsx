@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,26 +61,13 @@ export function CcdcTab() {
   const [selectedCcdc, setSelectedCcdc] = useState<CcdcItem | null>(null);
   const [targetMemberId, setTargetMemberId] = useState("");
 
-  // Load from LocalStorage or Init
-  useEffect(() => {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length < 10) {
-          initDefaultCcdc();
-        } else {
-          setCcdcList(parsed);
-        }
-      } catch (e) {
-        initDefaultCcdc();
-      }
-    } else {
-      initDefaultCcdc();
-    }
-  }, []);
+  const memberId0 = members[0]?.id || "";
+  const memberId1 = members[1]?.id || "";
+  const memberId2 = members[2]?.id || "";
+  const memberId3 = members[3]?.id || "";
+  const memberId4 = members[4]?.id || "";
 
-  const initDefaultCcdc = () => {
+  const initDefaultCcdc = useCallback(() => {
     const defaults: CcdcItem[] = [
       {
         id: "ccdc-1",
@@ -90,8 +77,8 @@ export function CcdcTab() {
         purchaseDate: "2024-03-15",
         purchaseValue: 32000000,
         depreciationMonths: 24,
-        assignedToId: members[0]?.id || "",
-        status: members[0] ? "in_use" : "in_stock",
+        assignedToId: memberId0,
+        status: memberId0 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-2",
@@ -112,8 +99,8 @@ export function CcdcTab() {
         purchaseDate: "2024-01-20",
         purchaseValue: 6500000,
         depreciationMonths: 24,
-        assignedToId: members[1]?.id || "",
-        status: members[1] ? "in_use" : "in_stock",
+        assignedToId: memberId1,
+        status: memberId1 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-4",
@@ -134,8 +121,8 @@ export function CcdcTab() {
         purchaseDate: "2024-09-25",
         purchaseValue: 29500000,
         depreciationMonths: 24,
-        assignedToId: members[2]?.id || "",
-        status: members[2] ? "in_use" : "in_stock",
+        assignedToId: memberId2,
+        status: memberId2 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-6",
@@ -145,8 +132,8 @@ export function CcdcTab() {
         purchaseDate: "2024-02-18",
         purchaseValue: 8900000,
         depreciationMonths: 24,
-        assignedToId: members[0]?.id || "",
-        status: members[0] ? "in_use" : "in_stock",
+        assignedToId: memberId0,
+        status: memberId0 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-7",
@@ -156,8 +143,8 @@ export function CcdcTab() {
         purchaseDate: "2024-04-01",
         purchaseValue: 2400000,
         depreciationMonths: 12,
-        assignedToId: members[1]?.id || "",
-        status: members[1] ? "in_use" : "in_stock",
+        assignedToId: memberId1,
+        status: memberId1 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-8",
@@ -167,8 +154,8 @@ export function CcdcTab() {
         purchaseDate: "2024-06-15",
         purchaseValue: 6800000,
         depreciationMonths: 18,
-        assignedToId: members[3]?.id || "",
-        status: members[3] ? "in_use" : "in_stock",
+        assignedToId: memberId3,
+        status: memberId3 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-9",
@@ -222,8 +209,8 @@ export function CcdcTab() {
         purchaseDate: "2024-07-02",
         purchaseValue: 21500000,
         depreciationMonths: 24,
-        assignedToId: members[4]?.id || "",
-        status: members[4] ? "in_use" : "in_stock",
+        assignedToId: memberId4,
+        status: memberId4 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-14",
@@ -233,8 +220,8 @@ export function CcdcTab() {
         purchaseDate: "2024-07-10",
         purchaseValue: 8500000,
         depreciationMonths: 24,
-        assignedToId: members[4]?.id || "",
-        status: members[4] ? "in_use" : "in_stock",
+        assignedToId: memberId4,
+        status: memberId4 ? "in_use" : "in_stock",
       },
       {
         id: "ccdc-15",
@@ -272,7 +259,26 @@ export function CcdcTab() {
     ];
     setCcdcList(defaults);
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(defaults));
-  };
+  }, [memberId0, memberId1, memberId2, memberId3, memberId4]);
+
+  // Load from LocalStorage or Init
+  useEffect(() => {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length < 10) {
+          initDefaultCcdc();
+        } else {
+          setCcdcList(parsed);
+        }
+      } catch (e) {
+        initDefaultCcdc();
+      }
+    } else {
+      initDefaultCcdc();
+    }
+  }, [initDefaultCcdc]);
 
   const saveList = (updated: CcdcItem[]) => {
     setCcdcList(updated);

@@ -11,6 +11,7 @@ const runBuild = args.includes('--build') || runAll;
 const reportPath = path.join(process.cwd(), '.agents', 'auto_report.md');
 let reportContent = `# BÁO CÁO KIỂM THỬ VÀ ĐỒNG BỘ DỰ ÁN TỰ ĐỘNG\n\n`;
 reportContent += `*Thời gian thực hiện:* ${new Date().toLocaleString('vi-VN')}\n`;
+let hasFailures = false;
 
 function runCommand(name, cmd) {
   console.log(`\n==================================================`);
@@ -24,6 +25,7 @@ function runCommand(name, cmd) {
     console.log(`\n✅ ${name} THÀNH CÔNG (${duration} giây)\n`);
     return { success: true, duration, error: null };
   } catch (error) {
+    hasFailures = true;
     const duration = ((Date.now() - start) / 1000).toFixed(2);
     console.error(`\n❌ ${name} THẤT BẠI (${duration} giây)\n`);
     return { success: false, duration, error: error.message };
@@ -67,6 +69,7 @@ if (runBuild) {
   reportContent += `| **Vite Production Build** | ${statusStr} | ${result.duration}s | ${errorStr} |\n`;
 }
 
+reportContent += `\n**Kết quả tổng:** ${hasFailures ? "🔴 THẤT BẠI" : "🟢 THÀNH CÔNG"}\n`;
 reportContent += `\n---\n*Báo cáo được tạo tự động bởi hệ thống Quản lý Dự án tự động 100% (auto-project-manager).*`;
 
 try {
@@ -79,4 +82,9 @@ try {
   console.log(`\n🎉 Đã xuất file báo cáo tại: ${reportPath}\n`);
 } catch (err) {
   console.error("Lỗi khi lưu file báo cáo:", err.message);
+  hasFailures = true;
+}
+
+if (hasFailures) {
+  process.exitCode = 1;
 }

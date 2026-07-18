@@ -4,6 +4,7 @@ import { useCompanyContext } from "./useCompanyContext";
 import { usePerformanceEmployee } from "./usePerformanceEmployee";
 import { toast } from "sonner";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { useCallback } from "react";
 
 export interface WorkReport {
   id: string;
@@ -292,7 +293,7 @@ export function useWorkReports(reportType?: string) {
   });
 
   // Calculate auto metrics from orders
-  const calculateAutoMetrics = async (startDate: string, endDate: string) => {
+  const calculateAutoMetrics = useCallback(async (startDate: string, endDate: string) => {
     if (!companyId) return {};
 
     if (isLocalDemoAuthEnabled()) {
@@ -334,7 +335,7 @@ export function useWorkReports(reportType?: string) {
       total_revenue: totalRevenue,
       conversion_rate: orders?.length ? Math.round((delivered.length / orders.length) * 100) : 0,
     };
-  };
+  }, [companyId]);
 
   return {
     reports,
@@ -346,4 +347,3 @@ export function useWorkReports(reportType?: string) {
     calculateAutoMetrics,
   };
 }
-

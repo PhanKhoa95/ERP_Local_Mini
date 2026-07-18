@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,7 +151,7 @@ export default function Promotions() {
   }, [orders]);
 
   // Helper to determine status dynamically based on current time
-  const getPromoStatus = (v: Voucher): "active" | "scheduled" | "expired" => {
+  const getPromoStatus = useCallback((v: Voucher): "active" | "scheduled" | "expired" => {
     if (!v.is_active) return "expired";
     const now = new Date();
     if (v.start_date && new Date(v.start_date) > now) return "scheduled";
@@ -159,7 +159,7 @@ export default function Promotions() {
     const actualUsed = computedUsedCount[v.id] || 0;
     if (v.usage_limit && actualUsed >= v.usage_limit) return "expired";
     return "active";
-  };
+  }, [computedUsedCount]);
 
   const filteredVouchers = useMemo(() => {
     return vouchers.filter(v => {
@@ -175,7 +175,7 @@ export default function Promotions() {
 
       return true;
     });
-  }, [vouchers, search, activeTab, computedUsedCount]);
+  }, [vouchers, search, activeTab, getPromoStatus]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -194,7 +194,7 @@ export default function Promotions() {
     });
 
     return { activeCount, scheduledCount, totalUsage, totalDiscounts };
-  }, [vouchers, orders]);
+  }, [vouchers, orders, getPromoStatus]);
 
   return (
     <MainLayout>

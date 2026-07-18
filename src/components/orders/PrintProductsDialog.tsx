@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { Fragment, useState, useEffect, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -851,9 +851,8 @@ export function PrintProductsDialog({
                         groupedOrderItems.map((item, idx) => {
                           const isExpanded = expandedRows[item.sku];
                           return (
-                            <>
+                            <Fragment key={item.sku}>
                               <tr
-                                key={item.sku}
                                 onClick={() => toggleRowExpand(item.sku)}
                                 className="hover:bg-slate-500/5 cursor-pointer transition-colors"
                               >
@@ -947,7 +946,7 @@ export function PrintProductsDialog({
                                   </td>
                                 </tr>
                               )}
-                            </>
+                            </Fragment>
                           );
                         })
                       ) : (

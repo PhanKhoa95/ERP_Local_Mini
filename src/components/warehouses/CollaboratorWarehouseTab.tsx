@@ -116,6 +116,7 @@ export function CollaboratorWarehouseTab() {
   const { toast } = useToast();
   const { products = [] } = useProducts();
   const { warehouses = [] } = useWarehouses();
+  const defaultWarehouseId = warehouses[0]?.id || "wh-1";
 
   const [activeSubTab, setActiveSubTab] = useState("warehouse_config");
   const [ctvWarehouses, setCtvWarehouses] = useState<CTVWarehouse[]>([]);
@@ -164,8 +165,8 @@ export function CollaboratorWarehouseTab() {
       try {
         const parsed = JSON.parse(rawCTV);
         setCtvWarehouses(parsed);
-        if (parsed.length > 0 && !selectedCtvWarehouseId) {
-          setSelectedCtvWarehouseId(parsed[0].id);
+        if (parsed.length > 0) {
+          setSelectedCtvWarehouseId(current => current || parsed[0].id);
         }
       } catch (e) {
         setCtvWarehouses([]);
@@ -177,7 +178,7 @@ export function CollaboratorWarehouseTab() {
           ctv_code: "jR4Z5kXtiL",
           ctv_name: "Levera",
           ctv_shop_name: "Kho test",
-          linked_warehouse_id: warehouses[0]?.id || "wh-1",
+          linked_warehouse_id: defaultWarehouseId,
           phone: "0375839473",
           address_detail: "58 tố hữu, Phường Trung Văn",
           province: "Hà Nội",
@@ -194,7 +195,7 @@ export function CollaboratorWarehouseTab() {
           ctv_code: "kP3Y2mNvaQ",
           ctv_name: "Nguyễn Văn A",
           ctv_shop_name: "A-Affiliate Store",
-          linked_warehouse_id: warehouses[0]?.id || "wh-1",
+          linked_warehouse_id: defaultWarehouseId,
           phone: "0854137594",
           address_detail: "125 Đường Quảng Hàm",
           province: "Hà Nội",
@@ -360,7 +361,7 @@ export function CollaboratorWarehouseTab() {
       setCtvProductProposals(defaultProposals);
       localStorage.setItem("erp-mini-local-demo-ctv-product-proposals", JSON.stringify(defaultProposals));
     }
-  }, [warehouses]);
+  }, [defaultWarehouseId]);
 
   // ----------------------------------------------------------------------
   // UNIFIED BACKGROUND EVENT SCHEDULER (Chạy ngầm tối ưu hóa hiệu năng)
@@ -481,7 +482,7 @@ export function CollaboratorWarehouseTab() {
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [ctvWarehouses, syncItems]);
+  }, [ctvWarehouses, syncItems, toast]);
 
   const saveCTVWarehouses = (list: CTVWarehouse[]) => {
     setCtvWarehouses(list);
@@ -545,7 +546,7 @@ export function CollaboratorWarehouseTab() {
       ctv_code: "Chưa tạo",
       ctv_name: "Cộng tác viên mới",
       ctv_shop_name: "Kho CTV mới",
-      linked_warehouse_id: warehouses[0]?.id || "wh-1",
+      linked_warehouse_id: defaultWarehouseId,
       phone: "",
       address_detail: "",
       province: "Hà Nội",

@@ -75,7 +75,7 @@ export function DailyReportForm({ report }: DailyReportFormProps) {
       setAutoMetrics((prev: any) => ({ ...prev, sales: salesMetrics }));
     };
     loadMetrics();
-  }, [report.report_date]);
+  }, [calculateAutoMetrics, report.report_date]);
 
   useEffect(() => {
     if (opsMetrics) {

@@ -27,15 +27,15 @@ If port `8017` is already in use, use the URL printed by Vite.
 For local UI testing:
 
 ```txt
-username: admin
-password: admin
+username: admin_demo
+password: admin_demo
 ```
 
 This shortcut is only for local development. For real Supabase Auth, register with a real email, confirm the email, then sign in.
 
 ## Main Smoke Paths
 
-1. `/auth`: local login with `admin/admin`.
+1. `/auth`: local login with `admin_demo/admin_demo`.
 2. `/orders`: open order list and create a manual order if seed data exists.
 3. `/pos`: add product to cart and create a POS order.
 4. `/order`: create a public storefront order.
@@ -55,7 +55,7 @@ npx vitest run src/hooks/__tests__/customerStressScenarios.test.ts
 
 ## Local Inventory Demo
 
-When logged in with `admin/admin`, inventory writes are local-only:
+When logged in with `admin_demo/admin_demo`, inventory writes are local-only:
 
 - Products, categories, stock transactions and BOM are stored in browser `localStorage`.
 - Product images are compressed and stored as local data URLs, so Supabase Storage RLS does not block local testing.

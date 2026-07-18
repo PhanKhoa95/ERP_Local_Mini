@@ -165,6 +165,11 @@ export function SystemHealthTab() {
   );
   const auditIssueCount = auditReport ? auditReport.warningCount + auditReport.errorCount : 0;
 
+  const addLog = useCallback((msg: string) => {
+    const time = new Date().toLocaleTimeString("vi-VN");
+    setLogs((prev) => [...prev, `[${time}] ${msg}`].slice(-40)); // Keep last 40 logs
+  }, []);
+
   // Initialize Metric History
   useEffect(() => {
     const initHistory: MetricHistoryItem[] = [];
@@ -181,7 +186,7 @@ export function SystemHealthTab() {
     setHistory(initHistory);
     addLog("[Terminus] Khởi động hệ thống giám sát sức khỏe.");
     addLog("[Terminus] Endpoint /health đã được đăng ký và sẵn sàng.");
-  }, []);
+  }, [addLog]);
 
   // Load initial statuses from server on mount to sync across different devices/users
   useEffect(() => {
@@ -227,30 +232,6 @@ export function SystemHealthTab() {
     };
     fetchInitialStatuses();
   }, []);
-
-  // Update backend state whenever states change
-  useEffect(() => {
-    const updateBackendState = async () => {
-      try {
-        await fetch("/api/health-state", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            isInjecting,
-            cpuPercentage,
-            ramUsed,
-            dbStatus,
-            apiStatuses,
-            featureStatuses
-          })
-        });
-      } catch (e) {
-        // Ignore API failures in production builds where dev middleware is absent
-      }
-    };
-    updateBackendState();
-    generateTerminusJson();
-  }, [isInjecting, cpuPercentage, ramUsed, dbStatus, apiStatuses, featureStatuses, auditReport]);
 
   const isInjectingRef = useRef(isInjecting);
   const dbStatusRef = useRef(dbStatus);
@@ -309,11 +290,6 @@ export function SystemHealthTab() {
     return () => {
       clearInterval(interval);
     };
-  }, []);
-
-  const addLog = useCallback((msg: string) => {
-    const time = new Date().toLocaleTimeString("vi-VN");
-    setLogs((prev) => [...prev, `[${time}] ${msg}`].slice(-40)); // Keep last 40 logs
   }, []);
 
   const writeMockAuditLog = useCallback(async (action: string, details: string) => {
@@ -573,7 +549,7 @@ export function SystemHealthTab() {
     });
   };
 
-  const generateTerminusJson = () => {
+  const generateTerminusJson = useCallback(() => {
     const memoryStatus = localStorage.getItem("system-integrity-memory-status") || "up";
     const cpuStatus = localStorage.getItem("system-integrity-cpu-status") || "up";
 
@@ -703,7 +679,31 @@ export function SystemHealthTab() {
       details
     };
     setTerminusJson(JSON.stringify(healthData, null, 2));
-  };
+  }, [apiStatuses, featureStatuses, ramUsed, cpuPercentage, auditReport, auditIssueCount]);
+
+  // Update backend state whenever states change
+  useEffect(() => {
+    const updateBackendState = async () => {
+      try {
+        await fetch("/api/health-state", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            isInjecting,
+            cpuPercentage,
+            ramUsed,
+            dbStatus,
+            apiStatuses,
+            featureStatuses
+          })
+        });
+      } catch (e) {
+        // Ignore API failures in production builds where dev middleware is absent
+      }
+    };
+    updateBackendState();
+    generateTerminusJson();
+  }, [isInjecting, cpuPercentage, ramUsed, dbStatus, apiStatuses, featureStatuses, generateTerminusJson]);
 
   const handleCopyEndpoint = () => {
     navigator.clipboard.writeText(`${window.location.origin}/health`);

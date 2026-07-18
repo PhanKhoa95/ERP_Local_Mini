@@ -15,4 +15,26 @@ export default defineConfig({
     host: "::",
     allowedHosts: [".trycloudflare.com"],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const moduleId = id.replace(/\\/g, "/");
+          if (!moduleId.includes("/node_modules/")) return undefined;
+
+          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(moduleId)) {
+            return "react-vendor";
+          }
+          if (moduleId.includes("/node_modules/@supabase/")) {
+            return "supabase-vendor";
+          }
+          if (moduleId.includes("/node_modules/@tanstack/")) {
+            return "query-vendor";
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
 });

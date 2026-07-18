@@ -328,7 +328,7 @@ export function CreateOrderDialog({ open, onOpenChange, onSubmit, isLoading }: C
         }
       }
     }
-  }, [items, formData.partner_id, formData.tags, wholesaleSettings, allWholesalePrices, priceLists]);
+  }, [items, formData.partner_id, formData.tags, customers, wholesaleSettings, allWholesalePrices, priceLists, voucherDiscount, appliedVoucher, toast]);
 
   // Auto-select warehouse based on order items
   const warehouseAnalysis = useMemo(() => {

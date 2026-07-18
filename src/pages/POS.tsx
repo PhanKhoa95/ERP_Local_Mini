@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -380,7 +380,7 @@ const POS = () => {
   const discount = activeTab.discount;
   const shippingFee = activeTab.shippingFee;
   const notes = activeTab.notes;
-  const orderTags = activeTab.orderTags || [];
+  const orderTags = activeTab.orderTags;
   const selectedCustomer = activeTab.selectedCustomer;
   const customerSearch = activeTab.customerSearch;
   const selectedChannel = activeTab.selectedChannel;
@@ -399,29 +399,29 @@ const POS = () => {
   const total = subtotal - discount + shippingFee;
 
   // Tab State Setters
-  const updateActiveTab = (updates: Partial<POSTab>) => {
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t));
-  };
+  const updateActiveTab = useCallback((updates: Partial<POSTab> | ((tab: POSTab) => Partial<POSTab>)) => {
+    setTabs(prev => prev.map(tab => {
+      if (tab.id !== activeTabId) return tab;
+      const nextUpdates = typeof updates === "function" ? updates(tab) : updates;
+      return { ...tab, ...nextUpdates };
+    }));
+  }, [activeTabId]);
 
-  const setCart = (newCart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
-    if (typeof newCart === "function") {
-      updateActiveTab({ cart: newCart(activeTab.cart) });
-    } else {
-      updateActiveTab({ cart: newCart });
-    }
-  };
+  const setCart = useCallback((newCart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
+    updateActiveTab(tab => ({
+      cart: typeof newCart === "function" ? newCart(tab.cart) : newCart,
+    }));
+  }, [updateActiveTab]);
 
-  const setSelectedCustomer = (val: string) => updateActiveTab({ selectedCustomer: val });
-  const setCustomerSearch = (val: string) => updateActiveTab({ customerSearch: val });
-  const setSelectedChannel = (val: string) => updateActiveTab({ selectedChannel: val });
-  const setSelectedWarehouse = (val: string) => updateActiveTab({ selectedWarehouse: val });
-  const setOrderTags = (val: string[] | ((prev: string[]) => string[])) => {
-    if (typeof val === "function") {
-      updateActiveTab({ orderTags: val(activeTab.orderTags || []) });
-    } else {
-      updateActiveTab({ orderTags: val });
-    }
-  };
+  const setSelectedCustomer = useCallback((val: string) => updateActiveTab({ selectedCustomer: val }), [updateActiveTab]);
+  const setCustomerSearch = useCallback((val: string) => updateActiveTab({ customerSearch: val }), [updateActiveTab]);
+  const setSelectedChannel = useCallback((val: string) => updateActiveTab({ selectedChannel: val }), [updateActiveTab]);
+  const setSelectedWarehouse = useCallback((val: string) => updateActiveTab({ selectedWarehouse: val }), [updateActiveTab]);
+  const setOrderTags = useCallback((val: string[] | ((prev: string[]) => string[])) => {
+    updateActiveTab(tab => ({
+      orderTags: typeof val === "function" ? val(tab.orderTags || []) : val,
+    }));
+  }, [updateActiveTab]);
 
   // Wholesale pricing and variants database queries
   const { settings: wholesaleSettings } = useWholesaleSettings();
@@ -457,20 +457,18 @@ const POS = () => {
   const [variantSelectOpen, setVariantSelectOpen] = useState(false);
   const [productForVariantSelect, setProductForVariantSelect] = useState<any>(null);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<any | null>(null);
-  const setDiscount = (val: number | ((prev: number) => number)) => {
-    if (typeof val === "function") {
-      updateActiveTab({ discount: val(activeTab.discount) });
-    } else {
-      updateActiveTab({ discount: val });
-    }
-  };
-  const setShippingFee = (val: number) => updateActiveTab({ shippingFee: val });
-  const setNotes = (val: string) => updateActiveTab({ notes: val });
-  const setAppliedPromoName = (val: string | null) => updateActiveTab({ appliedPromoName: val });
-  const setAppliedVoucherId = (val: string | null) => updateActiveTab({ appliedVoucherId: val });
-  const setIsManualDiscount = (val: boolean) => updateActiveTab({ isManualDiscount: val });
-  const setCustomSelectedCardId = (val: string) => updateActiveTab({ customSelectedCardId: val });
-  const setTenderedAmount = (val: number) => updateActiveTab({ tenderedAmount: val });
+  const setDiscount = useCallback((val: number | ((prev: number) => number)) => {
+    updateActiveTab(tab => ({
+      discount: typeof val === "function" ? val(tab.discount) : val,
+    }));
+  }, [updateActiveTab]);
+  const setShippingFee = useCallback((val: number) => updateActiveTab({ shippingFee: val }), [updateActiveTab]);
+  const setNotes = useCallback((val: string) => updateActiveTab({ notes: val }), [updateActiveTab]);
+  const setAppliedPromoName = useCallback((val: string | null) => updateActiveTab({ appliedPromoName: val }), [updateActiveTab]);
+  const setAppliedVoucherId = useCallback((val: string | null) => updateActiveTab({ appliedVoucherId: val }), [updateActiveTab]);
+  const setIsManualDiscount = useCallback((val: boolean) => updateActiveTab({ isManualDiscount: val }), [updateActiveTab]);
+  const setCustomSelectedCardId = useCallback((val: string) => updateActiveTab({ customSelectedCardId: val }), [updateActiveTab]);
+  const setTenderedAmount = useCallback((val: number) => updateActiveTab({ tenderedAmount: val }), [updateActiveTab]);
 
   const addTab = () => {
     const nextNum = tabs.length > 0 
@@ -535,6 +533,8 @@ const POS = () => {
   };
 
   // Keyboard shortcuts event listener
+  const checkoutHandlerRef = useRef<(method?: "cash" | "bank" | "membership_wallet") => Promise<void>>(async () => {});
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "F3") {
@@ -554,13 +554,13 @@ const POS = () => {
       }
       if (e.key === "F1") {
         e.preventDefault();
-        handleCheckout("cash");
+        void checkoutHandlerRef.current("cash");
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cart, discount, shippingFee, notes, selectedCustomer, selectedWarehouse, selectedChannel, tabs, activeTabId]);
+  }, []);
 
   // Get default warehouse
   const defaultWarehouse = useMemo(() => {
@@ -600,7 +600,7 @@ const POS = () => {
     if (defaultWarehouse && !selectedWarehouse) {
       setSelectedWarehouse(defaultWarehouse.id);
     }
-  }, [defaultWarehouse, selectedWarehouse]);
+  }, [defaultWarehouse, selectedWarehouse, setSelectedWarehouse]);
 
   // Automatically switch POS warehouse to customer's default warehouse if configured
   useEffect(() => {
@@ -610,7 +610,7 @@ const POS = () => {
         setSelectedWarehouse(cust.warehouse_id);
       }
     }
-  }, [selectedCustomer, customers]);
+  }, [selectedCustomer, customers, setSelectedWarehouse]);
 
   const handleSimulateQRScan = () => {
     const vipCustomer = customers.find(c => c.promo_segment === "loyalty") || customers.find(c => c.promo_segment === "wholesale") || customers[0];
@@ -636,7 +636,7 @@ const POS = () => {
     if (defaultChannel && !selectedChannel) {
       setSelectedChannel(defaultChannel.id);
     }
-  }, [defaultChannel, selectedChannel]);
+  }, [defaultChannel, selectedChannel, setSelectedChannel]);
 
   // Filter customers for quick search
   const filteredCustomers = useMemo(() => {
@@ -703,7 +703,7 @@ const POS = () => {
     if (isChanged) {
       setCart(updatedCart);
     }
-  }, [cart, selectedCustomer, orderTags, wholesaleSettings, allWholesalePrices, priceLists]);
+  }, [cart, selectedCustomer, customers, orderTags, wholesaleSettings, allWholesalePrices, priceLists, setCart]);
 
   useEffect(() => {
     if (!wholesaleSettings) return;
@@ -718,7 +718,7 @@ const POS = () => {
         });
       }
     }
-  }, [cart, discount, appliedVoucherId, wholesaleSettings]);
+  }, [cart, discount, appliedVoucherId, wholesaleSettings, setDiscount, setAppliedVoucherId, toast]);
 
   // Broadcast state to Customer Display
   useEffect(() => {
@@ -899,7 +899,7 @@ const POS = () => {
 
   useEffect(() => {
     setCustomSelectedCardId("");
-  }, [selectedCustomer]);
+  }, [selectedCustomer, setCustomSelectedCardId]);
 
   const handleDiscountChange = (val: number) => {
     setIsManualDiscount(true);
@@ -912,7 +912,7 @@ const POS = () => {
       setAppliedPromoName(null);
       setAppliedVoucherId(null);
     }
-  }, [cart]);
+  }, [cart, setIsManualDiscount, setAppliedPromoName, setAppliedVoucherId]);
 
   // Dynamically compute the usage count of each voucher from orders list to ensure perfect sync
   const computedUsedCount = useMemo(() => {
@@ -1002,7 +1002,7 @@ const POS = () => {
     setDiscount(bestDiscount);
     setAppliedPromoName(bestPromoName);
     setAppliedVoucherId(bestPromoId);
-  }, [subtotal, cart, vouchers, isManualDiscount, selectedCustomer, customers, computedUsedCount]);
+  }, [subtotal, cart, vouchers, isManualDiscount, selectedCustomer, customers, computedUsedCount, setDiscount, setAppliedPromoName, setAppliedVoucherId]);
 
   // Submit order
   const handleCheckout = async (method: "cash" | "bank" | "membership_wallet" = "cash") => {
@@ -1211,6 +1211,8 @@ const POS = () => {
       setIsProcessing(false);
     }
   };
+
+  checkoutHandlerRef.current = handleCheckout;
 
   const renderPaymentPanel = () => {
     const customer = selectedCustomer && selectedCustomer !== "walk-in"

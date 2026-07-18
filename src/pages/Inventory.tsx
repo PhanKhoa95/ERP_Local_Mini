@@ -199,7 +199,7 @@ const Inventory = () => {
       
       return matchesSearch && matchesCategory && matchesStock;
     });
-  }, [products, searchQuery, selectedCategory, stockFilter, searchParams]);
+  }, [products, productsWithBom, searchQuery, selectedCategory, stockFilter, searchParams]);
 
   const normalCount = physicalProducts.filter((p) => getStockStatus(p.stock_quantity || 0, p.min_stock || 0) === "normal").length;
   const lowCount = physicalProducts.filter((p) => getStockStatus(p.stock_quantity || 0, p.min_stock || 0) === "low").length;

@@ -1,40 +1,40 @@
 project_id = "raomfcglvrhtfvkuyyou"
 
 [functions.process-document]
-verify_jwt = false
+verify_jwt = true
 
 [functions.semantic-search]
-verify_jwt = false
+verify_jwt = true
 
 [functions.chat-with-docs]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-embedding]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.calculate-kpi-score]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-skill-gap-analysis]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-anonymize-feedback]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-risk-detection]
-verify_jwt = false
+verify_jwt = true
 
 [functions.parse-work-report-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.parse-voice-report]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-strategic-report]
-verify_jwt = false
+verify_jwt = true
 
 [functions.shipping-carrier-proxy]
 verify_jwt = false
@@ -55,7 +55,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.check-document-expiry]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-screen-cv]
 verify_jwt = false
@@ -82,13 +82,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.manage-contracts]
-verify_jwt = false
+verify_jwt = true
 
 [functions.manage-bookings]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-task-dispatcher]
-verify_jwt = false
+verify_jwt = true
 
 [functions.auto-posting]
 verify_jwt = false
